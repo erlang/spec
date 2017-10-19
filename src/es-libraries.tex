@@ -1,0 +1,588 @@
+%
+% %CopyrightBegin%
+%
+% Copyright Ericsson AB 2017. All Rights Reserved.
+%
+% Licensed under the Apache License, Version 2.0 (the "License");
+% you may not use this file except in compliance with the License.
+% You may obtain a copy of the License at
+%
+%     http://www.apache.org/licenses/LICENSE-2.0
+%
+% Unless required by applicable law or agreed to in writing, software
+% distributed under the License is distributed on an "AS IS" BASIS,
+% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+% See the License for the specific language governing permissions and
+% limitations under the License.
+%
+% %CopyrightEnd%
+%
+
+\chapter{Libraries}
+
+\label{chapter:libraries}
+
+There are some standard libraries that belong to \OldErlang.  Each library is one \Erlang\ module:
+
+\begin{table}
+\centering
+\begin{tabular}{@{}ll@{}}
+\hline
+Module name & Contents \\ \hline
+\T{file} & File handling \\
+\T{io} & Simple input and output \\
+\T{lists} & List functions \\
+\T{math} & Logarithmic and arithmetic functions \\
+\T{string} & String functions \\ \hline
+\end{tabular}
+\caption{Standard libraries of \OldErlang}
+\label{table:standard-libraries}
+\end{table}
+
+Further standard libraries are provided with \OTP\ \cite{otp-dev-ref}.
+
+\section{The \T{file} library}
+
+TO BE WRITTEN!
+
+\section{The \T{io} library}
+
+TO BE WRITTEN!
+
+\section{The \T{lists} library}
+
+TO BE WRITTEN!
+
+\section{The \T{math} library}
+
+The library contains trigonometric and logarithmic functions.
+All trigonometric functions work with angles in radians.
+The functions correspond to the functions in the \T{math} facilities of ISO C
+\cite{harbison+steele:c,iso-c}.
+
+In the description of a function, $\TZ{v}_i$ refers to the value of the $i$th argument.
+
+
+\subsection{\T{acos/1}}
+
+\label{section:math:acos1}
+\index{math:acos/1 function@\T{math:acos/1} function|(}
+\index{acos/1 function of math library@\T{acos/1} function of \T{math} library|(}
+
+Computes the \I{arccosine} function.
+
+\TYPE
+
+\T{acos(num()) -> float()}.
+
+\EXITS
+
+\T{acos/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a number.
+\T{acos/1} exits with cause \T{badarith} if $\TZ{v}_1$ is not in the range $[-1,1]$.
+
+\EVALUATION
+
+The function returns $\mathit{result}_F(\arccos(\TZ{v}_1),\mathit{rnd}_F)$.
+The result is always in the range $[0,\pi]$.
+\index{math:acos/1 function@\T{math:acos/1} function|)}
+\index{acos/1 function of math library@\T{acos/1} function of \T{math} library|)}
+
+
+\iffalse
+\subsection{\T{acosh/1}}
+
+\label{section:math:acosh1}
+\index{math:acosh/1 function@\T{math:acosh/1} function|(}
+\index{acosh/1 function of math library@\T{acosh/1} function of \T{math} library|(}
+
+Computes the \I{hyperbolic arccosine} function.
+
+\TYPE
+
+\T{acosh(num()) -> float()}.
+
+\EXITS
+
+\T{acosh/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a number.
+% Other restrictions???
+
+\EVALUATION
+
+The function returns $\mathit{result}_F(\arccosh(\TZ{v}_1),\mathit{rnd}_F)$.
+\index{math:acosh/1 function@\T{math:acosh/1} function|)}
+\index{acosh/1 function of math library@\T{acosh/1} function of \T{math} library|)}
+\fi
+
+
+\subsection{\T{asin/1}}
+
+\label{section:math:asin1}
+\index{math:asin/1 function@\T{math:asin/1} function|(}
+\index{asin/1 function of math library@\T{asin/1} function of \T{math} library|(}
+
+Computes the \I{arcsine} function.
+
+\TYPE
+
+\T{asin(num()) -> float()}.
+
+\EXITS
+
+\T{asin/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a number.
+\T{asin/1} exits with cause \T{badarith} if $\TZ{v}_1$ is not in the range $[-1,1]$.
+
+\EVALUATION
+
+The function returns $\mathit{result}_F(\arcsin(\TZ{v}_1),\mathit{rnd}_F)$.
+The result is always in the range $[-\frac{\pi}{2},\frac{\pi}{2}]$.
+\index{math:asin/1 function@\T{math:asin/1} function|)}
+\index{asin/1 function of math library@\T{asin/1} function of \T{math} library|)}
+
+
+\iffalse
+\subsection{\T{asinh/1}}
+
+\label{section:math:asinh1}
+\index{math:asinh/1 function@\T{math:asinh/1} function|(}
+\index{asinh/1 function of math library@\T{asinh/1} function of \T{math} library|(}
+
+Computes the \I{hyperbolic arcsine} function.
+
+\TYPE
+
+\T{asinh(num()) -> float()}.
+
+\EXITS
+
+\T{asinh/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a number.
+% Other restrictions???
+
+\EVALUATION
+
+The function returns $\mathit{result}_F(\arcsinh(\TZ{v}_1),\mathit{rnd}_F)$.
+\index{math:asinh/1 function@\T{math:asinh/1} function|)}
+\index{asinh/1 function of math library@\T{asinh/1} function of \T{math} library|)}
+\fi
+
+
+\subsection{\T{atan/1}}
+
+\label{section:math:atan1}
+\index{math:atan/1 function@\T{math:atan/1} function|(}
+\index{atan/1 function of math library@\T{atan/1} function of \T{math} library|(}
+
+Computes the \I{arctangent} function.
+
+\TYPE
+
+\T{atan(num()) -> float()}.
+
+\EXITS
+
+\T{atan/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a number.
+
+\EVALUATION
+
+The function returns $\mathit{result}_F(\arctan(\TZ{v}_1),\mathit{rnd}_F)$.
+The result is always in the range $[-\frac{\pi}{2},\frac{\pi}{2}]$.
+\index{math:atan/1 function@\T{math:atan/1} function|)}
+\index{atan/1 function of math library@\T{atan/1} function of \T{math} library|)}
+
+
+\subsection{\T{atan2/2}}
+
+\label{section:math:atan22}
+\index{math:atan2/2 function@\T{math:atan2/2} function|(}
+\index{atan2/2 function of math library@\T{atan2/2} function of \T{math} library|(}
+
+Computes the \I{arctangent} function of a quotient, taking the signs of the arguments
+into account for determining the quadrant.
+
+\TYPE
+
+\T{atan2(num(), num()) -> float()}.
+
+\EXITS
+
+\T{atan2/2} exits with cause \T{badarg} if $\TZ{v}_1$ or $\TZ{v}_2$ is not a number.
+\T{atan2/2} may exit with cause \T{badarith} if $\TZ{v}_1$ and $\TZ{v}_2$ are both zero.
+
+\EVALUATION
+
+The function returns $\mathit{result}_F(\arctan(\frac{\TZ{v}_1}{\TZ{v}_2}),\mathit{rnd}_F)$.
+The result is always in the range $[-\frac{\pi}{2},\frac{\pi}{2}]$.
+\begin{itemize}
+\item If $\TZ{v}_2$ is zero, then the result is $\pi/2$ if $\TZ{v}_1$ is positive and $-\pi/2$ if
+$\TZ{v}_1$ is negative.
+\item If $\TZ{v}_1$ and $\TZ{v}_2$ are both positive,
+\T{atan2($\Z{v}_1$,$\Z{v}_2$)} equals \T{atan($\Z{v}_1$/$\Z{v}_2$)}.
+\item If $\TZ{v}_1$ is negative and $\TZ{v}_2$ is positive,
+\T{atan2($\Z{v}_1$,$\Z{v}_2$)} equals \T{-atan((-$\Z{v}_1$)/$\Z{v}_2$)}.
+\item If $\TZ{v}_1$ is positive and $\TZ{v}_2$ is negative,
+\T{atan2($\Z{v}_1$,$\Z{v}_2$)} equals \T{math:pi()-atan($\Z{v}_1$/(-$\Z{v}_2$))}.
+\item If $\TZ{v}_1$ and $\TZ{v}_2$ are both negative,
+\T{atan2($\Z{v}_1$,$\Z{v}_2$)} equals \T{atan($\Z{v}_1$/$\Z{v}_2$)-math:pi()}.
+\end{itemize}
+\index{math:atan2/2 function@\T{math:atan2/2} function|)}
+\index{atan2/2 function of math library@\T{atan2/2} function of \T{math} library|)}
+
+
+\iffalse
+\subsection{\T{atanh/1}}
+
+\label{section:math:atanh1}
+\index{math:atanh/1 function@\T{math:atanh/1} function|(}
+\index{atanh/1 function of math library@\T{atanh/1} function of \T{math} library|(}
+
+Computes the \I{hyperbolic arctangent} function.
+
+\TYPE
+
+\T{atanh(num()) -> float()}.
+
+\EXITS
+
+\T{atanh/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a number.
+% Other restrictions???
+
+\EVALUATION
+
+The function returns $\mathit{result}_F(\arctanh(\TZ{v}_1),\mathit{rnd}_F)$.
+\index{math:atanh/1 function@\T{math:atanh/1} function|)}
+\index{atanh/1 function of math library@\T{atanh/1} function of \T{math} library|)}
+\fi
+
+
+\subsection{\T{cos/1}}
+
+\label{section:math:cos1}
+\index{math:cos/1 function@\T{math:cos/1} function|(}
+\index{cos/1 function of math library@\T{cos/1} function of \T{math} library|(}
+
+Computes the \I{cosine} function.
+
+\TYPE
+
+\T{cos(num()) -> float()}.
+
+\EXITS
+
+\T{cos/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a number.
+
+\EVALUATION
+
+The function returns $\mathit{result}_F(\cos(\TZ{v}_1),\mathit{rnd}_F)$.
+\index{math:cos/1 function@\T{math:cos/1} function|)}
+\index{cos/1 function of math library@\T{cos/1} function of \T{math} library|)}
+
+
+\subsection{\T{cosh/1}}
+
+\label{section:math:cosh1}
+\index{math:cosh/1 function@\T{math:cosh/1} function|(}
+\index{cosh/1 function of math library@\T{cosh/1} function of \T{math} library|(}
+
+Computes the \I{hyperbolic cosine} function.
+
+\TYPE
+
+\T{cosh(num()) -> float()}.
+
+\EXITS
+
+\T{cosh/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a number.
+
+\EVALUATION
+
+The function returns $\mathit{result}_F(\cosh(\TZ{v}_1),\mathit{rnd}_F)$.
+\index{math:cosh/1 function@\T{math:cosh/1} function|)}
+\index{cosh/1 function of math library@\T{cosh/1} function of \T{math} library|)}
+
+\iffalse
+\subsection{\T{erf/1}}
+
+\label{section:math:erf1}
+\index{math:erf/1 function@\T{math:erf/1} function|(}
+\index{erf/1 function of math library@\T{erf/1} function of \T{math} library|(}
+
+Computes the ``error function''.
+
+\TYPE
+
+\T{erf(num()) -> float()}.
+
+\EXITS
+
+\T{erf/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a number.
+
+\EVALUATION
+
+The function returns $\mathit{result}_F(\mathop{\rm erf}\nolimits(\TZ{v}_1),\mathit{rnd}_F)$,
+where \R{erf} is the ``error function''.
+\index{math:erf/1 function@\T{math:erf/1} function|)}
+\index{erf/1 function of math library@\T{erf/1} function of \T{math} library|)}
+
+
+\subsection{\T{erfc/1}}
+
+\label{section:math:erfc1}
+\index{math:erfc/1 function@\T{math:erfc/1} function|(}
+\index{erfc/1 function of math library@\T{erfc/1} function of \T{math} library|(}
+
+Computes the ``error function correction''. % ???
+
+\TYPE
+
+\T{erfc(num()) -> float()}.
+
+\EXITS
+
+\T{erfc/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a number.
+
+\EVALUATION
+
+The function returns $\mathit{result}_F(\mathop{\rm erfc}\nolimits(\TZ{v}_1),\mathit{rnd}_F)$,
+where \R{erfc} is the ``error function correction''.
+\index{math:erfc/1 function@\T{math:erfc/1} function|)}
+\index{erfc/1 function of math library@\T{erfc/1} function of \T{math} library|)}
+\fi
+
+
+\subsection{\T{exp/1}}
+
+\label{section:math:exp1}
+\index{math:exp/1 function@\T{math:exp/1} function|(}
+\index{exp/1 function of math library@\T{exp/1} function of \T{math} library|(}
+
+Computes exponentiation with base $e$.
+
+\TYPE
+
+\T{exp(num()) -> float()}.
+
+\EXITS
+
+\T{exp/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a number.
+
+\EVALUATION
+
+The function returns $\mathit{result}_F(e^{\TZ{v}_1},\mathit{rnd}_F)$.
+\index{math:exp/1 function@\T{math:exp/1} function|)}
+\index{exp/1 function of math library@\T{exp/1} function of \T{math} library|)}
+
+
+\subsection{\T{log/1}}
+
+\label{section:math:log1}
+\index{math:log/1 function@\T{math:log/1} function|(}
+\index{log/1 function of math library@\T{log/1} function of \T{math} library|(}
+
+Computes logarithm with base $e$.
+
+\TYPE
+
+\T{log(num()) -> float()}.
+
+\EXITS
+
+\T{log/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a number.
+\T{log/1} exits with cause \T{badarith} if $\TZ{v}_1\leq0$.
+
+\EVALUATION
+
+The function returns $\mathit{result}_F(\log_e(\TZ{v}_1),\mathit{rnd}_F)$.
+\index{math:log/1 function@\T{math:log/1} function|)}
+\index{log/1 function of math library@\T{log/1} function of \T{math} library|)}
+
+
+\subsection{\T{log10/1}}
+
+\label{section:math:log101}
+\index{math:log10/1 function@\T{math:log10/1} function|(}
+\index{log10/1 function of math library@\T{log10/1} function of \T{math} library|(}
+
+Computes logarithm with base $10$.
+
+\TYPE
+
+\T{log10(num()) -> float()}.
+
+\EXITS
+
+\T{log10/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a number.
+\T{log10/1} exits with cause \T{badarith} if $\TZ{v}_1\leq0$.
+
+\EVALUATION
+
+The function returns $\mathit{result}_F(\log_{10}(\TZ{v}_1),\mathit{rnd}_F)$.
+\index{math:log10/1 function@\T{math:log10/1} function|)}
+\index{log10/1 function of math library@\T{log10/1} function of \T{math} library|)}
+
+
+\subsection{\T{pi/0}}
+
+\label{section:math:pi0}
+\index{math:pi/0 function@\T{math:pi/0} function|(}
+\index{pi/0 function of math library@\T{pi/0} function of \T{math} library|(}
+
+Returns an approximation of $\pi$.
+
+\TYPE
+
+\T{pi() -> float()}.
+
+\EXITS
+
+\T{pi/0} always completes normally.
+
+\EVALUATION
+
+$\mathit{result}_F(\pi,\mathit{rnd}_F)$ is returned.
+\index{math:pi/0 function@\T{math:pi/0} function|)}
+\index{pi/0 function of math library@\T{pi/0} function of \T{math} library|)}
+
+
+\subsection{\T{pow/2}}
+
+\label{section:math:pow2}
+\index{math:pow/2 function@\T{math:pow/2} function|(}
+\index{pow/2 function of math library@\T{pow/2} function of \T{math} library|(}
+
+Computes exponentiation.
+
+\TYPE
+
+\T{pow(num(),num()) -> float()}.
+
+\EXITS
+
+\T{pow/2} exits with cause \T{badarg} if $\TZ{v}_1$ or $\TZ{v}_2$ is not a number.
+\T{pow/2} exits with cause \T{badarith} if $\TZ{v}_1<0$ and $\TZ{v}_2$ is a float for which
+the fraction part is not zero.
+
+\EVALUATION
+
+The function returns $\TZ{v}_1^{\TZ{v}_2},\mathit{rnd}_F)$.
+\index{math:pow/1 function@\T{math:pow/1} function|)}
+\index{pow/1 function of math library@\T{pow/1} function of \T{math} library|)}
+
+
+\subsection{\T{sin/1}}
+
+\label{section:math:sin1}
+\index{math:sin/1 function@\T{math:sin/1} function|(}
+\index{sin/1 function of math library@\T{sin/1} function of \T{math} library|(}
+
+Computes the \I{sine} function.
+
+\TYPE
+
+\T{sin(num()) -> float()}.
+
+\EXITS
+
+\T{sin/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a number.
+
+\EVALUATION
+
+The function returns $\mathit{result}_F(\sin(\TZ{v}_1),\mathit{rnd}_F)$.
+\index{math:sin/1 function@\T{math:sin/1} function|)}
+\index{sin/1 function of math library@\T{sin/1} function of \T{math} library|)}
+
+
+\subsection{\T{sinh/1}}
+
+\label{section:math:sinh1}
+\index{math:sinh/1 function@\T{math:sinh/1} function|(}
+\index{sinh/1 function of math library@\T{sinh/1} function of \T{math} library|(}
+
+Computes the \I{hyperbolic sine} function.
+
+\TYPE
+
+\T{sinh(num()) -> float()}.
+
+\EXITS
+
+\T{sinh/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a number.
+
+\EVALUATION
+
+The function returns $\mathit{result}_F(\sinh(\TZ{v}_1),\mathit{rnd}_F)$.
+\index{math:sinh/1 function@\T{math:sinh/1} function|)}
+\index{sinh/1 function of math library@\T{sinh/1} function of \T{math} library|)}
+
+
+\subsection{\T{sqrt/1}}
+
+\label{section:math:sqrt1}
+\index{math:sqrt/1 function@\T{math:sqrt/1} function|(}
+\index{sqrt/1 function of math library@\T{sqrt/1} function of \T{math} library|(}
+
+Computes square roots.
+
+\TYPE
+
+\T{sqrt(num()) -> float()}.
+
+\EXITS
+
+\T{sqrt/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a number.
+\T{sqrt/1} exits with cause \T{badarith} if $\TZ{v}_1<0$.
+
+\EVALUATION
+
+The function returns $\sqrt{\TZ{v}_1},\mathit{rnd}_F)$.
+\index{math:sqrt/1 function@\T{math:sqrt/1} function|)}
+\index{sqrt/1 function of math library@\T{sqrt/1} function of \T{math} library|)}
+
+
+\subsection{\T{tan/1}}
+
+\label{section:math:tan1}
+\index{math:tan/1 function@\T{math:tan/1} function|(}
+\index{tan/1 function of math library@\T{tan/1} function of \T{math} library|(}
+
+Computes the \I{tangent} function.
+
+\TYPE
+
+\T{tan(num()) -> float()}.
+
+\EXITS
+
+\T{tan/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a number and may exit
+with \T{badarith} if $cos(\TZ{v}_1)$ is zero.
+
+\EVALUATION
+
+The function returns $\mathit{result}_F(\tan(\TZ{v}_1),\mathit{rnd}_F)$.
+\index{math:tan/1 function@\T{math:tan/1} function|)}
+\index{tan/1 function of math library@\T{tan/1} function of \T{math} library|)}
+
+
+\subsection{\T{tanh/1}}
+
+\label{section:math:tanh1}
+\index{math:tanh/1 function@\T{math:tanh/1} function|(}
+\index{tanh/1 function of math library@\T{tanh/1} function of \T{math} library|(}
+
+Computes the \I{hyperbolic tangent} function.
+
+\TYPE
+
+\T{tanh(num()) -> float()}.
+
+\EXITS
+
+\T{tanh/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a number.
+
+\EVALUATION
+
+The function returns $\mathit{result}_F(\tanh(\TZ{v}_1),\mathit{rnd}_F)$.
+\index{math:tanh/1 function@\T{math:tanh/1} function|)}
+\index{tanh/1 function of math library@\T{tanh/1} function of \T{math} library|)}
+
+\section{The \T{string} library}
+
+TO BE WRITTEN!

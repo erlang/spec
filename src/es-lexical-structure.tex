@@ -1,0 +1,865 @@
+%
+% %CopyrightBegin%
+%
+% Copyright Ericsson AB 2017. All Rights Reserved.
+%
+% Licensed under the Apache License, Version 2.0 (the "License");
+% you may not use this file except in compliance with the License.
+% You may obtain a copy of the License at
+%
+%     http://www.apache.org/licenses/LICENSE-2.0
+%
+% Unless required by applicable law or agreed to in writing, software
+% distributed under the License is distributed on an "AS IS" BASIS,
+% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+% See the License for the specific language governing permissions and
+% limitations under the License.
+%
+% %CopyrightEnd%
+%
+
+\chapter{Lexical structure}
+
+\label{chapter:lexical}
+
+This chapter describes the lexical structure of \Erlang\ programs and
+how a sequence of \ifStd Unicode \else ASCII \fi characters is
+translated to a sequence of tokens and full stops.
+
+\ifStd
+\section{Unicode}
+
+\label{section:unicode}
+\index{Unicode|(}
+
+\StdErlang\ programs are written using the 16-bit \emph{Unicode} character set,
+version 2.0, which contains the 7-bit ASCII character set as its first
+128 characters and the 8-bit Latin-1 character set as its first 256
+characters.
+
+All \Erlang\ keywords, separators and operators use only the ASCII
+subset.  It is therefore possible to write entire \Erlang\ programs
+using only that subset, provided that identifiers, (string and
+character) literals and comments use only ASCII characters.
+\index{Unicode|)}
+
+\index{escape!Unicode|(}
+There is also an escape mechanism which allows non-ASCII characters to be
+written using only ASCII characters.  This allows editing of \Erlang\
+programs also using editors that support only ASCII or Latin-1.
+Software tools for \Erlang\ (e.g., interactive debuggers)
+should also use this escape mechanism when displaying
+\Erlang\ programs on devices that do not support Unicode.
+\index{escape!Unicode|)}
+\fi
+
+\section{Lexical translation}
+
+\label{section:lexical-translation}
+\index{translation!lexical|(}
+
+A sequence of \ifStd Unicode \else ASCII \fi characters is translated
+into a sequence of \Erlang\ tokens by applying the following four
+steps, in order:
+
+\begin{enumerate}
+\ifStd
+\item Each Unicode escape in the sequence of characters
+is replaced by the corresponding Unicode character (\S\ref{section:unicode-escapes}).
+\fi
+\item \label{item:unicode-line-sep} The sequence of
+\ifStd Unicode characters from step~1 \else characters \fi
+is translated to a sequence
+of input characters and line terminators (\S\ref{section:line-terminators}).
+If the sequence does not end with a line terminator, one is added at the end.
+\item The sequence of input characters and line terminators is translated
+to a sequence of \Erlang\ input elements (\S\ref{section:input-elements}).
+\item The sequence of \Erlang\ input elements is translated to a sequence of tokens
+and full stops by discarding white space (\S\ref{section:white-space}) and comments
+(\S\ref{section:comments}) and detecting full
+stops (\S\ref{section:full-stop}). The resulting
+sequence of tokens and full stops is the result of the lexical processing.
+\end{enumerate}
+\index{translation!lexical|)}
+
+\ifStd
+\section{Unicode escapes}
+
+\label{section:unicode-escapes}
+\index{escape!Unicode|(}
+
+(The processing of Unicode escapes is intentionally made identical with that in Java\index{Java}
+\cite[pp.~12--13]{javaspec}.)
+
+\begin{rules}
+\ifStd
+\grrule{UnicodeInputCharacter}
+       {\NT{UnicodeEscape} \OR
+        \NT{RawInputCharacter}}
+
+\grrule{UnicodeEscape}
+       {\TXT{\char`\\} \NT{UnicodeMarker} \NT{HexDigit} \NT{HexDigit} \NT{HexDigit} \NT{HexDigit}}
+
+\grrule{UnicodeMarker}
+       {\TXT{u} \OR
+        \NT{UnicodeMarker} \TXT{u}}
+
+\grrule{RawInputCharacter}
+       {any Unicode character}
+
+\grrule{HexDigit}
+       {\NT{Digit}[16]}
+\fi
+\end{rules}
+\NT{Digit}[16] is as in \S\ref{section:integer-literals}.
+
+In addition to what is specified by the grammar above, a backslash\index{\ character@\T{\char`\\} character}
+(\TXT{\char`\\}) character begins a Unicode escape only if
+\begin{itemize}
+\item there is an even number of backslash characters separating it
+from preceding non-backslash characters or the beginning of the input
+stream, and
+\item it is followed by \TXT{u}.
+\end{itemize}
+Unless both these conditions are met, the backslash should be treated
+as a \NT{RawInputCharacter}.
+
+If an eligible backslash is followed by one or more \TXT{u} and the
+last \TXT{u} is not followed by four hexadecimal digits, then a
+compile-time error should occur.
+
+An eligible sequence consisting of backslash, one or more \TXT{u}, and
+four hexadecimal digits with values $d_3$, $d_2$, $d_1$ and $d_0$ is
+replaced in the input stream by a Unicode character with character
+code $4096d_3+256d_2+16d_1+d_0$.  The resulting character is never
+part of further Unicode escape processing.
+
+Note that there exists an invertible transformation from a sequence of
+\NT{UnicodeInputCharacter} to a sequence of \NT{UnicodeInputCharacter}
+that only contains ASCII (or Latin-1) characters:
+\begin{itemize}
+\item Replace any \NT{UnicodeEscape} with a \NT{UnicodeEscape} having
+one more \TXT{u}.
+\item Replace any non-ASCII (or non-Latin-1) \NT{RawInputCharacter}
+with a corresponding \NT{UnicodeEscape}.
+\item Leave any ASCII (or Latin-1) \NT{RawInputCharacter} as is.
+\end{itemize}
+The resulting stream of characters consists only of ASCII (or Latin-1)
+characters and can thus be processed by tools that handle only any
+ASCII (or Latin-1) characters, e.g., many standard UNIX utilities.
+The inverse transformation is obvious.
+
+An \Erlang\ system should use Unicode escapes to display Unicode
+characters that cannot be displayed in a current font.
+\index{escape!Unicode|)}
+\fi
+
+\section{Character classes}
+\index{section:character-classes}
+
+\begin{rules}
+\grrule{ErlangUppercase}
+       {the capital \ifStd ISO 8859-1 \else ASCII \fi letters
+\T{A}--\T{Z} (\T{\char`\\\ifStd u0041\else 101\fi} to \T{\char`\\\ifStd u005a\else 132\fi})\ifStd,
+\T{À}--\T{Ö} (\T{\char`\\u00c0} to \T{\char`\\u00d6}) and % 192 - 214
+\T{\char'037}--\T{[THORN]} % Should be `Þ'
+(\T{\char`\\u00d8} to \T{\char`\\u00de})\fi}
+
+\grrule{ErlangLowercase}
+       {the small
+\ifStd ISO 8859-1 \fi\ifOld ASCII \fi letters
+\T{a}--\T{z} (\T{\char`\\\ifStd u0061\fi\ifOld 141\fi} to \T{\char`\\\ifStd u007a\fi\ifOld 172\fi})\ifStd,
+\T{\char'031}--\T{ö} (\T{\char`\\u00df} to \T{\char`\\u00f6}) and % 246
+\T{\char'034}--\T{ÿ} (\T{\char`\\u00f8} to \T{\char`\\u00ff}) \fi} % 255
+
+\grrule{ErlangLetter}
+       {\NT{ErlangLowercase} \OR \NT{ErlangUppercase}}
+
+\grrule{ErlangDigit}
+       {the
+ASCII decimal digits \T{0}--\T{9} (\T{\char`\\\ifStd u0030\fi\ifOld 060\fi} to
+\T{\char`\\\ifStd u0039\fi\ifOld 071\fi})}
+\end{rules}
+
+\section{Line terminators}
+
+\label{section:line-terminators}
+\index{line terminator|(}
+
+Line terminators need to be recognized uniformly across platforms
+so \Erlang\ compilers and tools can report line numbers and determine
+the end of comments coherently.
+\begin{rules}
+\ifStd
+\grrule{LineTerminator}
+       {the ASCII LF character (``linefeed''\index{Linefeed character} or ``newline''\index{Newline character})
+\OR
+        the ASCII CR character (``return''\index{Return character}) \OR
+	the ASCII CR character followed by the ASCII LF character}
+\else
+\grrule{LineTerminator}
+       {the LF character (``linefeed''\index{Linefeed character} or ``newline''\index{Newline character})}
+\fi
+
+\ifStd
+\grrule{InputCharacter}
+       {\NT{UnicodeInputCharacter} but not ASCII CR or LF}
+\else
+\grrule{InputCharacter}
+       {\NT{AsciiInputCharacter} but not LF}
+\fi
+\end{rules}
+\ifStd
+A CR character followed by a LF character is thus considered one
+line terminator, not two.
+\fi
+\index{line terminator|)}
+
+\section{Input elements}
+
+\label{section:input-elements}
+\index{input element|(}
+
+The sequence of input characters and line terminators is translated to
+a sequence of input elements, i.e., white space
+(\S\ref{section:white-space}), comments (\S\ref{section:comments}) and
+tokens.
+
+\index{grammar!token|(}
+There are six kinds of tokens:
+separators (\S\ref{section:separators}),
+keywords (\S\ref{section:keywords}),
+operators (\S\ref{section:operators}),
+integer literals (\S\ref{section:integer-literals}),
+float literals (\S\ref{section:float-literals}),
+character literals (\S\ref{section:char-literals}),
+string literals (\S\ref{section:string-literals}),
+atom literals (\S\ref{section:atom-literals}),
+variables (\S\ref{section:variables}),
+universal patterns (\S\ref{section:universal-pattern}).
+\index{grammar!token|)}
+
+\iffalse
+Note that the input characters and line terminators may optionally be
+followed by a control-Z character (as provided by some operating
+systems).
+\fi
+
+Note \iffalse also\fi that white space and comments always will
+separate tokens.
+
+\begin{rules}
+\grrule{Input}
+       {\OPT{InputElements}\iffalse \OPT{Sub}\fi}
+
+\grrule{InputElements}
+       {\NT{InputElement} \OR
+        \NT{InputElements} \NT{InputElement}}
+
+\grrule{InputElement}
+       {\NT{WhiteSpace} \OR
+        \NT{Comment} \OR
+        \NT{Token}}
+
+\grrule{Token}
+       {\NT{Separator} \OR
+        \NT{Keyword} \OR
+        \NT{Operator} \OR
+        \NT{IntegerLiteral} \OR
+        \NT{FloatLiteral} \OR
+        \NT{CharLiteral} \OR
+        \NT{StringLiteral} \OR
+        \NT{AtomLiteral}
+        \NT{Variable} \OR
+        \NT{UniversalPattern}}
+\iffalse
+\grrule{Sub}
+       {the ASCII SUB character, also known as ``control-Z''}
+\fi
+\end{rules}
+\index{input element|)}
+
+\section{White space}
+
+\label{section:white-space}
+\index{white space|(}
+
+White space is defined as the characters with ASCII codes less than or equal to that
+of ASCII space, i.e., the control characters and space.  The line terminators
+are composed of control characters but have been identified in a preceding step
+and are therefore included explicitly below.
+
+\begin{rules}
+\grrule{WhiteSpace}
+       {\NT{LineTerminator} \OR
+        \NT{ControlCharacter} \OR
+        the ASCII SP character, also known as ``space''\index{space character}}
+
+\grrule{ControlCharacter}
+       {any ASCII control character\index{control character} (\T{\char`\\\ifStd u0000\else 000\fi} to \T{\char`\\\ifStd u001f\else 037\fi})}
+\end{rules}
+\index{white space|)}
+
+\section{Comments}
+
+\label{section:comments}
+\index{comment|(}
+
+A comment begins with an ASCII \T{\%} character\index{% character@\T{\%} character} and extends up to and including
+the next line terminator.
+
+\begin{rules}
+\grrule{Comment}
+       {\TXT{\%} \OPT{InputCharacters} \NT{LineTerminator}}
+
+\grrule{InputCharacters}
+       {\NT{InputCharacter} \OR
+        \NT{InputCharacters} \NT{InputCharacter}}
+\end{rules}
+Examples of comments:
+\begin{verbatim}
+        %A space after the percent is not obligatory but...
+% The comment can begin a line.
+     %% There can be additional %s in the comment.
+\end{verbatim}
+\index{comment|)}
+
+\section{Separators}
+
+\label{section:separators}
+\index{separator|(}
+
+The following 15 tokens are \emph{separators} in \Erlang\ifStd,
+formed from ASCII characters\fi:
+\begin{rules}
+{\obeyspaces%
+\grruleoneof{Separator}{\TXT{(    )    \char`\{    \char`\}    [    ]    .    :}\\
+                        \TXT{\char`\|~~~~\char`\|\char`\|~~~;~~~~,~~~~?~~~~->~~~\char`\#}}}
+\end{rules}
+\index{separator|)}
+
+\section{Keywords}
+
+\label{section:keywords}
+\index{keyword|(}
+
+The following \ifStd 15 \else 13 \fi tokens are the \emph{keywords} of
+\Erlang\ifStd, formed from ASCII characters\fi:
+\begin{rules}
+\ifStd
+{\obeyspaces%
+\grruleoneof{Keyword}{\TXT{after     catch     if        some_true}\\
+                      \TXT{all_true  cond      let       try}\\
+                      \TXT{begin     end       of        when}\\
+                      \TXT{case      fun       receive   }}}
+\else
+{\obeyspaces%
+\grruleoneof{Keyword}{\TXT{after     cond      let       when}\\
+                      \TXT{begin     end       of}\\
+                      \TXT{case      fun       query}\\
+                      \TXT{catch     if        receive}}}
+\fi
+\end{rules}
+Thus they cannot be used as atom literals (\S\ref{section:atom-literals}).
+
+\ifStd
+The keyword \T{let} is not defined but is
+reserved for a possible future
+extension of the language.
+The keyword \T{query} is also not defined in this document but is reserved for
+the Mnesia subsystem of OTP \cite{otp-mnesia}.
+\else
+The keywords \T{all_true}, \T{cond}, \T{let} and \T{some_true} are
+not defined in \OldErlang\ but are reserved for possible future
+extensions of the language.
+\fi
+\index{keyword|)}
+
+\section{Operators}
+
+\label{section:operators}
+\index{operator|(}
+
+The following \ifStd 31 \else 29 \fi tokens are the \emph{operators}
+of \Erlang\ifStd, formed from ASCII characters\fi:
+\begin{rules}
+{\obeyspaces%
+\grruleoneof{Operator}{\TXT{+    -    *    /    div  rem  \ifStd//   mod\fi}\\
+                       \TXT{or   xor  bor  bxor bsl  bsr  and  band}\\
+                       \TXT{==   /=   =:=  =/=  <    =<   >    >=}\\
+                       \TXT{not  bnot ++   --   =    !~~~~<-}}}
+\end{rules}
+Thus they cannot be used as atom literals (\S\ref{section:atom-literals}).
+\index{operator|)}
+
+\section{Escape sequences}
+
+\label{section:escapes}
+\index{escape!character|(}
+
+These are the escape sequences for character literals, string literals
+and quoted atom literals.  All escape sequences begin with a
+backslash (\T{\char`\\}).
+\iffalse
+\index{ \b@\TXT{\char`\\b}|(}
+\index{ \d@\TXT{\char`\\d}|(}
+\index{ \e@\TXT{\char`\\e}|(}
+\index{ \f@\TXT{\char`\\f}|(}
+\index{ \n@\TXT{\char`\\n}|(}
+\index{ \r@\TXT{\char`\\r}|(}
+\index{ \s@\TXT{\char`\\s}|(}
+\index{ \t@\TXT{\char`\\t}|(}
+\index{ \v@\TXT{\char`\\v}|(}
+\index{ \\@\TXT{\char`\\\char`\\}|(}
+\index{ \'@\TXT{\char`\\'}|(}
+\index{ \"@\TXT{\char`\\""}|(}
+\index{ \1@\TXT{\char`\\} $\langle\I{digits}\rangle$|(}
+\index{ \^@\TXT{\char`\\\char`\^}|(}
+\fi
+\begin{rules}
+\grrule{EscapeSequence}
+       {\TXT{\char`\\} \TXT{b} & \TXT{\% \char`\\\ifStd u0008\else 008\fi: \R{backspace BS}} \OR
+        \TXT{\char`\\} \TXT{d} & \TXT{\% \char`\\\ifStd u007f\else 177\fi: \R{delete DEL}} \OR
+        \TXT{\char`\\} \TXT{e} & \TXT{\% \char`\\\ifStd u001b\else 033\fi: \R{escape ESC}} \OR
+        \TXT{\char`\\} \TXT{f} & \TXT{\% \char`\\\ifStd u000c\else 014\fi: \R{form feed FF}} \OR
+        \TXT{\char`\\} \TXT{n} & \TXT{\% \char`\\\ifStd u000a\else 012\fi: \R{linefeed LF}} \OR
+        \TXT{\char`\\} \TXT{r} & \TXT{\% \char`\\\ifStd u000d\else 015\fi: \R{carriage return CR}} \OR
+        \TXT{\char`\\} \TXT{s} & \TXT{\% \char`\\\ifStd u0020\else 040\fi: \R{space SPC}} \OR
+        \TXT{\char`\\} \TXT{t} & \TXT{\% \char`\\\ifStd u0009\else 011\fi: \R{horizontal tab HT}} \OR
+        \TXT{\char`\\} \TXT{v} & \TXT{\% \char`\\\ifStd u000b\else 013\fi: \R{vertical tab VT}} \OR
+        \TXT{\char`\\} \TXT{\char`\\} & \TXT{\% \char`\\\ifStd u005c\else 008\fi: \R{backslash} \char`\\} \OR
+        \NT{ControlEscape} & \TXT{\% \char`\\\ifStd u0000 \else 000 \fi to \char`\\\ifStd u001f\else 037\fi: \R{64 less than the char}} \OR
+        \TXT{\char`\\} \TXT{'} & \TXT{\% \char`\\\ifStd u0027\else 047\fi: \R{single quote} '} \OR
+        \TXT{\char`\\} \TXT{"} & \TXT{\% \char`\\\ifStd u0022\else 042\fi: \R{double quote} "} \OR
+        \NT{OctalEscape} & \TXT{\% \char`\\\ifStd u0000 \else 000 \fi to \char`\\\ifStd u00ff\else 777\fi: \R{from octal value}}}
+
+\grrule{ControlEscape}
+       {\TXT{\char`\\} \TXT{\char`\^} \NT{ControlName}}
+
+\grrule{ControlName}
+       {any \ifStd Unicode \fi character between \T{\char`\\\ifStd u0040\else 100\fi} and \T{\char`\\\ifStd u005f\else 137\fi}}
+
+\grrule{OctalEscape}
+       {\ifStd 
+	\TXT{\char`\\} \NT{ZeroToThree} \NT{OctalDigit} \NT{OctalDigit}
+	\else
+	\TXT{\char`\\} \NT{OctalDigit} \OR
+        \TXT{\char`\\} \NT{OctalDigit} \NT{OctalDigit} \OR
+        \TXT{\char`\\} \NT{OctalDigit} \NT{OctalDigit} \NT{OctalDigit}
+	\fi}
+
+\grruleoneof{OctalDigit}{\TXT{0 1 2 3 4 5 6 7}}
+
+\ifStd
+\grruleoneof{ZeroToThree}{\TXT{0 1 2 3}}
+\fi
+\end{rules}
+
+\iffalse
+\index{ \b@\TXT{\char`\\b}|)}
+\index{ \d@\TXT{\char`\\d}|)}
+\index{ \e@\TXT{\char`\\e}|)}
+\index{ \f@\TXT{\char`\\f}|)}
+\index{ \n@\TXT{\char`\\n}|)}
+\index{ \r@\TXT{\char`\\r}|)}
+\index{ \s@\TXT{\char`\\s}|)}
+\index{ \t@\TXT{\char`\\t}|)}
+\index{ \v@\TXT{\char`\\v}|)}
+\index{ \\@\TXT{\char`\\\char`\\}|)}
+\index{ \'@\TXT{\char`\\'}|)}
+\index{ \"@\TXT{\char`\\""}|)}
+\index{ \1@\TXT{\char`\\} $\langle\I{digits}\rangle$|)}
+\index{ \^@\TXT{\char`\\\char`\^}|)}
+\fi
+In the case of a control escape, it denotes the character which has a
+\ifStd Unicode value \else code \fi
+that is 64 less than that of the \NT{ControlName}
+following \T{\char`\\} and \T{\char`\^}.
+
+In the case of an octal escape, it denotes
+\ifStd
+the character which has the Unicode value
+\else
+the integer
+\fi
+denoted by the octal numeral.
+\ifStd
+Note that octal escapes can express only characters with Unicode
+values \T{\char`\\u0000} to \T{\char`\\u00ff}.
+\else
+Note that only the octal escapes \T{\char`\\000} to \T{\char`\\177}
+denote characters.  The octal escapes \T{\char`\\200} to
+\T{\char`\\377} denote noncharacter bytes while
+\T{\char`\\400} to \T{\char`\\777} denote larger integers.
+\fi
+\index{escape!character|)}
+
+\section{Integer literals}
+
+\label{section:integer-literals}
+\index{integer!literal|(}
+
+An integer literal consists of an optional sign,
+an optional radix\index{radix (of integer literal)} specifier and a sequence of digits in the
+specified radix (which is decimal if omitted).
+\ifStd
+Between
+any two digits there may be an underscore\index{_ character@\T{_} character}, which is
+ignored. (This is to simplify correct entry of long
+numerals by making grouping possible.)
+\fi
+\begin{rules}
+\grrule{IntegerLiteral}
+       {\NT{DecimalLiteral} \OR
+        \NT{ExplicitRadixLiteral}}
+
+\grrule{DecimalLiteral}
+       {$\NT{Digits}[10]$}
+
+\grrule{ExplicitRadixLiteral}
+       {\TXT{2} \TXT{\#} $\NT{Digits}[2]$ \OR
+        \TXT{3} \TXT{\#} $\NT{Digits}[3]$ \OR
+        \TXT{4} \TXT{\#} $\NT{Digits}[4]$ \OR
+        \TXT{5} \TXT{\#} $\NT{Digits}[5]$ \OR
+        \TXT{6} \TXT{\#} $\NT{Digits}[6]$ \OR
+        \TXT{7} \TXT{\#} $\NT{Digits}[7]$ \OR
+        \TXT{8} \TXT{\#} $\NT{Digits}[8]$ \OR
+        \TXT{9} \TXT{\#} $\NT{Digits}[9]$ \OR
+        \TXT{1} \TXT{0} \TXT{\#} $\NT{Digits}[10]$ \OR
+        \TXT{1} \TXT{1} \TXT{\#} $\NT{Digits}[11]$ \OR
+        \TXT{1} \TXT{2} \TXT{\#} $\NT{Digits}[12]$ \OR
+        \TXT{1} \TXT{3} \TXT{\#} $\NT{Digits}[13]$ \OR
+        \TXT{1} \TXT{4} \TXT{\#} $\NT{Digits}[14]$ \OR
+        \TXT{1} \TXT{5} \TXT{\#} $\NT{Digits}[15]$ \OR
+        \TXT{1} \TXT{6} \TXT{\#} $\NT{Digits}[16]$}
+
+\grruleindex{Digits[k]}{$\NT{Digits}[k]$}
+       {$\NT{Digit}[k]$ \OR
+        $\NT{Digits}[k]$ \ifStd \OPT{DigitSeparator} \fi $\NT{Digit}[k]$}
+
+\ifStd
+\grrule{DigitSeparator}
+       {\TXT{_}}
+\fi
+
+\grruleoneofthefirst{Digit[k]}{$\NT{Digit}[k]$}{$k$}
+       {\TXT{0 1 2 3 4 5 6 7 8 9 Aa Bb Cc Dd Ee Ff}}
+\end{rules}
+An integer literal without an explicit radix should thus be composed of decimal digits
+and will be interpreted arithmetically as a decimal numeral as described in
+\S\ref{section:numeral-to-integer}.
+
+If an explicit radix is given, it consists of a decimal numeral between \TXT{2} and
+\TXT{16} followed by a \TXT{\#} character.  Suppose that that the decimal interpretation
+of this numeral is $r$.  The characters following it should then
+be drawn from the first $r$ ``extended digits'' \TXT{0}, \ldots,
+\TXT{9}, \TXT{A}, \ldots, \TXT{F}, where the letters may alternatively be in lower case.
+Its interpretation as a numeral in radix $r$ is given in \S\ref{section:radix-numeral-to-integer}.
+
+A compile-time error occurs if an integer literal is too
+large or too small to be representable as an \Erlang\ integer.
+
+Examples of integer literals:
+\ifOld
+\begin{verbatim}
+0   1499   -54   2#0010010   -8#377
+10#1499   16#fa66   16#FA66
+\end{verbatim}
+\fi
+\ifStd
+\begin{verbatim}
+0   1499   -54   2#0010010   -8#377
+10#1499   16#fa66   16#FA66   1_234_567
+\end{verbatim}
+\fi
+(Their values are 0, 1499, -54, 18, -255, 1499, 64\,102, 64\,102 and 1\,234\,567, respectively.)
+\index{integer!literal|)}
+
+\section{Float literals}
+
+\label{section:float-literals}
+\index{float!literal|(}
+
+A float literal has five parts: an optional sign, a whole number part,
+a decimal point\index{decimal point (of float literal)}, a fractional
+part and an optional exponent part.  The exponent part, if present, is
+indicated by \TXT{E}\index{E@\TXT{E} character} or
+\TXT{e}\index{e@\TXT{e} character} and is followed by the
+exponent\index{exponent (of float literal)} as a decimal numeral with
+an optional sign.
+\ifStd
+As for integer numerals, between any two digits in the whole number
+part, the fractional part and the exponent there may be an underscore\index{_ character@\T{_} character},
+which is ignored.
+\fi
+\begin{rules}
+\grrule{FloatLiteral}
+       {\NT{DecimalLiteral} \TXT{.}\ \NT{DecimalLiteral} \OPT{ExponentPart}}
+
+\grrule{ExponentPart}
+       {\NT{ExponentIndicator} \OPT{Sign} \NT{DecimalLiteral}}
+
+\grruleoneof{Sign}{\TXT{+ -}}
+
+\grruleoneof{ExponentIndicator}{\TXT{E e}}
+\end{rules}
+(The rule for \NT{DecimalLiteral} appears in
+\S\ref{section:integer-literals}.)  A compile-time error occurs if the
+magnitude of a float literal is too large or too small to be
+representable as an \Erlang\ float.
+
+The interpretation of a float literal as a float is given in
+\S\ref{section:numeral-to-float}.
+
+Examples of float literals:
+\begin{verbatim}
+1.0   -5.1e6   5.1e+6   0.346E-20
+\end{verbatim}
+\index{float!literal|)}
+
+\section{Character literals}
+
+\label{section:char-literals}
+\index{character!literal|(}
+
+A character literal is indicated by \TXT{\$} followed either by a single
+character \ifStd (which may not be whitespace) \fi or an escape sequence.
+\begin{rules}
+\grrule{CharLiteral}
+       {\TXT{\$} \NT{CharLiteralChar}}
+
+\grrule{CharLiteralChar}
+       {\NT{InputCharacter} \ifStd but not \TXT{\char`\\} or \NT{WhiteSpace} \fi \OR
+	\NT{EscapeSequence}}
+\end{rules}
+The escape sequences are described in \S\ref{section:escapes}.
+
+Note that \TXT{\$} \ifStd may \else should \fi not be followed by
+white space\index{white space!not after \TXT{\$}}
+(\S\ref{section:white-space})\footnote{The reasons that \TXT{\$}
+\ifStd may \else should \fi
+not be followed by whitespace are (i) it is impossible to determine
+safely from the printed representation of a program which character
+\TXT{\$} followed by whitespace and/or a line break actually denotes,
+and (ii) whitespace (especially at the end of a line) often gets
+transformed by text processing or text transmission tools.} which
+\ifStd must \else should \fi instead be expressed through an escape
+sequence.
+
+\ifStd
+\ifDiff\footnote{Compatibility note: Whitespace may appear
+after \TXT{\$} in \OldErlang.  Its appearance should generate warnings
+in \NewErlang\ and cause a compile-time error in some future
+version.}\fi
+\fi
+
+Examples of character literals:
+\begin{verbatim}
+$x   $R   $$   $\n   $\s   $\\   $\^T   $\125
+\end{verbatim}
+The values of these literals are the characters `x', `R', dollar, newline, space, backslash,
+control-T and `U' (which has ASCII code eightyfive, which is denoted by the octal numeral
+\T{125}).
+\index{character!literal|)}
+
+\section{String literals}
+
+\label{section:string-literals}
+\index{string!literal|(}
+
+A string literal is enclosed in \T{"} characters\index{"" character@\T{""} character}.
+\begin{rules}
+\grrule{StringLiteral}
+       {\TXT{"} \OPT{StringCharacters} \TXT{"}}
+
+\grrule{StringCharacters}
+       {\NT{StringCharacter} \OR
+        \NT{StringCharacters} \NT{StringCharacter}}
+
+\grrule{StringCharacter}
+       {\NT{InputCharacter} but not \NT{ControlCharacter} or \TXT{\char`\\} or \TXT{"} \OR
+        \NT{EscapeSequence}}
+\end{rules}
+The escape sequences are described in \S\ref{section:escapes}.
+
+\ifStd
+Note that line terminators\index{line terminator!not ``naked''} and
+control characters\index{control character!not ``naked''} cannot
+appear ``naked'' in a string literal (and thus they also cannot appear
+as Unicode escapes such as
+\T{\char`\\u000c}) but must be expressed through escape
+sequences.  A compiler need not generate an error in this case but
+should at least produce a warning.\ifDiff\footnote{Compatibility note:
+Line terminators and control characters may appear in strings and
+quoted atoms in \OldErlang.  Their appearance should generate warnings
+in \NewErlang\ and cause a compile-time error in some future
+version.}\fi
+\fi
+
+Examples of string literals:
+\begin{verbatim}
+"Fred"   ""   "\n"   "\e42n"   "Ludwig Van Beethoven"
+\end{verbatim}
+The second literal denotes an empty string.
+\index{string!literal|)}
+
+\section{Atom literals}
+
+\label{section:atom-literals}
+\index{atom!literal|(}
+
+An \emph{atom literal}, which we will also refer to simply as an
+\emph{atom}, is on one of two forms:
+\begin{itemize}
+\item An \emph{unquoted} atom\index{atom!unquoted} is a nonempty sequence of \Erlang\ letters, \Erlang\
+digits and the ASCII character `\TXT{@}', where the first character must be a lowercase \Erlang\ letter.
+Such an atom cannot consist of the same sequence of characters
+as a keyword (\S\ref{section:keywords}) or an operator (\S\ref{section:operators}).
+\item A \emph{quoted} atom\index{atom!quoted} is a sequence
+of input characters and escape sequences enclosed in single quotes (\T{'})\index{' character@\T{'} character}.
+As for string literals,  line terminators\index{line terminator!not ``naked''} and
+control characters\index{control character!not ``naked''} cannot appear
+``naked'' in a quoted atom.
+\end{itemize}
+
+\begin{rules}
+\grrule{AtomLiteral}
+       {\NT{AtomLiteralChars} but not a \NT{Keyword} or \NT{Operator} \OR
+        \TXT{'} \OPT{QuotedCharacters} \TXT{'}}
+
+\grrule{AtomLiteralChars}
+       {\NT{ErlangLowercase} \OPT{NameChars}}
+
+\grrule{NameChars}
+       {\NT{NameChar} \OR
+	\NT{NameChars} \NT{NameChar}}
+
+\grrule{NameChar}
+       {\NT{ErlangLetter} \OR
+        \NT{ErlangDigit} \OR \TXT{@} \OR \TXT{_}}
+
+\grrule{QuotedCharacters}
+       {\NT{QuotedCharacter} \OR
+        \NT{QuotedCharacters} \NT{QuotedCharacter}}
+
+\grrule{QuotedCharacter}
+       {\NT{InputCharacter} but not \NT{ControlCharacter} or \TXT{\char`\\} or \TXT{'} \OR
+        \NT{EscapeSequence}}
+\end{rules}
+The escape sequences are described in \S\ref{section:escapes}.
+
+\iffalse
+An \emph{\Erlang\ letter} is a character for which the function
+\T{char:is_alpha/1} returns \T{true}.  An \emph{\Erlang\ letter-or-digit}
+is a character for which the function \T{char:is_alpha_num/1} returns
+\T{true}.
+\fi
+
+Examples of atoms:
+\ifOld
+\begin{verbatim}
+friday   tv@lf@rs@lj@re   one_2_three   '!%r@(\'.\ $\\[[#'
+\end{verbatim}
+\fi
+\ifStd
+\begin{verbatim}
+friday   tvålförsälj@re   one_2_three   '!¸r@(\'.\ ¶\\[[#'
+\end{verbatim} % 182
+Note that the second example contains non-ASCII characters (but which belong
+to ISO 8859-1).
+\fi
+The fourth example shows several escape sequences and nonletters.
+
+We say that the \emph{printname}\index{atom!printname} of an atom is
+\begin{itemize}
+\item the atom literal as such, in the case of an unquoted atom;
+\item the sequence of \ifStd Unicode \fi \ifOld ASCII \fi characters resulting from decoding
+of escape sequences and removal of the surrounding quotes,
+in the case of a quoted atom.
+\end{itemize}
+
+Two atoms are the same if and only if they have the same printname.
+For example, the atoms \T{foo} and \T{'foo'} are the same and so are the atoms \T{'foo
+bar'}\ifStd, \T{'foo\char`\\u0020bar'} \fi and \T{'foo\char`\\040bar'}.
+\ifStd
+(Note that the first and second atom literals are identical already after
+Unicode escape processing, cf.~\S\ref{section:lexical-translation}.)
+\fi
+\index{atom!literal|)}
+
+\section{Variables}
+
+\label{section:variables}
+\index{variable|(}
+
+A \emph{variable} is a nonempty sequence of \Erlang\ letters, \Erlang\
+digits and the character `\TXT{@}', where the first character must be an uppercase \Erlang\ letter.
+Since no keyword, operator or literal begins with an uppercase \Erlang\ letter,
+there can be no ambiguity between them.
+
+\begin{rules}
+\grrule{Variable}
+       {\TXT{_} \NT{NameChars} \OR
+	\NT{ErlangUppercase} \OPT{NameChars}}
+\end{rules}
+Note that a \emph{single} underscore is not a \NT{Variable} but a
+\NT{UniversalPattern} (cf.~\S\ref{section:universal-pattern}).
+
+Examples of variables:
+\begin{verbatim}
+MostSignificantDigit   X   Best_guess   _Rest   LOUD
+\end{verbatim}
+
+It is recommended that compilers warn about a variable that has only a
+binding occurrence (and thus no applied occurrences) unless the
+variable begins with an underscore.
+\index{variable|)}
+
+\section{Universal pattern}
+
+\label{section:universal-pattern}
+\index{universal pattern|(}
+
+A \emph{universal pattern} consists of a single underscore\index{_ character@\T{_} character}.
+
+\begin{rules}
+\grrule{UniversalPattern}
+       {\TXT{_}}
+\end{rules}
+It is thus syntactically similar to a variable but may only appear in patterns
+(cf.~\S\ref{section:pattern-matching}) where occurrences of
+the universal pattern are like binding occurrences of distinct variables that have
+no other occurrences.  Matching against the universal pattern thus always succeeds.
+\index{universal pattern|)}
+
+\section{Separated token sequences}
+
+\label{section:full-stop}
+\label{section:tokenseq}
+
+In the final step of lexical processing, white space and comments are discarded.
+At the same time, each occurrence of a single period\index{ .@\TXT{.} character} token
+(i.e., `\TXT{.}', which is a separator) that is followed by white space or a comment
+is replaced by a \NT{FullStop}\index{full stop}.  The final result is a sequence of tokens and
+full stops where each full stop should be thought of as terminating the preceding
+sequence of tokens.
+
+\begin{rules}
+\grrule{TerminatedTokens}
+       {\OPT{TokenSequences}}
+
+\grrule{TokenSequences}
+       {\NT{TokenSequence} \OR
+        \NT{TokenSequences} \NT{TokenSequence}}
+
+\grrule{TokenSequence}
+       {\NT{Tokens} \NT{FullStop}}
+
+\grrule{Tokens}
+       {\NT{Token} \OR
+        \NT{Tokens} \NT{Token}}
+
+\grrule{FullStop}
+       {\TXT{.} \NT{WhiteSpace} \OR
+        \TXT{.} \NT{Comment}}
+\end{rules}

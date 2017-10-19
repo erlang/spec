@@ -1,0 +1,214 @@
+%
+% %CopyrightBegin%
+%
+% Copyright Ericsson AB 2017. All Rights Reserved.
+%
+% Licensed under the Apache License, Version 2.0 (the "License");
+% you may not use this file except in compliance with the License.
+% You may obtain a copy of the License at
+%
+%     http://www.apache.org/licenses/LICENSE-2.0
+%
+% Unless required by applicable law or agreed to in writing, software
+% distributed under the License is distributed on an "AS IS" BASIS,
+% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+% See the License for the specific language governing permissions and
+% limitations under the License.
+%
+% %CopyrightEnd%
+%
+
+\chapter{Differences from \OldVersion}
+
+This appendix summarizes the differences between \OldVersion\ and \NewVersion.
+
+\section{Characters}
+
+In \OldVersion\ there was no character type --- a character was represented
+by its character code --- an integer.  It was not documented which
+character codes were valid but the ASCII codes (0--127) have always been supported.
+In \NewVersion, a character type as been added and it uses the Unicode
+character encoding.
+
+\section{The evaluation order is defined}
+
+\label{section:new-evaluation-order}
+
+It used to be that the evaluation order between subexpressions in
+\Erlang\ was defined in as few cases as possible.  (For example, the
+subexpressions of a body were evaluated in order but the operands of
+binary operators and the arguments of function applications could be
+evaluated in any order.)
+This had some advantages:
+\begin{itemize}
+\item Each implementation was free to exploit the order of evaluation
+that was most efficient on its target architecture.
+\item No evaluation order was easy to describe.
+\end{itemize}
+However, there were also disadvantages:
+\begin{itemize}
+\item \Erlang\ expressions provide bindings for variables and this either
+puts implicit constraints on the evaluation order or complicated
+scope rules.
+\item It is undesirable that for some expressions, their exact effects were not
+well defined.  (This also means that for some expressions, their values were
+not well defined.)
+\end{itemize}
+For \NewVersion\ it was thus decided to define an evaluation order.
+
+\section{Control escapes more restricted}
+
+\label{section:new-control-escapes}
+
+Some minor differences for control escapes (in string literals and
+quoted atoms):
+\begin{itemize}
+\item \OldVersion\ allows any character after \TXT{\char`\\} \TXT{\char`\^}.
+Use of other characters than \T{@}--\T{_} should render warnings in
+\NewVersion\ and be prohibited in some later version.
+\item \OldVersion\ allows any octal numeral with up to three digits in
+a \NT{OctalEscape}. Use of octal numerals \T{400}--\T{777} should be
+an error in \NewVersion.
+\end{itemize}
+
+\section{Function terms form their own type}
+
+\label{section:new-functions}
+
+Due to the implementation of function terms as tuples in \OldVersion,
+function terms were not properly distinguishable from tuples.
+\NewVersion\ requires that
+function terms form a distinguishable elementary type.
+
+BIFs?
+
+\iffalse
+\section{Records form their own type}
+
+\label{section:new-records}
+
+Due to the implementation of records as tuples in \OldVersion,
+they were not properly distinguishable.  \NewVersion\ requires that
+records form a distinguishable elementary type.
+
+BIFs?
+\fi
+
+\section{Operator precedence of match and send changed}
+
+The relative precedence of the operators \T{=} and \T{!}\ was not defined previously but
+as a matter of fact they were the same, so the expressions
+\T{$\Z{E}_1$ = $\Z{E}_2$ ! $\Z{E}_3$} and \T{$\Z{E}_1$ ! $\Z{E}_2$ = $\Z{E}_3$}
+were both allowed, meaning the same as the expressions
+\T{$\Z{E}_1$ = ($\Z{E}_2$ ! $\Z{E}_3$)} and \T{$\Z{E}_1$ ! ($\Z{E}_2$ = $\Z{E}_3$)},
+respectively.
+
+This grouping indicated a closer relationship between the operators
+than is actually the case and in \ErlVsn{4.7} and onwards, only the
+expression \T{$\Z{E}_1$ = $\Z{E}_2$ ! $\Z{E}_3$} can now be written
+without parentheses.
+
+\iffalse
+\section{Integer division rounds towards negative infinity}
+
+\label{section:integer-division}
+
+In \OldVersion, the operators \T{div} and \T{rem} compute $\mathit{div}_I^t$
+and $\mathit{rem}_I^t$, respectively.  It is widely held to be more useful
+if $\mathit{div}_I^f$ and $\mathit{rem}_I^f$ are easily accessible as
+$\mathit{div}_I^f$ satisfies the relation
+\[\mathit{div}_I^f(x+i*y,y) = \mathit{div}_I^f(x,y)+i\]
+if $y\neq0$ and no overflow occurs.
+\fi
+
+\section{\T{try} expressions replace \T{catch} expressions}
+
+\label{section:new-try}
+
+The new \T{try} expressions generalize the old \T{catch} expressions,
+which should not be used in any new code.  \T{try} expressions have
+the following advantages over \T{catch} expressions:
+\begin{itemize}
+\item It is possible to distinguish safely between the three possible
+outcomes of evaluating an expression:
+\begin{itemize}
+\item Normal completion.
+\item Abrupt completion due to a \T{throw}.
+\item Abrupt completion due to an \T{exit} (possibly caused by an error).
+\end{itemize}
+As an example, here is how to define a function \T{foo_with_log/1} which
+is exactly like a function \T{foo/1} except that on abrupt completion,
+the reason is logged:
+\begin{verbatim}
+foo_with_log(X) ->
+    try
+        foo(X)
+    catch
+        {'THROW',T} ->
+            io:format(logger,
+                      "foo(~w) threw ~w.\n",
+                      [X,T]),
+            throw(T) ;
+        {'EXIT',E} ->
+            io:format(logger,
+                      "foo(~w) exited due to ~w.\n",
+                      [X,E]),
+            exit(E)
+    end.
+\end{verbatim}
+\item It is possible to catch only certain thrown terms or exits.  For example,
+in the following function, throws of a particular reference \T{BadSyntax} are
+caught but any other thrown terms or exits still cause abrupt completion of the
+function and can be caught outside it:
+\begin{verbatim}
+read_entry_safely(Device) ->
+    BadSyntax = make_ref(),
+    try
+        read_entry(Device,BadSyntax)
+    catch
+        {'THROW',BadSyntax} ->
+            recover(Device),
+            read_entry_safely(Device)
+    end.
+\end{verbatim}
+The function above shows a useful programming idiom.
+\item \T{try} expressions do not have the syntactic inconvenience of \T{catch}
+expressions (that many expressions have to be enclosed in parentheses when
+being the argument of \T{catch} and that one had to use \T{begin} \ldots\ \T{end}
+in order to give a body to \T{catch}).
+\end{itemize}
+
+\section{Sending to an unregistered process name}
+
+\label{section:unregistered-name}
+
+In \OldVersion, the documentation claims that if process $\TZ{P}_1$ evaluates
+the send operator (\T{!})\ with
+(evaluated) operands $\TZ{v}_1$ and $\TZ{v}_2$ where $\TZ{v}_1$ is an
+atom that is not the registered name of any process,
+the result of the send expression is obtained by evaluating
+\begin{alltt}
+\Z{M}:unregistered_name(\Z{v}\(\sb{1}\),\Z{P}\(\sb{1}\),\Z{v}\(\sb{2}\))
+\end{alltt}
+where \TZ{M} is the value of the \T{error_handler} process flag for
+$\TZ{P}_1$.  The function
+\T{error_handler:unregistered_name/3} which is the default error handler
+for undefined process names simply exits with \T{badarg}.
+
+In \NewVersion, the evaluation of the send operator simply has no effect
+in this case.
+
+\section{New exit causes}
+
+\label{section:new-exits}
+
+In \OldVersion\ many BIFs would exit with \T{badarg} regardless of the actual
+reason for abnormal completion.  In \NewVersion, a BIF or operator will exit
+with \T{badarg} if, and only if, the exit was because an argument or operand was
+of a type not permitted for that position.  This means that some exits that
+were previously \T{badarg} (e.g., when \T{register/2} was given a name that
+was already registered)) are now different.  
+
+Arithmetic exits are now on the form \T{\{arith,\Z{A}\}}, where \TZ{A} is one of
+the atoms \T{integer_overflow} (should not happen in an implementation with
+bignums), \T{float_overflow}, \T{float_underflow} and \T{undefined_arith}.

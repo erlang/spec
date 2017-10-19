@@ -1,0 +1,8 @@
+#! /bin/sh
+
+# Extract grammer rules from files in command line arguments.
+# I.e. extract all lines BETWEEN \begin{rules} and \end{rules}.
+
+##awk '/^\\begin{rules}/, /^\\end{rules}/' $@
+
+awk 'BEGIN { copy = 0 } { if ( $1 ~ /^\\begin{rules}/ ) { copy = 1 } else if ( $1 ~ /^\\end{rules}/ ) { copy = 0 } else if ( copy == 1 ) print }' $@

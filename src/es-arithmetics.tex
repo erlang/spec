@@ -1,0 +1,982 @@
+%
+% %CopyrightBegin%
+%
+% Copyright Ericsson AB 2017. All Rights Reserved.
+%
+% Licensed under the Apache License, Version 2.0 (the "License");
+% you may not use this file except in compliance with the License.
+% You may obtain a copy of the License at
+%
+%     http://www.apache.org/licenses/LICENSE-2.0
+%
+% Unless required by applicable law or agreed to in writing, software
+% distributed under the License is distributed on an "AS IS" BASIS,
+% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+% See the License for the specific language governing permissions and
+% limitations under the License.
+%
+% %CopyrightEnd%
+%
+
+\chapter{Arithmetics}
+
+\label{chapter:arithmetics}
+
+\emph{We define the mathematical functions in terms of which the arithmetics of
+\Erlang\ are defined.  This chapter depends significantly on the international
+standard document ISO/IEC 10967-1 \cite{lia-1}, referenced in this
+text as LIA-1\index{LIA-1}.}
+
+\ifStd
+\emph{This chapter also contains the information needed for a
+LIA-1 language binding for \StdErlang.}
+\fi
+
+\section{Notation}
+
+\label{section:notation-arith}
+
+Let $\INTS$\index{Z@$\INTS$ (the integers)} be the set of mathematical integers,
+$\REALS$\index{R@$\REALS$ (the reals)} the set of
+real numbers and $\BOOLEANS$\index{B@$\BOOLEANS$ (the Booleans)} the set of Booleans, denoted by
+\B{true}\index{true@\B{true}}
+and \B{false}\index{false@\B{false}}.
+
+There are four exceptional values\index{arithmetic!exceptional values}
+that are not numbers but may be the
+results of the LIA-1 functions defined in this chapter:
+\B{integer\_overflow}\index{integer_overflow@\B{integer\_overflow}},
+\B{floating\_overflow}\index{floating_overflow@\B{floating\_overflow}},
+\B{underflow}\index{underflow@\B{underflow}} and
+\B{undefined}\index{undefined@\B{undefined}}.
+
+\ifStd
+An implementation conforming to IEC 559\index{IEC 559} \cite{iec559} has three additional values
+that are not numbers but may appear as input to floating-point arithmetic operations
+and can be returned from such operations:
+\B{not_a_number}\index{not_a_number@\B{not_a_number}},
+\B{positive_infinity}\index{positive_infinity@\B{positive_infinity}}
+and \B{negative_infinity}\index{negative_infinity@\B{negative_infinity}}.
+\fi
+
+The following definitions are restated from LIA-1\index{LIA-1}.
+For $x\in\REALS$, the notation $\lfloor x\rfloor$ stands for the largest integer not greater than $x$:
+\[\lfloor x\rfloor\in\INTS\text{\quad and\quad}x-1<\lfloor x\rfloor\leq x\]
+and $\mathit{tr}(x)$ stands for the integer part of $x$ (truncated towards 0):
+\begin{alignat*}{2}
+\mathit{tr}(x) &= \lfloor x\rfloor && \qquad\text{if $x\geq0$;} \\
+               &= -\lfloor-x\rfloor && \qquad\text{if $x<0$.}
+\end{alignat*}
+
+The following definitions are restated from the 1995 working draft of
+the international standard document ISO/IEC 10967-2 \cite{lia-2},
+referenced in this text as LIA-2\index{LIA-2}.
+
+Let $S$ be a subset of $\REALS$, closed under (arithmetic) negation.
+The following are four rounding functions\index{rounding function}
+for mapping values of $\REALS$ into $S$.
+\index{  floor@$\lfloor\cdot\rfloor_S$|(}
+\index{  ceiling@$\lceil\cdot\rceil_S$|(}
+\index{floor@$\mathit{floor}_S$|(}
+\index{ceiling@$\mathit{ceiling}_S$|(}
+\index{truncate@$\mathit{truncate}_S$|(}
+\index{nearest@$\mathit{nearest}_S$|(}
+Given any $x\in\REALS$,
+\begin{alignat*}{2}
+\lfloor x\rfloor_S &= \max \{\,z\in S \mid z \leq x\,\} \displaybreak[0]\\[\smallskipamount]
+\lceil x\rceil_S &= \min \{\,z\in S \mid z \geq x\,\} \displaybreak[0]\\[\smallskipamount]
+\mathit{truncate}_S(x) &= \lfloor x\rfloor_S && \qquad\text{if $x\geq0$;} \\
+                       &= \lceil x\rceil_S && \qquad\text{if $x<0$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{nearest}_S(x) &= \lfloor x\rfloor_S && \qquad\text{if $|\lfloor x\rfloor_S - x| < |x - \lceil x\rceil_S|$;} \\
+                      &= \lceil x\rceil_S && \qquad\text{if $|\lfloor x\rfloor_S - x| > |x - \lceil x\rceil_S|$;} \\
+                      &= \text{$\lfloor x\rfloor_S$ or $\lceil x\rceil_S$} && \qquad\text{if $|\lfloor x\rfloor_S - x| = |x - \lceil x\rceil_S|$.}
+\end{alignat*}
+In addition it must hold that $\mathit{nearest}_S(-x)=-\mathit{nearest}_S(x)$.
+
+When the subscript $S$ is omitted, $\INTS$ is assumed.
+
+We may write $\mathit{floor}_S(x)$ for $\lfloor x\rfloor_S$ and
+$\mathit{ceiling}_S(x)$ for $\lceil x\rceil_S$.
+
+Note that
+\begin{itemize}
+\item $\mathit{floor}_S(x)$ rounds $x$ towards negative infinity,
+\item $\mathit{ceiling}_S(x)$ rounds $x$ towards positive infinity,
+\item $\mathit{truncate}_S(x)$ rounds $x$ towards zero and
+\item $\mathit{nearest}_S(x)$ rounds $x$ to the nearest value in $S$.
+\end{itemize}
+\index{  floor@$\lfloor\cdot\rfloor_S$|)}
+\index{  ceiling@$\lceil\cdot\rceil_S$|)}
+\index{floor@$\mathit{floor}_S$|)}
+\index{ceiling@$\mathit{ceiling}_S$|)}
+\index{truncate@$\mathit{truncate}_S$|)}
+\index{nearest@$\mathit{nearest}_S$|)}
+When we write $[i,j]$\index{ interval closed@$[\cdot,\cdot]$},
+where $i$ and $j$ are integers, we mean the
+set $\{\,x\in\INTS \mid i\leq x\leq j\,\}$.
+When we write $[i,j)$\index{ interval open@$[\cdot,\cdot)$},
+where $i$ and $j$ are integers, we mean the
+set $\{\,x\in\INTS \mid i\leq x< j\,\}$.
+
+\section{The integer type}
+
+\label{section:integer-type}
+\index{integer!properties|(}
+
+\ifStd
+A \StdErlang\ implementation must provide at least one integer type that
+conforms with LIA-1.  In this document that type is assumed to be the
+only integer type.
+\fi
+\index{I@$I$|(}
+The set of numbers that can be represented by the integer type is
+called $I$ and is a subset of $\INTS$\index{Z@$\INTS$ (the integers)}.
+LIA-1 requires $I$ to be characterized by four parameters:
+\index{bounded@\I{bounded}|(}
+\index{modulo@\I{modulo}|(}
+\index{minint@\I{minint}|(}
+\index{maxint@\I{maxint}|(}
+\begin{textdisplay}
+\begin{tabular}{@{}ll@{}}
+$\I{bounded}\in\BOOLEANS$ & (whether the set $I$ is finite) \\
+$\I{modulo}\in\BOOLEANS$ & (whether out-of-bounds results ``wrap'') \\
+$\I{minint}\in I$ & (the smallest integer in $I$) \\
+$\I{maxint}\in I$ & (the largest integer in $I$)
+\end{tabular}
+\end{textdisplay}
+\ifStd
+For the integer type of a \StdErlang\ implementation it is required
+that \I{modulo} is \B{false}, while \I{bounded} may be either \B{true}
+or \B{false}.
+\begin{itemize}
+\item If \I{bounded} is \B{false}, then $I=\INTS$ and the values of \I{minint} and
+\I{maxint} are not meaningful.
+\item If \I{bounded} is \B{true}, then
+$I = \{\,x \in \INTS \mid \I{minint} \leq x \leq \I{maxint}\,\}$
+where
+$\I{maxint} \geq 2^{59}-1$ and either
+$\I{minint} = -(\I{maxint}+1)$ or $\I{minint} = -\I{maxint}$.
+\end{itemize}
+\fi
+\ifOld
+For the integer type of \Erlang, \I{modulo} and \I{bounded} are \B{false}.
+As \I{bounded} is \B{false}, $I=\INTS$ and the values of \I{minint} and
+\I{maxint} are not meaningful.
+\fi
+\index{bounded@\I{bounded}|)}
+\index{modulo@\I{modulo}|)}
+\index{minint@\I{minint}|)}
+\index{maxint@\I{maxint}|)}
+\Erlang\ has three additional parameters:
+\index{fixnum@\I{fixnum}|(}
+\index{minfixnum@\I{minfixnum}|(}
+\index{maxfixnum@\I{maxfixnum}|(}
+\begin{textdisplay}
+\begin{tabular}{@{}ll@{}}
+$\I{fixnum}\in\BOOLEANS$ & (whether there are ``fixnums'') \\
+$\I{minfixnum}\in I$ & (the smallest fixnum in $I$) \\
+$\I{maxfixnum}\in I$ & (the largest fixnum in $I$)
+\end{tabular}
+\end{textdisplay}
+\ifStd
+If \I{fixnum} is \B{true}, then it must hold that
+\[\I{minint} \leq \I{minfixnum} \leq \I{maxfixnum} \leq \I{maxint}.\]
+\fi
+\ifOld
+\I{fixnum} is \B{true}, \I{minfixnum} is $-2^{27}$ and
+\I{maxfixnum} is $2^{27}-1$.
+\fi
+\index{I@$I$|)}
+
+\index{integer!fixnum|(}
+\index{I f@$I_f$|(}
+\ifStd If \I{fixnum} is \B{true}, let \fi
+\ifOld Let \fi
+$I_f = \{\,x\in I \mid \I{minfixnum} \leq x \leq \I{maxfixnum}\,\}$.
+\ifStd
+Otherwise, let $I_f = \emptyset$.
+\fi
+$I_f$ is
+\ifStd meant to be \fi
+the set of ``fixnums'', the representation of which can utilize the
+most efficient representation of integers in the machine, typically occupying
+one word of memory.
+\index{I f@$I_f$|)}
+\ifStd
+The values of \I{minfixnum} and \I{maxfixnum} for an implementation in which
+\I{fixnum} is \B{true} should be chosen
+so that when both the operands and the result of an integer addition,
+subtraction, multiplication or division are in $I_f$, it should be
+possible to utilize the most efficient machine instructions for
+computing the operation.  Typically one would expect $\I{minfixnum} =
+-(\I{maxfixnum}+1)$ but this is not required. For example, an
+implementation may have ``unsigned'' fixnums in which case
+\I{minfixnum} and \I{maxfixnum} could be $0$ and $2^{28}-1$,
+respectively.
+\fi
+\index{integer!fixnum|)}
+\index{fixnum@\I{fixnum}|)}
+\index{minfixnum@\I{minfixnum}|)}
+\index{maxfixnum@\I{maxfixnum}|)}
+
+\index{integer!bignum|(}
+Let $I_b = I \setminus I_f$\index{I b@$I_b$}.
+$I_b$ is the set of ``bignums'', the representation of which
+may require arbitrary amounts of memory.
+An implementation for which $I_b\neq\emptyset$
+\ifOld, such as \Erlang,\fi\ is said to have bignums.
+\index{integer!bignum|)}
+
+\ifStd
+As the parameter \I{modulo} is always \B{false} for the integer type,
+it is not made available to programs.  The other parameters are
+available through the BIFs
+\T{integer:bounded/0}, \T{integer:min_fixnum/0},
+\T{integer:max_fix\-num/0},
+\T{integer:min_int/0} and
+\T{integer:max_int/0} (\S\ref{section:integer-module}).
+\fi
+\index{integer!properties|)}
+
+\section{Integer operations}
+
+\label{section:integer-operations}
+\index{integer!arithmetic operations|(}
+
+Elsewhere in this specification we express the integer arithmetic
+operations of \Erlang\ in terms of the following functions from LIA-1:
+\begin{xxalignat}{2}
+&\lefteqn{\mathit{add}_I : I\times I\to I\cup\{\B{integer\_overflow}\}} \\
+&&&(x,y)\mapsto\text{the sum of $x$ and $y$} \displaybreak[0]\\[\smallskipamount]
+&\lefteqn{\mathit{sub}_I : I\times I\to I\cup\{\B{integer\_overflow}\}} \\
+&&& (x,y)\mapsto\text{the difference of $x$ and $y$} \displaybreak[0]\\[\smallskipamount]
+&\lefteqn{\mathit{mul}_I : I\times I\to I\cup\{\B{integer\_overflow}\}} \\
+&&& (x,y)\mapsto\text{the product of $x$ and $y$} \displaybreak[0]\\[\smallskipamount]
+&\lefteqn{\mathit{div}_I : I\times I\to I\cup\{\B{integer\_overflow},\B{undefined}\}} \\
+&&& (x,y)\mapsto\text{the quotient of $x$ and $y$} \displaybreak[0]\\[\smallskipamount]
+&\mathit{rem}_I : I\times I\to I\cup\{\B{undefined}\} && (x,y)\mapsto\text{the remainder of $x$ and $y$} \displaybreak[0]\\[\smallskipamount]
+&\mathit{mod}_I : I\times I\to I\cup\{\B{undefined}\} && (x,y)\mapsto\text{$x$ modulo $y$} \displaybreak[0]\\[\smallskipamount]
+&\mathit{neg}_I : I\to I\cup\{\B{integer\_overflow}\} && (x)\mapsto\text{the (arithmetic) negation of $x$} \displaybreak[0]\\[\smallskipamount]
+&\mathit{abs}_I : I\to I\cup\{\B{integer\_overflow}\} && (x)\mapsto\text{absolute value of $x$} \displaybreak[0]\\[\smallskipamount]
+\ifStd
+&\mathit{sign}_I : I\to I  && (x)\mapsto\text{the sign of $x$} \displaybreak[0]\\[\smallskipamount]
+\fi
+&\mathit{eq}_I : I\times I\to\BOOLEANS  && (x,y)\mapsto\text{$x$ equals $y$} \displaybreak[0]\\[\smallskipamount]
+&\mathit{neq}_I : I\times I\to\BOOLEANS && (x,y)\mapsto\text{$x$ does not equal $y$} \displaybreak[0]\\[\smallskipamount]
+&\mathit{lss}_I : I\times I\to\BOOLEANS && (x,y)\mapsto\text{$x$ is less than $y$} \displaybreak[0]\\[\smallskipamount]
+&\mathit{leq}_I : I\times I\to\BOOLEANS && (x,y)\mapsto\text{$x$ is not greater than $y$} \displaybreak[0]\\[\smallskipamount]
+&\mathit{gtr}_I : I\times I\to\BOOLEANS && (x,y)\mapsto\text{$x$ is greater than $y$} \displaybreak[0]\\[\smallskipamount]
+&\mathit{geq}_I : I\times I\to\BOOLEANS && (x,y)\mapsto\text{$x$ is not less than $y$}
+\end{xxalignat}
+For each function, LIA-1 states a number of axioms.
+\ifStd
+A \StdErlang\ implementation must satisfy all of these with the added
+restriction that $\mathit{modulo}=\B{false}$\index{modulo@\I{modulo}}
+(\S\ref{section:integer-type}),
+\index{minint@\I{minint}|(}
+\index{maxint@\I{maxint}|(}
+either $\mathit{minint}=-\mathit{maxint}$ or $\mathit{minint}=-(\mathit{maxint}+1)$
+(when $\mathit{bounded}=\B{true}$\index{bounded@\I{bounded}}),
+\index{minint@\I{minint}|)}
+\index{maxint@\I{maxint}|)} and
+$\mathit{mod}_I=\mathit{mod}_I^a$.
+\StdErlang\ provides operators for both the pairs $\mathit{div}_I^f/\mathit{rem}_I^f$ and
+$\mathit{div}_I^t/\mathit{rem}_I^t$.
+\fi
+\ifOld
+In \OldErlang, $\mathit{modulo}=\B{false}$\index{modulo@\I{modulo}} (\S\ref{section:integer-type}),
+$\mathit{bounded}=\B{false}$\index{bounded@\I{bounded}} and $\mathit{mod}_I=\mathit{mod}_I^a$.
+For $\mathit{div}$ and $\mathit{rem}$ the pair $\mathit{div}_I^t/\mathit{rem}_I^t$ is provided.
+\fi
+
+For convenience we reproduce the
+strengthened axioms of Section~5.1.3 of LIA-1 here:
+\begin{alignat*}{2}
+\mathit{add}_I(x,y) &= x+y && \qquad\text{if $x+y\in I$;} \\
+                    &= \B{integer\_overflow} && \qquad\text{if $x+y\notin I$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{sub}_I(x,y) &= x-y && \qquad\text{if $x-y\in I$;} \\
+                    &= \B{integer\_overflow} && \qquad\text{if $x-y\notin I$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{mul}_I(x,y) &= x*y && \qquad\text{if $x*y\in I$;} \\
+                    &= \B{integer\_overflow} && \qquad\text{if $x*y\notin I$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{div}_I^f(x,y) &= \lfloor x/y\rfloor && \qquad\text{if $y\neq0$ and $\lfloor x/y\rfloor\in I$;} \\
+                    &= \B{integer\_overflow} && \qquad\text{if $y\neq0$ and $\lfloor x/y\rfloor\notin I$;} \\
+                    &= \B{undefined} && \qquad\text{if $y=0$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{rem}_I^f(x,y) &= x-(\lfloor x/y\rfloor*y) && \qquad\text{if $y\neq0$;} \\
+                    &= \B{undefined} && \qquad\text{if $y=0$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{div}_I^t(x,y) &= \mathit{tr}(x/y) && \qquad\text{if $y\neq0$ and $\mathit{tr}(x/y)\in I$;} \\
+                    &= \B{integer\_overflow} && \qquad\text{if $y\neq0$ and $\mathit{tr}(x/y)\notin I$;} \\
+                    &= \B{undefined} && \qquad\text{if $y=0$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{rem}_I^t(x,y) &= x-(\mathit{tr}(x/y)*y) && \qquad\text{if $y\neq0$;} \\
+                    &= \B{undefined} && \qquad\text{if $y=0$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{mod}_I^a(x,y) &= x-(\lfloor x/y\rfloor*y) && \qquad\text{if $y\neq0$;} \\
+                    &= \B{undefined} && \qquad\text{if $y=0$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{neg}_I(x)   &= -x && \qquad\text{if $-x\in I$;} \\
+                    &= \B{integer\_overflow} && \qquad\text{if $-x\notin I$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{abs}_I(x)   &= |x| && \qquad\text{if $|x|\in I$;} \\
+                    &= \B{integer\_overflow} && \qquad\text{if $|x|\notin I$.} \displaybreak[0]\\[\smallskipamount]
+\ifStd
+\mathit{sign}_I(x)  &= 1 && \qquad\text{if $x>0$;} \\
+                    &= 0 && \qquad\text{if $x=0$;} \\
+                    &= -1 && \qquad\text{if $x<0$.} \displaybreak[0]\\[\smallskipamount]
+\fi
+\mathit{eq}_I(x,y)  &= \B{true} && \qquad\text{if $x=y$;} \\
+                    &= \B{false} && \qquad\text{if $x\neq y$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{neq}_I(x,y) &= \B{true} && \qquad\text{if $x\neq y$;} \\
+                    &= \B{false} && \qquad\text{if $x=y$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{lss}_I(x,y) &= \B{true} && \qquad\text{if $x<y$;} \\
+                    &= \B{false} && \qquad\text{if $x\geq y$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{leq}_I(x,y) &= \B{true} && \qquad\text{if $x\leq y$;} \\
+                    &= \B{false} && \qquad\text{if $x>y$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{gtr}_I(x,y) &= \B{true} && \qquad\text{if $x>y$;} \\
+                    &= \B{false} && \qquad\text{if $x\leq y$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{geq}_I(x,y) &= \B{true} && \qquad\text{if $x\geq y$;} \\
+                    &= \B{false} && \qquad\text{if $x<y$.}
+\end{alignat*}
+
+\iffalse
+When these functions are used in other chapters, it will sometimes be
+convenient to write applications of them to \Erlang\ integer terms,
+rather than to the integers that these terms denote.  Similarly we
+will sometimes use the result of one of the mathematical functions as
+if it were an \Erlang\ integer term.
+\fi
+\index{integer!arithmetic operations|)}
+
+\section{The floating-point type}
+
+\label{section:float-type}
+\index{float!properties|(}
+
+\ifStd
+A \StdErlang\ implementation must provide at least one floating-point
+type that conforms with LIA-1.  In this document that type is assumed
+to be the only floating-point type.
+\fi
+\index{F@$F$|(}
+The set of numbers that can be
+represented by the float type is called $F$ and is a finite subset of
+$\REALS$\index{R@$\REALS$ (the reals)}.  $F$ may contain both
+normalized and denormalized values (cf.~Section~5.2 of LIA-1);
+$F_N$ stands for the set of normalized values in $F$.
+
+LIA-1 requires $F$ to be characterized by five parameters:
+\index{r@$r$|(}
+\index{p@$p$|(}
+\index{emin@$\mathit{emin}$|(}
+\index{emax@$\mathit{emax}$|(}
+\index{denorm@$\mathit{denorm}$|(}
+\begin{textdisplay}
+\begin{tabular}{@{}ll@{}}
+$p\in\INTS$ & (the precision of $F$) \\
+$r\in\INTS$ & (the radix of $F$) \\
+$\I{emin}\in\INTS$ & (the smallest exponent of $F$) \\
+$\I{emax}\in\INTS$ & (the largest exponent of $F$) \\
+$\I{denorm}\in\BOOLEANS$ & (whether $F$ contains denormalized values)
+\end{tabular}
+\end{textdisplay}
+
+\ifOld
+\OldErlang\ directly uses the float representation of the underlying
+processor so these parameters are not defined.  It is guaranteed,
+however, that the size of a float is at least 64 bits.
+\iffalse
+$r$ is $2$,
+$p$ is XXX,
+$\mathit{emin}$ is XXX,
+$\mathit{emax}$ is XXX and
+$\mathit{denorm}$ is \B{true}.
+\fi\fi
+
+\ifStd
+These parameters are available through the BIFs
+\T{float:precision/0}, \T{float:radix/0},
+\T{float:e_min/0},
+\T{float:e_max/0} and \T{float:de\-norm/0}, respectively (\S\ref{section:float-module}).
+
+In addition to the requirements of Section~5.2 of LIA-1, the following must
+hold for the floating-point type of a \StdErlang\ implementation
+(from Section~A.5.2.0.2 of LIA-1):
+\begin{itemize}
+\item $r$ should be even,
+\item $r^{p-1}\geq 10^6$,
+\item $\I{emin}-1 \leq k*(p-1)$ with $k\geq 2$ and $k$ as large an integer as practical,
+\item $\I{emax} > k*(p-1)$, and
+\item $-2 \leq (emin-1) + emax \leq 2$.
+\end{itemize}
+
+\index{r@$r$|)}
+\index{p@$p$|)}
+\index{emin@$\mathit{emin}$|)}
+\index{emax@$\mathit{emax}$|)}
+\index{denorm@$\mathit{denorm}$|)}
+
+The range and granularity of $F$ are characterized by four derived
+constants:
+\index{fmax@$\mathit{fmax}$|(}
+\index{fmin@$\mathit{fmin}$|(}
+\index{fminN@$\mathit{fmin}_N$|(}
+\index{epsilon@$\mathit{epsilon}$|(}
+\begin{textdisplay}
+\begin{tabular}{@{}ll@{}}
+$\mathit{fmax}\in F$ & (the value of largest magnitude in $F$) \\
+$\mathit{fmin}\in F$ & (the value of smallest magnitude in $F$) \\
+$\mathit{fmin}_N\in F$ & (the smallest normalized value in $F$) \\
+$\mathit{epsilon}\in F$ & (the largest relative representation error in $F_N$)
+\end{tabular}
+\end{textdisplay}
+\index{fmax@$\mathit{fmax}$|)}
+\index{fmin@$\mathit{fmin}$|)}
+\index{fminN@$\mathit{fmin}_N$|)}
+\index{epsilon@$\mathit{epsilon}$|)}
+\index{F@$F$|)}
+
+\iffalse
+\ifOld
+For \OldErlang,
+$\mathit{fmax}$ is XXX,
+$\mathit{fmin}$ is XXX,
+$\mathit{fmin}_N$ is XXX and
+$\mathit{epsilon}$ is XXX.
+\fi\fi
+
+These derived constants are available through the BIFs
+\T{float:f_max/0}, \T{float:f_min/0},
+\T{float:f_min_norm/0} and
+\T{float:epsilon/0}, respectively (\S\ref{section:float-module}).
+\fi
+\index{float!properties|)}
+
+\section{Floating-point operations}
+
+\label{section:float-operations}
+\index{float!arithmetic operations|(}
+
+Elsewhere in this specification we express the floating-point
+arithmetic operations of \Erlang\ in terms of the following functions
+from LIA-1:
+\begin{xxalignat}{2}
+&\lefteqn{\mathit{add}_F : F\times F\to F\cup\{\B{floating\_overflow},\B{underflow}\}} \\
+ &&& (x,y)\mapsto\text{the sum of $x$ and $y$} \displaybreak[0]\\[\smallskipamount]
+&\lefteqn{\mathit{sub}_F : F\times F\to F\cup\{\B{floating\_overflow},\B{underflow}\}} \\
+ &&& (x,y)\mapsto\text{the difference of $x$ and $y$} \displaybreak[0]\\[\smallskipamount]
+&\lefteqn{\mathit{mul}_F : F\times F\to F\cup\{\B{floating\_overflow},\B{underflow}\}} \\
+ &&& (x,y)\mapsto\text{the product of $x$ and $y$} \displaybreak[0]\\[\smallskipamount]
+&\lefteqn{\mathit{div}_F : F\times F\to F\cup\{\B{floating\_overflow},\B{underflow},\B{undefined}\}} \\
+ &&& (x,y)\mapsto\text{the quotient of $x$ and $y$} \displaybreak[0]\\[\smallskipamount]
+&\mathit{neg}_F : F\to F && (x)\mapsto\text{the (arithmetic) negation of $x$} \displaybreak[0]\\[\smallskipamount]
+&\mathit{abs}_F : F\to F && (x)\mapsto\text{absolute value of $x$} \displaybreak[0]\\[\smallskipamount]
+&\mathit{sign}_F : F\to I && (x)\mapsto\text{the sign of $x$}\displaybreak[0]\\[\smallskipamount]
+&\lefteqn{\mathit{exponent}_F : F\to F\cup\{\B{undefined}\}} \\
+ &&& (x)\mapsto\text{the exponent of $x$} \displaybreak[0]\\[\smallskipamount]
+&\mathit{fraction}_F : F\to F && (x)\mapsto\text{$x$ scaled by a power of $r$ to the range $[1/r,1)$} \displaybreak[0]\\[\smallskipamount]
+&\lefteqn{\mathit{scale}_F : F\times I\times F\to F\cup\{\B{floating\_overflow},\B{underflow}\}} \\
+ &&& (x,n)\mapsto\text{the product of $x$ and $r^n$} \displaybreak[0]\\[\smallskipamount]
+&\lefteqn{\mathit{succ}_F : F\to F\cup\{\B{floating\_overflow}\}} \\
+ &&& (x)\mapsto\text{the least float greater than $x$} \displaybreak[0]\\[\smallskipamount]
+&\lefteqn{\mathit{pred}_F : F\to F\cup\{\B{floating\_overflow}\}} \\
+ &&& (x)\mapsto\text{the greatest float less than $x$} \displaybreak[0]\\[\smallskipamount]
+&\lefteqn{\mathit{ulp}_F : F\to F\cup\{\B{underflow},\B{undefined}\}} \\
+ &&& (x)\mapsto\text{the value of one unit in the last place of $x$} \displaybreak[0]\\[\smallskipamount]
+&\mathit{trunc}_F : F\times I\to F && (x)\mapsto\text{$x$ with the low $p-n$ digits zeroed} \displaybreak[0]\\[\smallskipamount]
+&\lefteqn{\mathit{round}_F : F\times I\to F\cup\{\B{floating\_overflow}\}} \\
+ &&& (x)\mapsto\text{$x$ rounded to $n$ significant digits} \displaybreak[0]\\[\smallskipamount]
+&\mathit{intpart}_F : F\to F && (x)\mapsto\text{the integer part of $x$} \displaybreak[0]\\[\smallskipamount]
+&\mathit{fractpart}_F : F\to F && (x)\mapsto\text{$x$ minus the integer part of $x$} \displaybreak[0]\\[\smallskipamount]
+&\mathit{eq}_F : F\times F\to\BOOLEANS && (x,y)\mapsto\text{$x$ equals $y$} \displaybreak[0]\\[\smallskipamount]
+&\mathit{neq}_F : F\times F\to\BOOLEANS && (x,y)\mapsto\text{$x$ does not equal $y$} \displaybreak[0]\\[\smallskipamount]
+&\mathit{lss}_F : F\times F\to\BOOLEANS && (x,y)\mapsto\text{$x$ is less than $y$} \displaybreak[0]\\[\smallskipamount]
+&\mathit{leq}_F : F\times F\to\BOOLEANS && (x,y)\mapsto\text{$x$ is not greater than $y$} \displaybreak[0]\\[\smallskipamount]
+&\mathit{gtr}_F : F\times F\to\BOOLEANS && (x,y)\mapsto\text{$x$ is greater than $y$} \displaybreak[0]\\[\smallskipamount]
+&\mathit{geq}_F : F\times F\to\BOOLEANS && (x,y)\mapsto\text{$x$ is not less than $y$}
+\end{xxalignat}
+\ifStd
+(LIA-1 specifies that the type of $\mathit{sign}_F$ should be $F\to F$ but in \Erlang\
+the resulting integer can be automatically coerced to a float and an integer is more
+useful than a float for dispatching upon.)
+\fi
+For each function, LIA-1 states a number of axioms.
+\ifStd A \StdErlang\ implementation must satisfy all of these axioms. \fi
+For convenience we reproduce the axioms of Section~5.2.7 of LIA-1 here:
+\begin{alignat*}{2}
+\mathit{add}_F(x,y) &= \mathit{result}_F(\mathit{add}_F^*(x+y),\mathit{rnd}_F) && \displaybreak[0]\\[\smallskipamount]
+\mathit{sub}_F(x,y) &= \mathit{add}_F(x,-y) && \displaybreak[0]\\[\smallskipamount]
+\mathit{mul}_F(x,y) &= \mathit{result}_F(x*y,\mathit{rnd}_F) && \displaybreak[0]\\[\smallskipamount]
+\mathit{div}_F(x,y) &= \mathit{result}_F(x/y,\mathit{rnd}_F) && \qquad\text{if $y\neq0$;} \\
+                    &= \B{undefined} && \qquad\text{if $y=0$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{neg}_F(x)   &= -x &&  \displaybreak[0]\\[\smallskipamount]
+\mathit{abs}_F(x)   &= |x| && \displaybreak[0]\\[\smallskipamount]
+\mathit{sign}_F(x)  &= 1 && \qquad\text{if $x>0$;} \\
+                    &= 0 && \qquad\text{if $x=0$;} \\
+                    &= -1 && \qquad\text{if $x<0$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{exponent}_F(x) &= \lfloor(\log_r|x|\rfloor+1 && \qquad\text{if $x\neq0$;} \\
+                    &= \B{undefined} && \qquad\text{if $x=0$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{fraction}_F(x) &= x/r^{\mathit{exponent}_F(x)} && \qquad\text{if $x\neq0$;} \\
+                    &= \B{undefined} && \qquad\text{if $x=0$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{scale}_F(x,n) &= \mathit{result}_F(x*r^n,\mathit{rnd}_F) && \displaybreak[0]\\[\smallskipamount]
+\mathit{succ}_F(x)  &= \min\{\,z\in F \mid z > x\,\} && \qquad\text{if $x\neq\mathit{fmax}$;} \\
+                    &= \B{floating\_overflow} && \qquad\text{if $x=\mathit{fmax}$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{pred}_F(x)  &= \max\{\,z\in F \mid z < x\,\} && \qquad\text{if $x\neq-\mathit{fmax}$;} \\
+                    &= \B{floating\_overflow} && \qquad\text{if $x=-\mathit{fmax}$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{ulp}_F(x)   &= r^{e_F(x)-p} && \qquad\text{if $x\neq0$ and $r^{e_F(x)-p}\in F$;} \\
+                    &= \B{underflow} && \qquad\text{if $x\neq0$ and $r^{e_F(x)-p}\notin F$;} \\
+                    &= \B{undefined} && \qquad\text{if $x=0$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{trunc}_F(x) &= \lfloor x/r^{e_F(x)-n}\rfloor*r^{e_F(x)-n} && \qquad\text{if $x\geq0$;} \\
+                    &= -\mathit{trunc}_F(-x,n) && \qquad\text{if $x<0$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{round}_F(x) &= \mathit{rn}_F(x,n) && \qquad\text{if $|\mathit{rn}_F(x,n)|\leq\mathit{fmax}$;} \\
+                    &= \B{floating\_overflow} && \qquad\text{if $|\mathit{rn}_F(x,n)|>\mathit{fmax}$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{intpart}_F(x) &= \mathit{sign}_F(x)*\lfloor|x|\rfloor && \displaybreak[0]\\[\smallskipamount]
+\mathit{fractpart}_F(x) &= x-\mathit{intpart}_F(x) && \displaybreak[0]\\[\smallskipamount]
+\mathit{eq}_F(x,y)  &= \B{true} && \qquad\text{if $x=y$;} \\
+                    &= \B{false} && \qquad\text{if $x\neq y$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{neq}_F(x,y) &= \B{true} && \qquad\text{if $x\neq y$;} \\
+                    &= \B{false} && \qquad\text{if $x=y$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{lss}_F(x,y) &= \B{true} && \qquad\text{if $x<y$;} \\
+                    &= \B{false} && \qquad\text{if $x\geq y$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{leq}_F(x,y) &= \B{true} && \qquad\text{if $x\leq y$;} \\
+                    &= \B{false} && \qquad\text{if $x>y$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{gtr}_F(x,y) &= \B{true} && \qquad\text{if $x>y$;} \\
+                    &= \B{false} && \qquad\text{if $x\leq y$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{geq}_F(x,y) &= \B{true} && \qquad\text{if $x\geq y$;} \\
+                    &= \B{false} && \qquad\text{if $x<y$.}
+\end{alignat*}
+The functions are expressed in terms of a number of helper functions and sets:
+\begin{itemize}
+\item The set $F^*$\index{F*@$F^*$} is $F$ extended with all numbers having the same precision as numbers
+in $F_N$ but larger magnitude.
+\item The approximate addition function $\mathit{add}_F^* : F\times F\to\REALS$ is as
+described in Section~5.2.4 of LIA-1, ideally but not necessarily such that
+$\mathit{add}_F^*(x,y)=x+y$.
+\item The functions $e_F : \REALS\to\INTS$ and $\mathit{rn}_F : F\times\INTS\to F^*$
+are as described in Section~5.2.7 of LIA-1, i.e., they are defined such that
+\begin{alignat*}{2}
+e_F(x) &= \lfloor\log_r|x|\rfloor+1 && \qquad\text{if $|x|\geq\mathit{fmin}_N$;} \\
+       &= \mathit{emin} && \qquad\text{if $|x|<\mathit{fmin}_N$.} \displaybreak[0]
+\end{alignat*}
+and
+\[\mathit{rn}_F(x,n) = \mathit{sign}_F(x)*\lfloor|x|/r^{e_F(x)-n}+1/2\rfloor*r^{e_F(x)-n}\]
+\item $\mathit{rnd}_F : \REALS\to F^*$ is the rounding function\index{rounding function}
+used when taking an exact
+result in $\REALS$ to a $p$-digit approximation.  It must satisfy the requirements
+stated in Sections~5.2.5 and~5.2.8 of LIA-1.  There are two derived constants characterizing
+$\mathit{rnd}_F$:
+\begin{itemize}
+\item $\I{rnd\_error}\in\REALS$ is the maximum rounding error in ulps;
+\item $\I{rnd\_style}\in\{\B{nearest},\B{truncate},\B{other}\}$ is the rounding style.
+\end{itemize}
+\ifOld
+For \OldErlang, $\mathit{rnd\_error}$ is XXX and $\mathit{rnd\_style}$
+is XXX.
+\fi
+\ifStd
+They are available at run time through the BIFs
+\T{float:rnd_error/0} and
+\T{float:rnd_style/0} (\S\ref{section:float-module}).
+\fi
+\item $\mathit{result}_F : \REALS\times(\REALS\to F^*)\to
+F\cup\{\B{floating\_overflow},\B{underflow}\}$ is the function described in Section~5.2.6
+of LIA-1.  The value of $\mathit{result}_F(x,\mathit{rnd})$, where $x\in\REALS$ and
+\I{rnd} is a rounding function in $\REALS\to F^*$, is the result of applying the
+rounding function to $x$, provided that the result is in $F$.
+\ifStd
+If $|x|$ is greater
+than zero but less than \I{fmin}, $\mathit{result}_F(x,\mathit{rnd})$ can always be
+\B{underflow} but may be $\mathit{rnd}(x)$ if \I{denorm} is \B{true} and no
+denormalization loss occurs at $x$.
+A \StdErlang\ implementation for which
+\I{denorm} is \B{true} shall document how this choice is made.
+\fi
+\ifOld
+If $|x|$ is greater
+than zero but less than \I{fmin}, then XXX???
+\fi
+\end{itemize}
+\index{float!arithmetic operations|)}
+
+\section{Conversions}
+
+\label{section:conversions}
+\index{conversion!arithmetic|(}
+
+\ifStd
+In a \StdErlang\ implementation with more than one integer type or more
+than one floating-point type, conversion functions between integer
+types and between floating-point types shall be provided that satisfy
+the requirements in Section~5.3 of LIA-1.
+\fi
+
+Let $\mathit{nearest}_{I\to F} : I\to F\cup\{\B{floating_overflow}\}$
+be defined as
+\[\mathit{nearest}_{I\to F}(x) = \mathit{result}_F(x,\mathit{nearest}_F),\]
+where $\mathit{result}_F$ is as in \S\ref{section:float-operations}
+(cf.~Section~5.2.6 of LIA-1) and $\mathit{nearest}_F$ is a
+rounding-to-nearest function for $F$ (\S\ref{section:notation-arith}).
+
+Define the following four functions:
+\begin{alignat*}{2}
+\mathit{floor}_{F\to I}(x) &= \mathit{floor}_Z(x) && \qquad\text{if $\mathit{floor}_Z(x)\in I$;} \\
+       &= \B{integer\_overflow} && \qquad\text{if $\mathit{floor}_Z(x)\notin I$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{ceiling}_{F\to I}(x) &= \mathit{ceiling}_Z(x) && \qquad\text{if $\mathit{ceiling}_Z(x)\in I$;} \\
+       &= \B{integer\_overflow} && \qquad\text{if $\mathit{ceiling}_Z(x)\notin I$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{truncate}_{F\to I}(x) &= \mathit{truncate}_Z(x) && \qquad\text{if $\mathit{truncate}_Z(x)\in I$;} \\
+       &= \B{integer\_overflow} && \qquad\text{if $\mathit{truncate}_Z(x)\notin I$.} \displaybreak[0]\\[\smallskipamount]
+\mathit{nearest}_{F\to I}(x) &= \mathit{nearest}_Z(x) && \qquad\text{if $\mathit{nearest}_Z(x)\in I$;} \\
+       &= \B{integer\_overflow} && \qquad\text{if $\mathit{nearest}_Z(x)\notin I$.}
+\end{alignat*}
+Note that the four functions $\mathit{floor}_Z$, $\mathit{ceiling}_Z$,
+$\mathit{truncate}_Z$ and $\mathit{nearest}_Z$ meet the requirements
+in Section~5.3 of LIA-1 for being used as the rounding function
+$\mathit{rnd}_{F\to I}$ in a conversion function $\mathit{cvt}_{F\to
+I}$.
+\index{conversion!arithmetic|)}
+
+\section{Representation and evaluation}
+
+\label{section:eval-notation}
+
+The purpose of this section is to define notation and terminology that is
+used in the subsequent chapters.
+
+\index{Re@$\Re[\cdot]$|(}
+\begin{itemize}
+\item If $i\in I$, then $\Re[i]$ is the \Erlang\ integer representing $i$.
+\item If $f\in F$, then $\Re[f]$ is the \Erlang\ float representing $f$. 
+\item If $b\in\BOOLEANS$, i.e., \B{true} or \B{false}, then $\Re[b]$
+is the \Erlang\ Boolean atom representing $b$.  That is, 
+$\Re[\B{true}]=\T{true}$ and $\Re[\B{false}]=\T{false}$.
+\item If $x$ is one of %the exceptional values
+\B{integer\_overflow},
+\B{floating\_overflow}, \B{underflow} and \B{undefined}, then
+$\Re[x]$ is
+\ifStd
+the \Erlang\ atom given by Table~\ref{table:arith-exits}.
+\fi
+\ifOld
+the \Erlang\ atom \T{badarith}.
+\fi
+\end{itemize}
+\index{Re@$\Re[\cdot]$|)}
+
+\ifStd
+\begin{table}
+\begin{center}
+\index{integer_overflow@\B{integer\_overflow}|(}
+\index{floating_overflow@\B{floating\_overflow}|(}
+\index{underflow@\B{underflow}|(}
+\index{undefined@\B{undefined}|(}
+\index{integer_overflow exit signal@\T{integer\_overflow} exit signal|(}
+\index{float_overflow exit signal@\T{float\_overflow} exit signal|(}
+\index{float_underflow exit signal@\T{float\_underflow} exit signal|(}
+\index{undefined_arith exit signal@\T{undefined_arith} exit signal|(}
+\begin{tabular}{@{}ll@{}}
+\hline
+Exceptional value & Exit reason \\
+\hline
+\B{integer\_overflow} & \T{integer_overflow} \\
+\B{floating\_overflow} & \T{float_overflow} \\
+\B{underflow} & \T{float_underflow} \\
+\B{undefined} & \T{undefined_arith} \\
+\hline
+\end{tabular}
+\caption{Exit reasons for exceptional values\index{arithmetic!exceptional values}.}
+\label{table:arith-exits}
+\index{integer_overflow@\B{integer\_overflow}|)}
+\index{floating_overflow@\B{floating\_overflow}|)}
+\index{underflow@\B{underflow}|)}
+\index{undefined@\B{undefined}|)}
+\index{integer_overflow exit signal@\T{integer\_overflow} exit signal|)}
+\index{float_overflow exit signal@\T{float\_overflow} exit signal|)}
+\index{float_underflow exit signal@\T{float\_underflow} exit signal|)}
+\index{undefined_arith exit signal@\T{undefined_arith} exit signal|)}
+\end{center}
+\end{table}
+\fi
+
+\index{Re-1@$\Er[\cdot]$|(}
+Similarly,
+\begin{itemize}
+\item If \TZ{I} is an Erlang\ integer, then $\Er[\TZ{I}]\in I$ is the
+integer it represents.
+\item If \TZ{F} is an Erlang\ float, then $\Er[\TZ{F}]\in F$ is the
+real number it represents.
+\item If \TZ{B} is an Erlang\ Boolean atom, then $\Er[\TZ{B}]\in\BOOLEANS$ is the
+Boolean it represents.
+That is, $\Er[\T{true}]=\B{true}$ and $\Er[\T{false}]=\B{false}$.
+\end{itemize}
+\index{Re-1@$\Er[\cdot]$|)}
+
+We have a notation for writing the result of evaluating an expression:
+\begin{itemize}
+\item When we write $\TZ{E}\RETURNS\TZ{T}$\index{  returns@$\RETURNS$}
+we state that evaluating the expression
+\TZ{E} completes normally and that its value is the term \TZ{T}.  (If the
+environment is relevant, it is stated elsewhere.)
+\item When we write $\TZ{E}\EXITSWITH\TZ{R}$\index{  exitswith@$\EXITSWITH$}
+we state that evaluating the expression
+\TZ{E} exits with reason \TZ{R}.
+\end{itemize}
+
+\iffalse
+\label{section:arith-shorthand}
+
+When describing the evaluation of arithmetic expressions in
+\S\ref{chapter:expressions-evaluation} and the BIFs in \S\ref{chapter:bifs},
+it will be convenient to use also the following shorthand.
+
+\index{apply!arithmetic operation|(}
+
+When we write ``apply $f_I$ to $\TZ{v}_1$'' where
+$f_I$ is one of the integer operations in
+\S\ref{section:integer-operations} and $\TZ{v}_1$ is an \Erlang\ term, we mean
+\begin{itemize}
+\item If $\TZ{v}_1$ is an \Erlang\ integer, then
+\begin{itemize}
+\item If $f_I(\Er[\TZ{v}_1])\in I$, then $\Re[f_I(\Er[\TZ{v}_1])]$
+is the result.
+\item If $f_I(\Er[\TZ{v}_1])=\B{integer\_overflow}$, then exit with \T{integer_overflow}.
+\item If $f_I(\Er[\TZ{v}_1])=\B{undefined}$, then exit with \T{undefined}.
+\end{itemize}
+\item If $\TZ{v}_1$ is not an \Erlang\ integer, exit with \T{\badarith}.
+\end{itemize}
+Similarly for ``apply $f_I$ to $\TZ{v}_1$ and $\TZ{v}_2$'', where both
+$\TZ{v}_1$ and $\TZ{v}_2$ must be \Erlang\ integers.
+
+When we write ``apply $f_F$ to $\TZ{v}_1$'' where
+$f_F$ is one of the floating-point operations in
+\S\ref{section:float-operations} and $\TZ{v}_1$ is an \Erlang\ term, we mean
+\begin{itemize}
+\item If $\TZ{v}_1$ is an \Erlang\ float, then
+\begin{itemize}
+\item If $f_F(\Er[\TZ{v}_1])\in F$, then $\Re[f_F(\Er[\TZ{v}_1])]$
+is the result.
+\item If $f_F(\Er[\TZ{v}_1])=\B{floating\_overflow}$, then exit with \T{floating_overflow}.
+\item If $f_F(\Er[\TZ{v}_1])=\B{undefined}$, then exit with \T{undefined}.
+\end{itemize}
+\item If $\TZ{v}_1$ is not an \Erlang\ float, exit with \T{\badarith}.
+\end{itemize}
+Similarly for ``apply $f_F$ to $\TZ{v}_1$ and $\TZ{v}_2$'', where both
+$\TZ{v}_1$ and $\TZ{v}_2$ must be \Erlang\ floats.
+
+When we write ``apply $f$ to $\TZ{v}_1$''\ where $f_I$ is one of the
+integer operations in
+\S\ref{section:integer-operations}, $f_F$ is one of the floating-point operations in
+\S\ref{section:float-operations} and $\TZ{v}_1$ is an \Erlang\ term, we mean
+\begin{itemize}
+\item If $\TZ{v}_1$ is an \Erlang\ integer, then apply $f_I$ to
+$\TZ{v}_1$.
+\item If $\TZ{v}_1$ is an \Erlang\ float, then apply $f_F$ to
+$\TZ{v}_1$.
+\item Otherwise, exit with \T{badarg}.
+\end{itemize}
+Similarly for ``apply $f$ to $\TZ{v}_1$ and $\TZ{v}_2$'', where either both
+$\TZ{v}_1$ and $\TZ{v}_2$ must be \Erlang\ integers or both must be
+\Erlang\ floats.
+
+When we write ``apply $f_{I\to F}$ to $\TZ{v}_1$''\ where
+$f_{I\to F}$ is one of the integer to float conversion operations in
+\S\ref{section:conversions} and $\TZ{v}_1$ is an
+\Erlang\ term, we mean
+\begin{itemize}
+\item If $\TZ{v}_1$ is an \Erlang\ integer, then
+\begin{itemize}
+\item If $f_{I\to F}(\Er[\TZ{v}_1])\in F$, then $\Re[f_{I\to F}(\Er[\TZ{v}_1])]$ is the result.
+\item If $f_{I\to F}(\Er[\TZ{v}_1])=\B{floating\_overflow}$, then exit with \T{floating_overflow}.
+\end{itemize}
+\item If $\TZ{v}_1$ is an \Erlang\ float, then $\TZ{v}_1$ is the result.
+\item If $\TZ{v}_1$ is neither an \Erlang\ integer, nor a float, exit with \TZ{badarg}.
+\end{itemize}
+
+When we write ``apply $f_{F\to I}$ to $\TZ{v}_1$''\ where
+$f_{F\to I}$ is one of the float to integer conversion operations in
+\S\ref{section:conversions} and $\TZ{v}_1$ is an
+\Erlang\ term, we mean
+\begin{itemize}
+\item If $\TZ{v}_1$ is an \Erlang\ float, then
+\begin{itemize}
+\item If $f_{F\to I}(\Er[\TZ{v}_1])\in I$, then $\Re[f_{F\to I}(\Er[\TZ{v}_1])]$ is the result.
+\item If $f_{F\to I}(\Er[\TZ{v}_1])=\B{integer\_overflow}$, then exit with \T{integer_overflow}.
+\end{itemize}
+\item If $\TZ{v}_1$ is an \Erlang\ integer, then $\TZ{v}_1$ is the result.
+\item If $\TZ{v}_1$ is neither an \Erlang\ integer, nor a float, exit with \TZ{badarg}.
+\end{itemize}
+
+The result and exit refer to the result and exit of the expression
+being described or the application of the BIF being described.
+\index{apply!arithmetic operation|)}
+\fi % iffalse
+
+\section{Notification}
+
+\index{arithmetic!notification|(}
+
+Whenever the evaluation of the translated \Erlang\ expressions causes
+one of the functions defined in the preceding sections of this chapter
+to return an exceptional value, the evaluation of the translated
+\Erlang\ expression exits with
+\ifStd
+a reason that depends on the
+exceptional value, cf.~Table~\ref{table:arith-exits}.
+\fi
+\ifOld
+reason \T{badarith}.
+\fi
+
+A \ifStd\T{try} expression (\S\ref{section:try-expr}) \else
+\T{catch} expression (\S\ref{section:catch}) \fi
+can be used for handling
+the exception in accordance with Section~6.1.1 of LIA-1.
+
+The usual mechanisms for handling of abnormal completion ensure that
+in absence of a \ifStd\T{try} \else\T{catch} \fi expression that catches the arithmetic
+exception, the process will complete abruptly; any exit signals sent
+to linked processes will propagate information about the arithmetic
+exception (\S\ref{section:exit-signals}).
+
+\index{arithmetic!notification|)}
+
+\iffalse
+% !!! I would like to have this one included.
+\section{Translation}
+
+\index{arithmetic!translation|(}
+\emph{In this section I will tell how arithmetic expressions are expected to
+be translated into combinations of LIA-1 operations.  Pretty easy since there
+is only one integer and one float type.  The dynamic typing might make it
+a little more messy.}
+\index{arithmetic!translation|)}
+\fi
+
+\ifStd
+\section{Conformity with IEC 559}
+
+\label{section:arith-iec559}
+
+\index{IEC 559|(}
+\index{iec_559@\I{iec\_559}|(}
+This specification does not specify a language binding for that part
+of IEC~559 (a.\,k.\,a.\ ANSI/IEEE Std.\ 754-1985) \cite{iec559} that
+is not covered by LIA-1, except that there is a parameter
+$\mathit{iec\_559}\in\BOOLEANS$ that should be \B{true} in an
+implementation that fully conforms to IEC~559 and \B{false} elsewhere.
+
+The parameter $\mathit{iec\_559}$ is available to programs through the BIF \linebreak
+\T{float:iec_559/0} (\S\ref{section:float:iec5590}).
+\index{IEC 559|)}
+\index{iec_559@\I{iec\_559}|)}
+\fi
+
+\section{Conversion to and from numerals}
+
+We will define conversions from $I$ and $F$ to canonical decimal numerals.
+Below we will only discuss decimal numerals and thus omit ``decimal''.
+We will also define conversions from decimal numerals to $I$ or $F$.
+
+\subsection{Integer to decimal numeral}
+
+\label{section:integer-to-numeral}
+\index{integer!conversion to numeral|(}
+Given an integer $i\in I$, the canonical numeral is defined recursively as follows.
+\begin{itemize}
+\item If $0\leq i<10$, then the canonical numeral for $i$ is the decimal digit with value $i$.
+\item If $i<0$, then the canonical numeral for $i$ is a minus sign (`$-$') followed by the
+canonical numeral for $-i$.
+\item If $i\geq10$, then the canonical numeral for $i$ is the canonical numeral
+for $\lfloor i/10\rfloor$ followed by the decimal digit with value $i\bmod10$.
+\end{itemize}
+\index{integer!conversion to numeral|)}
+
+\subsection{Decimal numeral to integer}
+
+\label{section:numeral-to-integer}
+\index{integer!conversion from numeral|(}
+Given a sequence of characters, its interpretation as a decimal integer numeral
+(if any) is defined as follows:
+\begin{itemize}
+\item If the sequence consists of a minus sign followed by decimal digits $d_1$, \ldots, $d_k$,
+then it denotes $-i$, where $i$ is the integer denoted by the digits $d_1$, \ldots, $d_k$.
+\item If the sequence consists of a plus sign followed by decimal digits $d_1$, \ldots, $d_k$,
+then it denotes the same integer as that denoted by the digits $d_1$, \ldots, $d_k$.
+\item If the sequence consists only of decimal digits $d_1$, \ldots, $d_k$, then it
+denotes the integer $\sum_{j=1}^k d_j\cdot10^{k-j}$.
+\item Otherwise, it does not denote any integer.
+\end{itemize}
+Note that this also defines the meaning of a
+\NT{DecimalLiteral}\index{DecimalLiteral@\NT{DecimalLiteral}}:
+if the sequence of characters
+that it constitutes denotes $i\in I$, then the \NT{DecimalLiteral} denotes $\Re[i]$.
+\index{integer!conversion from numeral|)}
+
+\subsection{Numeral with radix to integer}
+
+\label{section:radix-numeral-to-integer}
+\index{integer!conversion from numeral|(}
+In this context, `A' and `a' are digits
+with value 10, `B' and `b' are digits with value 11, etc., up to `F' and `f' which are digits
+with value 15.
+Given a radix $r$ and a sequence of characters, its interpretation as an
+integer numeral in radix $r$ (if any) is defined as follows:
+\begin{itemize}
+\item If the sequence consists of a minus sign followed by digits $d_1$, \ldots, $d_k$,
+then it denotes $-i$, where $i$ is the integer denoted by the digits $d_1$, \ldots, $d_k$.
+\item If the sequence consists of a plus sign followed by decimal digits $d_1$, \ldots, $d_k$,
+then it denotes the same integer as that denoted by the digits $d_1$, \ldots, $d_k$.
+\item If the sequence consists only of digits $d_1$, \ldots, $d_k$ where each digit $d_j$,
+$1\leq j\leq k$, has a value that is less than $r$, then it
+denotes the integer $\sum_{j=1}^k d_j\cdot r^{k-j}$.  
+\item Otherwise, it does not denote any integer.
+\end{itemize}
+Note that this also defines the meaning of a
+\NT{ExplicitRadixLiteral}\index{ExplicitRadixLiteral@\NT{ExplicitRadixLiteral}}:
+consider the sequence of characters that it constitutes.
+Let $r$ be the integer denoted by the digits before the `\#' character.  If
+the concatenation of
+the sign (if any) with the digits following the `\#' character denotes
+$i\in I$ in radix $r$, then the \NT{ExplicitRadixLiteral} denotes $\Re[i]$.
+\index{integer!conversion from numeral|)}
+
+\subsection{Float to numeral}
+
+\label{section:float-to-numeral}
+\index{float!conversion to numeral|(}
+The canonical numeral for a float $f\in F$ is defined recursively as follows.
+\begin{itemize}
+\item If $f<0$, then the canonical numeral for $f$ is a minus sign (`$-$') followed by the
+canonical numeral for $-f$.
+\item If $f=0$, then the canonical numeral for $f$ is the digit `0' followed by a decimal
+point (`$.$'), the digit `0', the letter `e' and the digit `0'.
+\item If $f>0$, then let
+$w$ and $e$ be the unique integers such that $f=w\cdot10^e$ and $w \bmod 10\neq 0$.
+The canonical numeral for $f$ is the canonical numeral for $w$ with a decimal point
+ (`$.$') inserted after the first digit, followed by the letter `e', followed
+by the canonical numeral for $e+\lfloor\log_{10}w\rfloor$.
+(Obviously $w>0$ and the canonical numeral for $w$ thus begins with a digit.)
+\end{itemize}
+\index{float!conversion to numeral|)}
+
+\subsection{Numeral to float}
+
+\label{section:numeral-to-float}
+\index{float!conversion from numeral|(}
+Given a sequence of characters, the number it denotes (if any) is defined as follows.
+The sequence of characters should consist of
+\begin{itemize}
+\item a (possibly signed) decimal numeral, which we will call the whole number part;
+\item a decimal point;
+\item an unsigned decimal numeral, which we will call the fractional part;
+\item optionally an `E' or `e' followed by a (possibly signed) decimal numeral,
+which we will call the exponent.
+\end{itemize}
+If it does not, then the sequence of characters does not denote any number.
+
+Let $e'$ be the number of digits in the fractional part,
+let $w$ be the integer denoted by the concatenation of the whole number part and
+the fractional part, and let $e$ be the integer denoted by the exponent, or
+zero if there was no exponent part
+(\S\ref{section:numeral-to-integer}).
+
+The number in $F$ denoted by the sequence of characters is then
+\[\mathit{result}_F(w\cdot10^{e-e'},\mathit{rnd}_F).\]
+
+Note that this also defines the meaning of a
+\NT{FloatLiteral}\index{FloatLiteral@\NT{FloatLiteral}}: if the sequence of characters
+that it constitutes denotes $f\in F$, then the \NT{FloatLiteral} denotes $\Re[f]$.
+\index{float!conversion from numeral|)}

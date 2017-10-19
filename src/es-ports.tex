@@ -1,0 +1,748 @@
+%
+% %CopyrightBegin%
+%
+% Copyright Ericsson AB 2017. All Rights Reserved.
+%
+% Licensed under the Apache License, Version 2.0 (the "License");
+% you may not use this file except in compliance with the License.
+% You may obtain a copy of the License at
+%
+%     http://www.apache.org/licenses/LICENSE-2.0
+%
+% Unless required by applicable law or agreed to in writing, software
+% distributed under the License is distributed on an "AS IS" BASIS,
+% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+% See the License for the specific language governing permissions and
+% limitations under the License.
+%
+% %CopyrightEnd%
+%
+
+\chapter{Ports}
+
+\label{chapter:more-about-ports}
+
+\section{Overview of ports}
+
+\index{port!communication|(}
+
+An \Erlang\ node and thus an \Erlang\ process on it communicates with
+resources in the outside world (including the rest of the computer on
+which it resides) through \emph{ports}.  Examples of such external
+resources are files, drivers (\S\ref{section:drivers}) and non-\Erlang\
+processes running on the same
+host.  Information sent to a port from outside the \Erlang\ node
+can be read by an \Erlang\ process as messages and
+messages sent by an \Erlang\ process to a port are made available to
+the external program (or written to a file).
+
+\index{port!direction|(}
+A port can be unidirectional or bidirectional, as requested when the port
+is opened.  If the port is for communication
+with an external process, it would typically be bidirectional.
+\ifOld
+If the port is connected to a file that is being read, it would typically
+be input-only.  If the port is connected to a file that is to be written,
+it would typically be output-only.
+\fi
+\index{port!direction|)}
+
+\index{port!ownership|(}
+A port is always \emph{owned} by some process that resides on the
+same node as the port.
+That process will receive input in the form of messages from the
+port when information is sent to the port from outside \Erlang.
+The port is initially owned by the process that opened the port but ownership
+of a port can be transferred to another process on the same node.
+\index{port!ownership|)}
+
+An external resource has much in common with a process and thus a
+port has much in common with a PID:
+\begin{itemize}
+\item Communicating with an external resource is similar to communicating
+with a process: messages to a port are sent using the \T{!}\ operator and
+messages from a port are received using \T{receive} expressions.
+
+\item \index{port!linking|(}
+A process can link to a port in order to be notified when an
+external resource completes.
+\index{port!linking|)}
+\end{itemize}
+However, ports are restricted as compared with processes.
+For example, information written to a port from outside \Erlang\ is always sent
+as a message to the process that owns the port.
+An external resource thus cannot communicate directly
+with an arbitrary \Erlang\ process.\footnote{A typical way to establish
+communication between an external resource and arbitrary processes is
+to let the process that is connected to the port be a server acting
+as a proxy.}  Also, it is not possible to
+register a name for a port.
+
+Each port is identified by an \Erlang\ term that is itself referred to
+as a port (although calling it a \emph{port identifier} would be more
+in harmony with process vs.\ process identifier).
+
+When a port is created, it is connected with an external entity, which
+is
+\ifOld
+either
+\begin{itemize}
+\item a recently spawned external process or recently opened driver
+(\S\ref{section:drivers});
+\item an external resource, such as a file.
+\end{itemize}
+\fi
+\ifStd
+a recently spawned external process or recently opened driver
+(\S\ref{section:drivers}).
+\fi
+
+As in the case of PIDs, there can be ports that were created for communication
+with an external process or resource that no longer exists.
+What happens when a BIF is given such a port varies, cf.\
+\ifOld\S\ref{section:port-bifs}\fi
+\ifStd\S\ref{section:port-module}\fi.
+
+The interface to a port from the outside of Erlang is dependent on the operating
+system where the node resides.  A driver or external process that has been
+started by the \Erlang\ system when a port was opened can read from a port and write
+to it using a pair of procedures that we refer to below as \I{read} and \I{write}.
+
+\Erlang\ BIFs relating to ports are described in
+\ifOld\S\ref{section:port-bifs}\fi
+\ifStd\S\ref{section:port-module}\fi.
+\index{port!communication|)}
+
+\section{Drivers}
+
+\label{section:drivers}
+\index{driver|(}
+
+An \Erlang\ system may provide a way to extend a node with software written in other
+programming languages than \Erlang.  Such software is called a \emph{driver} and would
+normally communicate with \Erlang\ processes through a port.
+
+The interface to external software is thus the same regardless of whether it runs as
+part of the node or as external processes.
+\index{driver|)}
+
+\section{I/O terms}
+
+\label{section:io-term}
+
+\index{I/O term!definition of|(}
+Define an I/O term to be either
+\begin{itemize}
+\item a binary,
+\item nil, or
+\item a cons where the head is a byte\ifStd, a character\fi\ or an I/O term
+and the tail is an I/O term.
+\end{itemize}
+\index{I/O term!definition of|)}
+
+\index{I/O term!contents of|(}
+The \emph{contents} of an I/O term is a sequence of bytes defined
+recursively as follows:
+\begin{itemize}
+\item The contents of a binary is the sequence of bytes of the binary,
+in the order they appear in the binary.
+\item The contents of an empty list is an empty sequence.
+\item The contents of a cons of a byte and an I/O term is
+the byte followed by the contents of the tail.
+\ifStd
+\item The contents of a cons of a character and an I/O term is
+the code of the character modulo 256 followed by the contents of the tail.
+\fi
+\item The contents of a cons of two I/O terms is
+the contents of the head followed by the contents of the tail.
+\end{itemize}
+\index{I/O term!contents of|)}
+
+To clarify, the function \T{contents/1} defined below returns the contents
+of an I/O term, represented as a list of bytes.\footnote{It is designed for
+clarity, not efficiency.}
+
+\ifStd
+\begin{verbatim}
+contents(B) when is_binary(B) -> binary:to_list(B) ;
+contents([]) -> [] ;
+contents([I|Y]) when is_integer(I) -> [I | contents(Y)] ;
+contents([C|Y]) when is_char(C) ->
+    [char:to_integer(C) mod 256 | contents(Y)] ;
+contents([X|Y]) -> contents(X) ++ contents(Y).
+\end{verbatim}
+\fi
+\ifOld
+\begin{verbatim}
+contents(B) when binary(B) -> binary_to_list(B) ;
+contents([]) -> [] ;
+contents([I|Y]) when integer(I) -> [I | contents(Y)] ;
+contents([X|Y]) -> contents(X) ++ contents(Y).
+\end{verbatim}
+\fi
+
+\section{Opening ports}
+
+\label{section:opening-ports}
+\index{port!opening|(}
+
+A port is opened by calling the BIF
+\T{open_port/2}\index{open_port/2 BIF@\T{open_port/2} BIF}
+(\S\ref{section:openport2}).
+In an application \T{open_port(\Z{Resource},\Z{Options})}, the \TZ{Resource}
+argument identifies the resource to which a port is being opened and the
+\TZ{Options} argument determines the details of the behaviour of the port.
+
+\TZ{Resource} is one of
+\begin{itemize}
+\item a 2-tuple \T{\{spawn,\Z{Command}\}}, where \TZ{Command} is a string
+or an atom (in which case its printname will be used).  A driver is opened
+inside the \Erlang\ node or an external
+process is spawned and a new port is connected with the driver or the
+standard input and output of the external process.
+\ifOld
+\TZ{Command} must not contain a null character (\T{\char`\\\ifStd u0000\fi\ifOld 000 \fi}).
+Suppose that the result of extracting whitespace-separated words from
+\TZ{Command} is $\TZ{Wd}_1$, $\TZ{Wd}_2$, \ldots, $\TZ{Wd}_k$.
+\begin{itemize}
+\item If $\TZ{Wd}_1$ is the name of an installed driver, then such a driver
+will be started with the string $\TZ{Wd}_2$, \ldots, $\TZ{Wd}_k$ as
+input.
+\item Otherwise $\TZ{Wd}_1$ will be interpreted as the name of an
+external program which is started with $\TZ{Wd}_2$, \ldots, $\TZ{Wd}_k$ as its arguments.
+\end{itemize}
+\fi
+\ifStd
+The exact interpretation of \TZ{Command} is implementation-defined.
+\fi
+\ifOld
+\item a string or atom (in which case its printname will be used) \TZ{Resource}.
+If \TZ{Resource} can be interpreted
+by \OldErlang\ as identifying a resource (for example, naming a file),
+a new port is connected with the resource.  If the resource is a file, then
+either the option \T{in} (for reading from the file) or the option \T{out}
+(for writing to the file) must be given.
+\fi
+\item a 3-tuple \T{\{fd, \Z{In}, \Z{Out}\}}, where \TZ{In} and \TZ{Out} are
+integers.  On a node running on a POSIX-compliant operating system, \TZ{In}
+and \TZ{Out} are interpreted as file descriptors and a new port is connected
+writing to \TZ{In} and reading from \TZ{Out}.  On other nodes, the behaviour
+is implementation-defined.
+\end{itemize}
+\ifStd
+A \StdErlang\ implementation may accept further alternatives for
+\TZ{Resource}.  It should be documented for an implementation which
+alternatives for \TZ{Resource} are accepted and how they are
+interpreted.
+\fi
+If \TZ{Resource} is not one of the permitted alternatives, \T{open_port/2}
+should exit with \T{badarg}.
+
+\TZ{Options} is a list of items, each of which is a term from one of the
+following groups.  At most one term from each group should be present.
+If no term from a group is in \TZ{Options}, it is as if the default
+term for the group was present.
+
+\begin{Lentry}
+\item[Stream/packets]
+\index{port!stream mode|(}
+\index{port!packet mode|(}
+\begin{itemize}
+\item \T{stream} (the default). Messages are sent without packet headers.
+\item \T{\{packet,\Z{N}\}}, where \TZ{N} is one of the integers \T{1}, \T{2}
+and \T{4}.  Messages are sent in packets with the packet headers in \TZ{N} bytes
+(\S\ref{section:packets}).
+\end{itemize}
+\index{port!stream mode|)}
+\index{port!packet mode|)}
+\item[Process inputs and outputs]
+(Only relevant on POSIX-compliant systems and for \T{\{spawn,\TZ{Command}\}}.)
+\begin{itemize}
+\item \T{use_stdio}.  (The default.)
+Use the standard input and standard output (i.e., file descriptors 0 and 1 on UNIX
+systems) of the
+spawned process for communicating with \Erlang.
+\item \T{nouse_stdio}.
+Use alternative input and output channels of the spawned process (file descriptors
+3 and 4 on UNIX systems) for communicating with \Erlang.
+\end{itemize}
+\item[Direction]
+\index{port!direction|(}
+\begin{itemize}
+\item \T{in}. The port can only be used for input from the external resource.
+\item \T{out}. The port can only be used for output to the external resource.
+\item \ifOld \I{None}. \fi \ifStd \T{bi}. (The default.) \fi
+The port can be used for input from and output to the external resource.
+\end{itemize}
+\index{port!direction|)}
+\item[Received data]
+\index{port!binary mode|(}
+\index{port!list mode|(}
+\begin{itemize}
+\item \T{binary}.  Input from the external resource is received as binaries.
+\item \ifOld \I{None}. \fi \ifStd \T{list}. (The default.) \fi
+Input from the external resource is received as lists of bytes.
+\end{itemize}
+\index{port!binary mode|)}
+\index{port!list mode|)}
+\item[End of stream]
+\index{port!closing|(}
+\begin{itemize}
+\item \T{eof}.  The port is not closed when the external resource is depleted,
+instead a message \T{\{\Z{Port},eof\}} is sent to the owning process.
+\item \T{noeof}.  (The default.) The port is closed when the external resource is depleted.
+All processes linked to the port will then receive exit signals.
+\end{itemize}
+\index{port!closing|)}
+\end{Lentry}
+\ifStd
+A \StdErlang\ implementation may accept further alternatives for
+elements of \TZ{Options} and it should be documented which they are
+and how they are interpreted.
+\fi
+If \TZ{Options} is not a list or if \TZ{Options} contains unrecognized terms,
+\T{open_port/2} should exit with \T{badarg}.
+
+\index{port!linking|(}
+When a port is opened, it is automatically linked to the owning process
+(\S\ref{section:port-linking}).
+\index{port!linking|)}
+\index{port!opening|)}
+
+\section{Controlling a port from an \Erlang\ process}
+
+\label{section:port-control}
+\index{port!control|(}
+
+By controlling a port \TZ{R} to an external resource we mean to
+write data to the port or changing properties of the port itself.
+Such control is exercised by
+sending a message with \TZ{R} as destination
+(\S\ref{section:send-expr}).  As before, evaluation
+of such a send expression always succeds.  However, the \Erlang\ system
+subsequently attempts to interpret the message as port control information and if
+that interpretation fails, an exit signal\index{exit!signal} (\S\ref{section:exit-signals})
+will be sent to the process owning \TZ{R}, i.e.,
+\T{owner[\Z{R}]}\index{owner port property@\T{owner} port property}
+(\S\ref{section:port-state-dynamic}).
+
+Any process may control a port.  However, the process that sends
+a message to \TZ{R}
+must have the PID of the process that owns \TZ{R} (because \T{owner[\Z{R}]} must
+be part of the message, as described below).
+
+\index{badsig exit signal@\T{badsig} exit signal|(}
+Consider a message \TZ{v} sent to a port \TZ{R}.
+\begin{itemize}
+\item If the port has been closed, then nothing happens.
+\item If \TZ{v} is a tuple \TZ{\{\T{owner[\Z{R}]}, \{command, \Z{Data}\}\}}, then:
+\begin{itemize}
+\item If \T{in[\Z{R}]} is \T{false}, then
+an exit signal \T{badsig} is sent to \T{owner[\Z{R}]}.
+\item If \TZ{Data} is an I/O term (\S\ref{section:io-term}), then the contents
+of \TZ{Data} will be transmitted through \TZ{R}, as described in
+\S\ref{section:send-port} (where it is also described how an exit
+signal \T{badsig} is sent to \T{owner[\Z{R}]} if the number of bytes
+in the contents of \TZ{Data} is too large to fit in the packet header)
+\item Otherwise, an exit signal \T{badsig} is sent to \T{owner[\Z{R}]}.
+\end{itemize}
+\item If \TZ{v} is a tuple \TZ{\{\T{owner[\Z{R}]}, close\}}, then
+the port \TZ{R} is closed and a message \T{\{\Z{R}, closed\}} is sent
+to \T{owner[\Z{R}]}.
+\item If \TZ{v} is a tuple \TZ{\{\T{owner[\Z{R}]}, \{connect, $\Z{P}_2$\}\}}, then
+what happens depends on $\TZ{P}_2$:
+\begin{itemize}
+\item If $\TZ{P}_2$ is the PID of a process residing on the same node as \TZ{R}
+(and thus \T{owner[\Z{R}]}, then a message \T{\{\Z{R}, connected\}} is sent
+to \T{owner[\Z{R}]} and the value of \T{owner[\Z{R}]} is changed to $\Z{P}_2$.
+\item Otherwise, an exit signal \T{badsig} is sent to \T{owner[\Z{R}]}.
+\end{itemize}
+\item Otherwise, an exit signal \T{badsig} is sent \T{owner[\Z{R}]}.
+\end{itemize}
+It should be noted that
+all processing when writing to a port happens asynchronously, also error processing.
+\index{badsig exit signal@\T{badsig} exit signal|)}
+\index{port!control|)}
+
+\section{Transmitting data from an \Erlang\ process to the outside}
+
+\label{section:send-port}
+\label{section:packets}
+\index{port!sending to a|(}
+
+Suppose that an \Erlang\ process has sent an I/O term \TZ{T} to a port \TZ{R} and that
+the contents of the I/O term is a sequence of bytes $\TZ{b}_1$, \ldots, $\TZ{b}_k$.
+
+Depending on the value of
+\T{packeting[\Z{R}]}\index{packeting port property@\T{packeting} port property},
+the byte sequence transmitted to the
+external resource may be prepended with a packet header by the \Erlang\ system:
+\begin{itemize}
+\item \index{port!stream mode|(}
+If \T{packeting[\Z{R}]} is \T{stream}, then the byte sequence will be transmitted
+as is.
+\index{port!stream mode|)}
+\item \index{port!packet mode|(}
+If \T{packeting[\Z{R}]} is \T{\{packet,\Z{N}\}}, the transmitted byte sequence
+will be $\TZ{h}_1$, \ldots, $\TZ{h}_{\TZm{N}}$, $\TZ{b}_1$, \ldots, $\TZ{b}_k$.
+The first \TZ{N} bytes constitute a \emph{packet header}, where for each $i$,
+$1\leq i\leq\TZ{N}$, $\TZ{h}_i=\lceil k/256^{\TZm{N}-i}\rceil \bmod 256$.
+(That is, the packet header encodes the length of the byte sequence, \TZ{k},
+as a big-endian numeral, cf.\ p.~\pageref{page:big-endian}.)
+However, if $k\geq256^{\TZm{N}}$, no byte sequence at all will be transmitted to the
+external resource and instead an exit signal
+\T{badsig} will be sent to \T{owner[\Z{R}]}.
+\index{port!packet mode|)}
+\end{itemize}
+If the external resource is a file opened for writing, then the transmitted byte sequence
+written to the file (but the file is not closed until the port is closed).
+If the external resource is an opened driver or an external process, it can read the transmitted
+byte sequence using the \I{read} function.
+However, no
+assumption should
+be made about how many bytes of data will be read by each invocation of the \I{read}
+function.
+Note that the transmission of a byte sequence is atomic in that the bytes of a single
+transmission (including any
+prepended bytes) will never be separated by bytes from other transmissions.
+\index{port!sending to a|)}
+
+\section{Transmitting data from the outside to an \Erlang\ process}
+
+\index{port!receiving from a|(}
+
+When the external resource to which a port \TZ{R} is opened is a file and \T{in[\Z{R}]} is
+\T{true}, then the contents of the file is written to the port as if by a single invocation
+of \I{write}.  We will now describe what happens when an opened driver or an external process writes
+data to a port using the \I{write} function.
+
+If \T{out[\Z{R}]} is \T{false}, then nothing is transmitted.
+Otherwise messages will be sent to
+\T{owner[\Z{R}]}\index{owner port property@\T{owner} port property}\index{port!ownership}.
+
+Let the complete sequence of bytes written (through one or more invocations of \I{write})
+by the driver or external process be $\TZ{b}_1$, \ldots, $\TZ{b}_n$.
+Depending on the value of \T{packeting[\Z{R}]}, the byte sequence may be
+interpreted as containing packet headers, in which case each packet will be
+delivered to \T{in[\Z{R}]} as a separate message.
+\begin{itemize}
+\item \index{port!stream mode|(}
+If \T{packeting[\Z{R}]} is \T{stream}, all $n$ bytes will be delivered but
+it is not specified how the byte sequence is to be divided into messages.
+Each message $i$ (where $i\geq1$) contains the bytes
+$\TZ{b}_{k_i}$, \ldots, $\TZ{b}_{k_{i+1}-1}$ where $k_1=1$ and for each $i$, either $k_i\leq n$ and
+$k_i<k_{i+1}$, or $k_i=n+1$.  (Thus there should be no empty messages.)  It is encouraged that
+each invocation of \I{write} (with a nonempty sequence of bytes) should cause a message to be
+sent, in order to facilitate interaction between the driver or external process and the \Erlang\
+processes.
+\index{port!stream mode|)}
+\item \index{port!packet mode|(}
+If \T{packeting[\Z{R}]} is \T{\{packet,\Z{N}\}}, the sequence $\TZ{b}_1$, \ldots, $\TZ{b}_n$ is
+interpreted as containing packet headers of \TZ{N} bytes each.  Each message $i$ (where $i\geq1$)
+will contain the bytes $\TZ{b}_{k_i+\TZm{N}}$, \ldots, $\TZ{b}_{k_{i+1}-1}$ where $k_1=1$ and for each $i$,
+either $k_i\leq n$,
+\[l_i = \I{BigEndianValue}(\TZ{b}_{k_i}, \ldots, \TZ{b}_{k_i+\TZm{N}})\]
+(cf.\ p.~\pageref{page:big-endian})
+and $k_i+\TZ{N}+l_i=k_{i+1}$, or $k_i= n+1$.  
+(That is, the first \TZ{N} bytes are interpreted as a packet header and the subsequent
+bytes [where the number of bytes is given by the packet header] will be contained in a
+single message.  Then comes another packet header, etc.  Note that there can be empty messages.)
+It is encouraged that a message should be sent as soon as all the bytes of a package have been
+written, in order to facilitate interaction between the driver or external process and the \Erlang\
+processes.
+\index{port!packet mode|)}
+\end{itemize}
+Each message to \T{owner[\Z{R}]} is on the form \T{\{\Z{R},\Z{T}\}} where \TZ{T} contains $k$ transmitted
+bytes, but the term \TZ{T} depends on whether \T{in_format[\Z{R}]} is \T{binary} or \T{list}:
+\begin{itemize}
+\item \index{port!binary mode|(}
+If \T{in_format[\Z{R}]} is \T{binary}, then \TZ{T} is a binary consisting of the $k$ bytes in the
+order they were written.
+\index{port!binary mode|)}
+\item \index{port!list mode|(}
+If \T{in_format[\Z{R}]} is \T{list}, then \TZ{T} is a list of the $k$ bytes in the
+order they were written.
+\index{port!list mode|)}
+\end{itemize}
+\index{port!receiving from a|)}
+
+\section{Closing ports}
+
+\label{section:closing-ports}
+\index{port!closing|(}
+
+A port can be closed (through an implementation-defined method)
+by the external resource.  It can also be closed by an \Erlang\ process
+using the BIF
+\ifOld\T{port_close/1}\index{port_close/1 BIF@\T{port_close/1} BIF} (\S\ref{section:portclose1}).\fi
+\ifStd\T{port:close/1}\index{port:close/1 BIF@\T{port:close/1} BIF} (\S\ref{section:port:close1}).\fi
+
+The options \T{eof} and \T{noeof} to the BIF \T{open_port/2}
+(\S\ref{section:opening-ports})
+determine how the \Erlang\ process that owns
+the port is notified if the port is closed by the external resource.
+\index{port!closing|)}
+
+\section{Ports, links and exit signals}
+
+\label{section:port-linking}
+\index{port!linking|(}
+
+An \Erlang\ process may be linked to a port in the same way that it may be linked to a process
+(\S\ref{section:links}).
+A process \TZ{P} may set up (or remove) a link with a port \TZ{R} by calling the BIF
+\T{link/1}\index{link/1 BIF@\T{link/1} BIF}
+(or \T{unlink/1}\index{unlink/1 BIF@\T{unlink/1} BIF}) with \TZ{R} as argument.
+When a port is closed, an exit signal will be sent to
+every process linked to the port.  The actual exit signal is implementation-defined, except that
+implementations are encouraged to use the exit signal \T{normal} when the driver or external process
+completes normally.
+
+\index{exit!signal|(}
+When a port \TZ{R} receives an exit signal \TZ{T} from a process \TZ{P}, the following happens.
+\begin{itemize}
+\item If \TZ{T} is \T{normal}\index{normal@\T{normal}!exit signal} and \TZ{P}
+is not \T{owner[\Z{R}]}, then nothing happens.
+\item Otherwise, if \TZ{T} is \T{kill}\index{kill@\T{kill}!exit signal},
+the port is closed and an exit signal \TZ{killed} is sent
+to every process that is linked to the port.
+\item Otherwise, the port is closed and an exit signal \TZ{T} is sent to every process that is
+linked to the port.
+\end{itemize}
+Note that this behaviour is somewhat different from how a process handles incoming exit signals
+(\S\ref{section:receiving-exit-signal}).
+\index{exit!signal|)}
+\index{port!linking|)}
+
+\ifStd
+\section{Ports and Unicode}
+
+\label{section:ports-unicode}
+\index{Unicode!and ports|(}
+
+It should be noticed that all communication with ports is through sequences of bytes,
+i.e., numbers between 0 and 255.  The codes of Unicode characters require two bytes
+and there is no general provision for sending such characters directly to ports.
+(However, note that characters \T{\char`\u0000} to \T{\char`\u00FF} can be sent directly
+to ports.)
+
+An arbitrary character string that is to be sent through a port must thus be transformed to a
+sequence of bytes before being transmitted and there are several such standard transformations,
+such as:
+\begin{Lentry}
+\item[Big-endian.]
+Each character is represented by two bytes where the first is the high-order byte and
+the second is the low-order byte of the character code.
+\item[Little-endian.]
+Each character is represented by two bytes where the first is the low-order byte and
+the second is the high-order byte of the character code.
+\item[UTF-8.]
+\index{UTF-8 transformation@\T{UTF-8} transformation|(}
+UTF-8 stands for UCS Transformation Format, 8-bit form, and is now part of the ISO/IEC
+10646 standard \cite{utf8}.  Each Unicode character is represented by a single byte or
+a sequence of two to four bytes.  All ASCII characters are represented by a single byte
+and for character sequences that mostly or wholly consist of ASCII characters, the
+transformation results in very short byte sequences.
+\index{UTF-8 transformation@\T{UTF-8} transformation|)}
+\item[UTF-7.]
+\index{UTF-7 transformation@\T{UTF-7} transformation|(}
+UTF-7 stands for UCS Transformation Format, 7-bit form, and is described in Internet Network
+Working Group RFC-1642 \cite{rfc1642}.  Each Unicode character is represented by a single byte
+or a sequence of bytes.  The ASCII letters and digits and ten other common ASCII characters
+are each representable by a single byte.  The resulting sequence of bytes is safe for
+Internet mail transmission (except where line length and line break restrictions are violated).
+\index{UTF-7 transformation@\T{UTF-7} transformation|)}
+\end{Lentry}
+
+In order for an \Erlang\ process to send an arbitrary string to a port, it should be transformed
+to a sequence of
+bytes (represented, for example, as a binary) and then transmitted.  Of course, the process
+receiving the sequence of bytes must be aware of the transformation if the original Unicode
+characters are to be restored.
+
+A similar process would be used to send Unicode character sequences from an external process to
+an \Erlang\ process.
+\index{Unicode!and ports|)}
+\fi
+
+\section{Static and dynamic properties of a port}
+
+\label{section:port-state}
+\index{port!state|(}
+
+When a port is created, some properties of the port are determined and will be
+in effect until the port is closed.  During that time also a dynamic state
+is maintained, consisting of properties of the port that change as time passes.
+This state is affected by and affects the behaviour of the port.
+
+We refer to these as the \emph{static} and \emph{dynamic properties} of a port.  We
+refer collectively to the values of the latter at a certain time as the \emph{state} of the port
+at that time.
+
+\subsection{Static properties}
+
+\label{section:port-state-static}
+
+\begin{Lentry}
+\item[\T{command[\Z{R}]}]
+\index{command port property@\T{command} port property|(}
+For a port that was opened through a call to \T{open_port/2} with
+\T{\{spawn,\Z{Cmd}\}}, the
+value of \T{command[\Z{R}]} is a string that is either \TZ{Cmd}, if \TZ{Cmd} is a string,
+or the printname of \TZ{Cmd}, if \TZ{Cmd} is an atom.
+It can be accessed through a BIF call
+\ifOld \T{erlang:port_info(\Z{R},name)}\index{port_info/2 BIF@\T{port_info}/2 BIF}
+(\S\ref{section:portinfo2}).\fi
+\ifStd \T{port:info(\Z{R},name)}\index{port:info/2 BIF@\T{port:info}/2 BIF}
+(\S\ref{section:port:info2}).\fi
+\index{command port property@\T{command} port property|)}
+
+\item[\T{creation[\Z{R}]}]
+\index{creation@\T{creation}!port property|(}
+The value of \T{creation[\Z{R}]} is the value of \T{creation[\Z{N}]} for the
+node \TZ{N} on which \TZ{R} was created.
+\index{creation@\T{creation}!port property|)}
+
+\item[\T{ID[\Z{R}]}]
+\index{ID@\T{ID}!port property|(}
+The value of \T{ID[\Z{R}]} is a nonnegative integer that is a serial number for \TZ{R}
+on the node on which it was
+created.  The value is used in the transformation
+to the external term format (\S\ref{chapter:external-format}).
+It can be accessed through a BIF call
+\ifOld \T{erlang:port_info(\Z{R},id)}\index{port_info/2 BIF@\T{port_info}/2 BIF}
+(\S\ref{section:portinfo2}).\fi
+\ifStd \T{port:info(\Z{R},id)}\index{port:info/2 BIF@\T{port:info}/2 BIF}
+(\S\ref{section:port:info2}).\fi
+\index{ID@\T{ID}!port property|)}
+
+\item[\T{in[\Z{R}]}]
+\index{in port property@\T{in} port property|(}
+When a port is opened it is decided whether data can be transmitted from the outside to
+the process owning the port.  The value is \T{true} if one of the options \T{in} and \T{bi} was
+given when the port was opened and \T{false} otherwise.  The value of \T{in[\Z{R}]} cannot
+be accessed directly by \Erlang\ processes.
+\index{in port property@\T{in} port property|)}
+
+\item[\T{in_format[\Z{R}]}]
+\index{in_format port property@\T{in_format} port property|(}
+When a port is opened it is decided whether incoming data is sent as binaries or as lists of
+bytes.  The value is \T{binary} or \T{list} depending on which of these options was given when
+the port was opened.  The value of \T{in_format[\Z{R}]} cannot be accessed directly by
+\Erlang\ processes.
+\index{in_format port property@\T{in_format} port property|)}
+
+\item[\T{node[\Z{R}]}]
+\index{node@\T{node}!port property|(}
+When a port is opened it is created on some node \T{node[\Z{R}]}.
+This node never changes. Any process can access \T{node[\Z{R}]}
+for a port \TZ{R} by calling the BIF
+\T{node/1}\index{node/1 BIF@\T{node/1} BIF} (\S\ref{section:node1})
+with \TZ{R} as argument.
+\index{node@\T{node}!port property|)}
+
+\item[\T{out[\Z{R}]}]
+\index{out port property@\T{out} port property|(}
+When a port is opened it is decided whether data can be transmitted from \Erlang\ processes
+to the outside.  The value is \T{true} if one of the options \T{out} and \T{bi} was
+given when the port was opened and \T{false} otherwise.  The value of \T{out[\Z{R}]} cannot
+be accessed directly by \Erlang\ processes.
+\index{out port property@\T{out} port property|)}
+
+\item[\T{packeting[\Z{R}]}]
+\index{packeting port property@\T{packeting} port property|(}
+When a port is opened it is decided whether data is transmitted as a stream or as packets
+beginning with a packet header of some length.  The value is \T{stream} or \T{\{packet,\Z{N}\}}
+(where \TZ{N} is \T{1}, \T{2} or \T{4}) depending on which of these options was given when
+the port was opened.  The value of \T{packeting[\Z{R}]} cannot be accessed directly by
+\Erlang\ processes.
+\index{packeting port property@\T{packeting} port property|)}
+\end{Lentry}
+
+\subsection{Dynamic properties}
+
+\label{section:port-state-dynamic}
+
+\begin{Lentry}
+\item[\T{count_in[\Z{R}]}]
+\index{count_in port property@\T{count_in} port property|(}
+\T{count_in[\Z{R}]} is an integer that is the number of bytes read so far from the
+port \TZ{R}.
+It can be accessed through a BIF call
+\ifOld\begin{alltt}
+erlang:port_info(\Z{R},input)
+\end{alltt}
+\index{port_info/2 BIF@\T{port_info}/2 BIF}(\S\ref{section:portinfo2}).\fi
+\ifStd\begin{alltt}
+port:info(\Z{R},input)
+\end{alltt}
+\index{port:info/2 BIF@\T{port:info}/2 BIF}(\S\ref{section:port:info2}).\fi
+\index{count_in port property@\T{count_in} port property|)}
+
+\item[\T{count_out[\Z{R}]}]
+\index{count_out port property@\T{count_out} port property|(}
+\T{count_out[\Z{R}]} is an integer that is the number of bytes written so far to the
+port \TZ{R}.
+It can be accessed through a BIF call
+\ifOld\begin{alltt}
+erlang:port_info(\Z{R},output)
+\end{alltt}
+\index{port_info/2 BIF@\T{port_info}/2 BIF}(\S\ref{section:portinfo2}).\fi
+\ifStd\begin{alltt}
+port:info(\Z{R},output)
+\end{alltt}
+\index{port:info/2 BIF@\T{port:info}/2 BIF}(\S\ref{section:port:info2}).\fi
+\index{count_out port property@\T{count_out} port property|)}
+
+\item[\T{linked[\Z{R}]}]
+\index{linked@\T{linked}!port property|(}
+\index{port!linking|(}
+The value is a representation of the set of PIDs that identify
+the processes to which \TZ{R} is linked (\S\ref{section:links}).
+It cannot be set directly but a PID \TZ{P} will be added to \T{linked[\Z{R}]}
+if it is not already in it and \TZ{R} receives a linking request from \TZ{P}.
+
+A PID \TZ{P} will be removed from \T{linked[\Z{R}]} if it is in the list and
+either
+\begin{itemize}
+\item \TZ{P} receives an unlinking request from \TZ{Q}, or
+\item \TZ{P} receives an exit signal \T{\{'EXIT',\Z{Q},\Z{Reason}\}} for some term
+\TZ{Reason}, and the exit signal was sent due to process completion
+(\S\ref{section:exit-signals}).
+\end{itemize}
+
+The value of \T{linked[\Z{R}]} can be accessed through a BIF call
+\ifOld\begin{alltt}
+erlang:port_info(\Z{R},links)
+\end{alltt}
+\index{port_info/2 BIF@\T{port_info}/2 BIF}(\S\ref{section:portinfo2}).\fi
+\ifStd\begin{alltt}
+port:info(\Z{R},links)
+\end{alltt}
+\index{port:info/2 BIF@\T{port:info}/2 BIF}(\S\ref{section:port:info2}).\fi
+\index{port!linking|)}
+\index{linked@\T{linked}!port property|)}
+
+\item[\T{owner[\Z{R}]}]
+\index{owner port property@\T{owner} port property|(}
+The value is a PID and is the process that will receive messages when
+data is written to the port \TZ{R} externally, will receive exit
+signals when bad messages are sent to \TZ{R} and becomes linked with
+\TZ{R} when \TZ{R} is opened. \T{owner[\Z{R}]} can be changed to a PID
+\TZ{P} by sending a message \T{\{owner[\Z{R}],\{connect,\TZ{P}\}\}} to \TZ{R}.
+The value of \T{owner[\Z{R}]} can be accessed through a BIF call
+\ifOld\begin{alltt}
+erlang:port_info(\Z{R},connected)
+\end{alltt}
+\index{port_info/2 BIF@\T{port_info}/2 BIF}(\S\ref{section:portinfo2}).\fi
+\ifStd\begin{alltt}
+port:info(\Z{R},connected)
+\end{alltt}
+\index{port:info/2 BIF@\T{port:info}/2 BIF}(\S\ref{section:port:info2}).\fi
+\index{owner port property@\T{owner} port property|)}
+\end{Lentry}
+
+There will typically also be buffers for inbound and/or outbound data
+but these are not referred to above and we do not describe them in
+detail here.
+\index{port!state|)}

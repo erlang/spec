@@ -1,0 +1,788 @@
+%
+% %CopyrightBegin%
+%
+% Copyright Ericsson AB 2017. All Rights Reserved.
+%
+% Licensed under the Apache License, Version 2.0 (the "License");
+% you may not use this file except in compliance with the License.
+% You may obtain a copy of the License at
+%
+%     http://www.apache.org/licenses/LICENSE-2.0
+%
+% Unless required by applicable law or agreed to in writing, software
+% distributed under the License is distributed on an "AS IS" BASIS,
+% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+% See the License for the specific language governing permissions and
+% limitations under the License.
+%
+% %CopyrightEnd%
+%
+
+\chapter{Nodes}
+
+\label{chapter:nodes}
+
+\section{Single-node and multi-node systems}
+
+\label{section:single-multi-node}
+
+An \Erlang\ node is the operating system for \Erlang\ processes.  
+Every process runs on some specific node and once a process has been created
+it remains on that node.
+
+\index{node!communicating|(}
+\index{node!isolated|(}
+By default an \Erlang\ node is \emph{isolated} and constitutes a single-node system.
+In order to become a \emph{communicating} node that can be part of a cluster
+of \Erlang\ nodes, it
+must have a process registered under the name
+\T{net_kernel}\index{net_kernel process name@\T{net_kernel} process name} that has
+opened a port through which it communicates
+with other nodes using the protocol described in \S\ref{chapter:external-format}.
+\index{node!communicating|)}
+\index{node!isolated|)}
+
+\index{node!name|(}
+Every \Erlang\ node has a name, which is an atom.  The printname of
+the atom always contains exactly one \T{@} character\index{"@
+character@\T{"@} character} (\T{\char`\\\ifStd u0040\fi\ifOld
+100\fi}).  An isolated node always has the name
+\T{nonode@nohost}\index{nonode"@nohost node name@\T{nonode"@nohost} node name}.
+In a communicating node, the part of the printname after the \T{@}\
+must be the network name of the host computer on which the node
+resides (typically an Internet domain name).  We call an atom with
+such a printname a \emph{valid node name}.  The name of each
+communicating node must be unique.  As the node name contains the
+network name of the host computer (which is assumed to be unique), it
+is sufficient to ensure that all nodes running on the same host
+computer have unique names.  This is ensured by the use of EPMD, as
+described in \S\ref{section:registering-nodes}.  Because node names
+are unique and that nodes are always referred to through their names
+in the language, we will identify nodes with their names.
+\index{node!name|)}
+
+\index{node!communicating|(}
+A node with a \T{net_kernel}\index{net_kernel process name@\T{net_kernel} process name}
+process that has opened a port \TZ{R} as described above
+becomes a communicating node with name \TZ{A} by some process making a BIF call
+\ifOld \T{erlang:set_node(\TZ{A},\TZ{R})}\index{set_node/2 BIF@\T{set_node/2} BIF}
+(\S\ref{section:setnode2}).\fi
+\ifStd \T{node:set_node(\TZ{A},\TZ{R})}\index{set_node/2 BIF@\T{set_node/2} BIF}
+(\S\ref{section:node:setnode2}).\fi
+CHECK THE ARGUMENTS!!!
+\ifOld It is also possible to make a node communicating from the beginning
+\cite[pp.~5--9]{otp-dev-ref}.\fi
+\ifStd An implementation should provide a
+way to make a node communicating from the beginning.\fi
+\index{node!communicating|)}
+
+\index{node!isolated|(}
+On an isolated node the effects and result is undefined when
+any other node name than
+\T{nonode@nohost}\index{nonode"@nohost node name@\T{nonode"@nohost} node name}
+is used in a BIF that have an explicit node argument
+or when sending messages.  (This is not stated again in the descriptions
+of BIFs and send expressions.)
+In the remainder of this chapter, \Erlang\ nodes are assumed to be
+communicating unless
+it is stated explicitly that a node is or may be isolated.  Moreover, as
+every communicating node has a unique name and there is no way to refer to a node except
+through its name, we will identify nodes with their names.  Thus, when
+we write ``node \TZ{A}'', where \TZ{A} is an atom, we mean the node with
+name \TZ{A}, provided that such a node exists.
+\index{node!isolated|)}
+
+\index{node!magic cookie|(}
+Each node has a term associated with it, called the \emph{magic cookie} of the node.
+In order for a processes on some node $\TZ{N}_1$ to communicate successfully with a
+process on another node $\TZ{N}_2$, the \emph{magic cookie} of node
+$\TZ{N}_2$ must be provided
+in the communication from node $\TZ{N}_1$.
+A group of nodes can be protected from communication
+originating on other nodes by sharing a magic cookie and not disclosing it
+to other nodes.  Magic cookies are discussed in more detail in
+\S\ref{section:magic-cookie}.
+\index{node!magic cookie|)}
+
+\index{friend (of a node)!see{node, friendship}}
+\index{node!friendship|(}
+At any given time, each \Erlang\ node has a number of other nodes as
+\emph{friends}.  The set of such friends may change dynamically over time.
+When a process running on some node $\TZ{N}_1$ attempts to communicate with
+a process
+on another node $\TZ{N}_2$, node $\TZ{N}_1$
+attempts to set up a friendship with node $\TZ{N}_2$ through negotiation
+between the \T{net_kernel}\index{net_kernel process name@\T{net_kernel} process name}
+processes of the two nodes.  Friendship is a
+symmetric property so in the process, $\TZ{N}_1$
+also becomes a friend of node $\TZ{N}_2$.  The friendship is terminated
+when the nodes can no longer communicate or when a process residing on one
+of the nodes calls the BIF
+\ifOld \T{erlang:disconnect_node/1}\index{erlang:disconnect_node/1
+BIF@\T{erlang:disconnect_node/1} BIF} (\S\ref{section:disconnectnode1}) \fi
+\ifStd \T{node:disconnect/1}\index{disconnect/1 BIF@\T{disconnect/1} BIF}
+(\S\ref{section:node:disconnect1}) \fi
+with the name of the other node as argument.
+Friendship is described in more detail in \S\ref{section:friendship}.
+\index{node!friendship|)}
+
+\section{Registering a node}
+
+\label{section:registering-nodes}
+\index{EPMD|(}
+\index{net_kernel process name@\T{net_kernel} process name|(}
+
+MAKE COHERENT WITH ABOVE AND FINISH!!!
+
+Any computer that can be the host of \Erlang\ nodes must provide the service
+\emph{EPMD}\index{EPMD} (\Erlang\ Port Mapper Daemon).
+The EPMD service on the host computer
+stores the names of all \Erlang\ nodes running on the computer, ensuring that
+the names are unique.  It will provide a handle to the port of the \T{net_kernel}
+process of any node residing on the host computer, given the name of the node
+(cf.\ \S\ref{section:friendship}).
+
+MUST OBTAIN INFO ABOUT SET_NODE/2-3 BEFORE FIXING NEXT PARAGRAPH!!!
+
+An \Erlang\ node becomes a communicating node by spawning a process registered
+with the name \T{net_kernel}.  It should
+open a port through which other nodes can communicate with it.  It then
+contacts the
+EPMD service on its host computer, requesting to register the node with a certain
+name and the opened port.  The protocol for this registration is described
+in \S\ref{section:epmd-register}.
+\index{net_kernel process name@\T{net_kernel} process name|)}
+\index{EPMD|)}
+
+\section{Initializing and terminating friendship}
+
+\label{section:friendship}
+\index{node!friendship|(}
+
+\index{net_kernel process name@\T{net_kernel} process name|(}
+When a signal is to be delivered from a process residing on some node $\TZ{N}_1$
+to a process residing on a different node $\TZ{N}_2$, $\TZ{N}_2$ must be a friend
+of $\TZ{N}_1$.  NOT CORRECT!!!:
+Concretely, this means that the \T{net_kernel} process of
+node $\TZ{N}_1$ has opened a port to the \T{net_kernel} process of
+node $\TZ{N}_2$.  Associated with this port is an
+\emph{atom table}\index{node!atom table}, as
+described in \S\ref{section:atom-tables}.
+\index{net_kernel process name@\T{net_kernel} process name|)}
+
+Making node $\TZ{N}_2$ a friend of node $\TZ{N}_1$ is thus initiated when
+a process on node $\TZ{N}_1$ needs to communicate with a process on node $\TZ{N}_2$
+and node $\TZ{N}_2$ is not yet a friend of node $\TZ{N}_1$.  The friendship
+remains until node $\TZ{N}_1$ detects that it cannot communicate with node
+$\TZ{N}_2$ or either node calls the BIF
+\ifOld \T{erlang:disconnect_node/1}\index{erlang:disconnect_node/1
+BIF@\T{erlang:disconnect_node/1} BIF} (\S\ref{section:disconnectnode1}) \fi
+\ifStd \T{node:disconnect/1}\index{disconnect/1 BIF@\T{disconnect/1} BIF}
+(\S\ref{section:node:disconnect1}) \fi
+with the name of the other
+node as argument.
+
+When node $\TZ{N}_1$ makes node $\TZ{N}_2$ a friend, node $\TZ{N}_1$ should also
+become a friend of node $\TZ{N}_2$.  Under normal circumstances, friendship is thus
+a reflexive relation.  When the means of communication is broken
+between two nodes that are friends, they may not detect this simultaneously
+and friendship may then temporarily be unilateral.  Should communications be restored
+in a situation where node $\TZ{N}_1$ is still a friend of node $\TZ{N}_2$ but
+node $\TZ{N}_2$ is no longer a friend of node $\TZ{N}_1$, then
+$\TZ{N}_1$ should cease to be a friend of node $\TZ{N}_2$ before (bilateral)
+friendship is resumed.  (This is to ensure that both processes on $\TZ{N}_1$ monitoring
+friendship with $\TZ{N}_2$ and processes on $\TZ{N}_2$ monitoring
+friendship with $\TZ{N}_1$ will be notified that friendship has been broken,
+cf.\ \S\ref{section:monitor-node}.)
+
+NEXT PARAGRAPH IS HIGHLY UNCERTAIN!!!
+
+\index{net_kernel process name@\T{net_kernel} process name|(}
+When a node $\TZ{N}_1$ wishes to initiate friendship with a node $\TZ{N}_2$ the
+\T{net_kernel} process of node $\TZ{N}_1$
+first contacts the EPMD\index{EPMD} on the host computer of node $\TZ{N}_2$ and requests a
+handle of the port of the \T{net_kernel} process of node $\TZ{N}_2$, as described
+in \S\ref{section:epmd-find}.  If this succeeds, then the \T{net_kernel}
+process of node $\TZ{N}_1$
+contacts the \T{net_kernel} process of node $\TZ{N}_2$ and completes the setup of
+the friendship as described in \S\ref{chapter:external-format}.  That communication
+also establishes node $\TZ{N}_2$ as a friend of node $\TZ{N}_1$.
+\index{net_kernel process name@\T{net_kernel} process name|)}
+
+The current set of friends of a node \TZ{N} is referred to in this document as
+\T{friends[\Z{N}]}\index{friends node property@\T{friends} node property}.
+\index{node!friendship|)}
+
+\section{Remote communication and magic cookies}
+
+\label{section:magic-cookie}
+\index{node!magic cookie|(}
+
+All forms of communication between two
+processes residing on different nodes go through the
+\T{net_kernel}\index{net_kernel process name@\T{net_kernel} process name}
+processes on those nodes.  Note that all communication between processes
+is in the form of signals\index{signal!communication} (\S\ref{section:signals}).
+
+Each node \TZ{N} has associated with it an atom
+\T{magic_cookie[\Z{N}]}\index{magic_cookie node property@\T{magic_cookie} node property}
+that is called the \emph{magic cookie} of the node.  Any process residing on node \TZ{N}
+can obtain the magic cookie of node \TZ{N} through a BIF call
+\ifOld \T{erlang:get_cookie()}\index{get_cookie/0 BIF@\T{get_cookie/0} BIF}
+(\S\ref{section:getcookie0}).\fi
+\ifStd \T{node:get_cookie()}\index{get_cookie/0 BIF@\T{get_cookie/0} BIF}
+(\S\ref{section:node:getcookie0}).\fi
+The magic cookie of node \TZ{N} can be set
+by any process residing on node \TZ{N}
+to some atom \TZ{A} through a BIF call
+\ifOld \T{erlang:set_cookie(\Z{N},\Z{A})}\index{set_cookie/2 BIF@\T{set_cookie/2} BIF}
+(\S\ref{section:setcookie2}).\fi
+\ifStd \T{node:set_cookie(\Z{N},\Z{A})}\index{set_cookie/2 BIF@\T{set_cookie/2} BIF}
+(\S\ref{section:node:setcookie2}).\fi
+
+Each node also has a table
+\T{magic_cookies[\Z{N}]}\index{magic_cookies node property@\T{magic_cookies} node property}
+in which the keys are node names and the values are
+the presumed magic cookies of those nodes.  The presumed magic
+cookie on node $\TZ{N}_1$ of a node $\TZ{N}_2$ cannot be retrieved but can
+be set to some atom \TZ{A} by any process residing on node $\TZ{N}_1$ through a BIF
+call
+\ifOld \T{erlang:set_cookie($\Z{N}_2$,\Z{A})}\index{set_cookie/2 BIF@\T{set_cookie/2} BIF}
+(\S\ref{section:setcookie2}).\fi
+\ifStd \T{node:set_cookie($\Z{N}_2$,\Z{A})}\index{set_cookie/2 BIF@\T{set_cookie/2} BIF}
+(\S\ref{section:node:setcookie2}).\fi
+
+\index{exit!signal!sending|(}
+When a process $\TZ{P}_1$ residing on a node $\TZ{N}_1$ attempts
+to send a signal \TZ{S} to a process $\TZ{P}_2$ on a different node $\TZ{N}_2$,
+then the following happens:
+
+\begin{itemize}
+\item \index{net_kernel process name@\T{net_kernel} process name|(}
+The signal \TZ{S}, source $\TZ{P}_1$ and destination $\TZ{P}_2$ are
+passed to the \T{net_kernel} process on node $\TZ{N}_1$.
+\item If $\TZ{N}_2$ is not in
+\T{friends[\Z{N}]}\index{friends node property@\T{friends} node property}, then the \T{net_kernel}
+attempts to make it a friend of $\TZ{N}_1$.  Should this fail, the
+signal $s$ is simply discarded.
+\item The \T{net_kernel} process on $\TZ{N}_1$ looks up
+the atom $\TZ{N}_2$ in
+\T{magic_cookies[$\Z{N}_1$]}\index{magic_cookies node property@\T{magic_cookies} node property} and 
+if there is no value for $\TZ{N}_2$, then the atom
+\T{nocookie}\index{nocookie magic cookie@\T{nocookie} magic cookie}
+is inserted for it.  Let \TZ{C} be the result of the lookup
+(possibly after insertion of \T{nocookie}).
+\item The \T{net_kernel} process on $\TZ{N}_1$ passes
+$\TZ{P}_1$, \TZ{C}, \TZ{S} and $\TZ{P}_2$ to the \T{net_kernel}
+process on $\TZ{N}_2$
+using the protocol described in \S\ref{chapter:external-format}.
+\item The \T{net_kernel} process on $\TZ{N}_2$ compares
+\TZ{C} with \T{magic_cookie[$\Z{N}_2$]}\index{magic_cookie node property@\T{magic_cookie} node property}.
+\begin{itemize}
+\item If \TZ{C} and \T{magic_cookie[$\Z{N}_2$]} are (exactly) equal
+(\S\ref{section:equality}), then the signal \TZ{S} is passed on to
+process $\TZ{P}_2$ as described in \S\ref{section:signal-arrival}.
+\item Otherwise, if the signal \TZ{S} is a message with \TZ{T} as body, a message
+\T{\{$\Z{P}_1$,badcookie,$\Z{P}_2$,\Z{T}\}} is placed at the end of the
+message queue of the \T{net_kernel} process of node $\TZ{N}_2$.
+\item Otherwise,
+\ifStd
+the implementation should carry out one of the following actions:
+\begin{itemize}
+\item pass the signal \TZ{S}
+on to process $\TZ{P}_2$ as described in \S\ref{section:signal-arrival},
+\item do nothing (i.e., silently drop the signal),
+\item place an informative message at the end of the
+message queue of the \T{net_kernel} process on node $\TZ{N}_2$.
+\end{itemize}
+\fi
+\ifOld
+the signal is passed on to
+process $\TZ{P}_2$ as described in \S\ref{section:signal-arrival}.
+\fi
+\end{itemize}
+\end{itemize}
+\index{exit!signal!sending|)}
+\index{net_kernel process name@\T{net_kernel} process name|)}
+
+\index{security|(}
+The magic cookie mechanism is built into the communication mechanism
+of \Erlang\ in order to ensure that processes on a node cannot
+disrupt processes running on an arbitrary node.
+The security model of \Erlang\ is such that if a process $\TZ{P}_1$ resides
+on the same node as on a process $\TZ{P}_2$, or $\TZ{P}_1$ resides on a node
+that has the correct magic cookie for the node on which $\TZ{P}_2$ resides,
+then process $\TZ{P}_1$ has complete access to process $\TZ{P}_2$.  Process
+$\TZ{P}_1$ can send arbitrary signals (including exit signals
+with \T{kill} as reason, cf.\ \S\ref{section:signal-arrival})
+to process $\TZ{P}_2$.  It is thus up to the programmer to ensure that
+processes running on the same node or on nodes that have each others' correct
+magic cookies can trust each other. (Typically but not necessarily one will
+make sure that whenever
+a node $\TZ{N}_1$ has the correct magic cookie of node $\TZ{N}_2$, node
+$\TZ{N}_2$ has the correct magic cookie of node $\TZ{N}_1$.  In particular,
+a cluster of nodes may share a magic cookie.)
+\index{security|)}
+\index{node!magic cookie|)}
+
+\section{Process registry}
+
+\label{section:process-registry}
+\index{process!registry|(}
+
+For each node there is a table
+\T{registry[\Z{N}]}\index{registry node property@\T{registry} node property} in
+which the keys are atoms naming processes residing on that node and the values
+are the PIDs of the processes.
+The process registry makes it possible to send messages to registered processes
+on a node without knowing their PIDs.
+
+Some processes, such as the \T{net_kernel}
+of a communicating node, are spawned and registered automatically by the
+\Erlang\ system.
+It is also possible for any process on a node \TZ{N} to register a name \TZ{A}
+for a live process \TZ{P}
+residing on \TZ{N} through a BIF call
+\T{register(\Z{A},\Z{P})}\index{register/2 BIF@\T{register/2} BIF}
+(\S\ref{section:register2}).
+There can be at most one name registered for a process.
+A process name is
+removed from the registry automatically when the process completes.
+It is also possible for any process on a node \TZ{N} to remove the name \TZ{A}
+from the registry
+of \TZ{N} through a BIF call
+\T{unregister(\Z{A})}\index{unregister/1 BIF@\T{unregister/1} BIF} (\S\ref{section:unregister1}).
+A process \TZ{P} can look up a name
+\TZ{A} in the registry on \T{node[\Z{P}]} and obtain the PID through a BIF call
+\T{whereis(\Z{A})}\index{whereis/1 BIF@\T{whereis/1} BIF}
+(\S\ref{section:whereis1})
+or obtain a list of all currently registered names on \T{node[\Z{P}]} through
+a BIF call
+\T{registered()}\index{registered/0 BIF@\T{registered/0} BIF}
+(\S\ref{section:registered0}).
+
+The BIF \T{register/2} must ensure that
+a process cannot be registered on node \TZ{N} unless it resides on
+that node and is alive.  Also it must be ensured that when a process
+completes, any name for it in the registry of the node on which it resides
+is removed.
+\index{process!registry|)}
+
+\section{Monitoring of nodes}
+
+\label{section:monitor-node}
+\index{node!monitoring|(}
+\ifOld \index{monitor_node/2 BIF@\T{monitor_node/2} BIF|(} \fi
+\ifStd \index{node:monitor/2 BIF@\T{node:monitor/2} BIF|(} \fi
+
+THERE ARE THINGS MISSING ABOUT THIS, ESPECIALLY WHEN DISCUSSING SIGNALS AND
+THE DYNAMIC STATE.
+
+Any process on a node $\TZ{N}_1$ can be notified when some node $\TZ{N}_2$ ceases to
+be a friend of $\TZ{N}_1$.
+
+After a process \TZ{P} on a node $\TZ{N}_1$ has made a BIF call
+\ifOld \T{monitor_node($\TZ{N}_2$,true)} (\S\ref{section:monitornode2}),\fi
+\ifStd \T{node:monitor($\TZ{N}_2$,true)} (\S\ref{section:node:monitor2}),\fi
+where $\TZ{N}_2$ is an atom, a message \T{\{nodedown,$\TZ{N}_2$\}} will be sent to \TZ{P}
+if $\TZ{N}_2$ ceases to be a friend of $\TZ{N}_1$.  If $\TZ{N}_2$ is not a friend of $\TZ{N}_1$
+when the call is made, the message \T{\{nodedown,$\TZ{N}_2$\}} is sent to \TZ{P} immediately.
+A BIF call
+\ifOld \T{monitor_node($\TZ{N}_2$,false)} \fi
+\ifStd \T{node:monitor($\TZ{N}_2$,false)} \fi
+cancels the effect of a call
+\ifOld \T{monitor_node($\TZ{N}_2$,true)}. \fi
+\ifStd \T{node:monitor($\TZ{N}_2$,true)}. \fi
+The effect of a BIF call
+\ifOld \T{monitor_node($\TZ{N}_2$,false)} \fi
+\ifStd \T{node:monitor($\TZ{N}_2$,false)} \fi
+when there is no call
+\ifOld \T{monitor_node($\TZ{N}_2$,true)} \fi
+\ifStd \T{node:monitor($\TZ{N}_2$,true)} \fi
+to cancel is undefined.  There can be
+more than one call
+\ifOld \T{monitor_node($\TZ{N}_2$,true)} \fi
+\ifStd \T{node:monitor($\TZ{N}_2$,true)} \fi
+in effect and \TZ{P} will receive one message
+for each call
+\ifOld \T{monitor_node($\TZ{N}_2$,true)} \fi
+\ifStd \T{node:monitor($\TZ{N}_2$,true)} \fi
+that has not been canceled when $\TZ{N}_2$ ceases
+to be a friend of  $\TZ{N}_1$.
+\ifOld \index{monitor_node/2 BIF@\T{monitor_node/2} BIF|)} \fi
+\ifStd \index{node:monitor/2 BIF@\T{node:monitor/2} BIF|)} \fi
+\index{node!monitoring|)}
+
+\section{The state of a node}
+
+\index{node!state|(}
+
+When a node is started, some properties of the node are determined and will be
+in effect until the node is terminated.  During that time also a dynamic state
+is maintained, consisting of properties of the node that change as time passes.
+This state is affected by and affects the behaviour of the node.
+
+We refer to these as the \emph{static} and \emph{dynamic properties} of a node.  We
+refer collectively to the values of the latter at a certain time as the \emph{state}
+of the node at that time.
+
+\subsection{Static properties}
+
+\label{section:node-state-static}
+
+\begin{Lentry}
+\item[\T{creation[\Z{N}]}]
+\index{creation@\T{creation}!node property|(}
+When a node is started, the value of \T{creation[\Z{N}]} --- a nonnegative integer ---
+is obtained from EPMD\index{EPMD}.  Its purpose is to
+to distinguish the current instance of the node from previous instances
+that had the same name.  The value is used when creating new refs, PIDs
+and ports.
+\index{creation@\T{creation}!node property|)}
+
+\item[\T{communicating[\Z{N}]}]
+\index{communicating node property@\T{communicating} node property|(}
+\index{node!communicating|(}
+\index{node!isolated|(}
+This is a Boolean atom which is \T{false} if the node is isolated
+and \T{true} if it is communicating.  When a node becomes communicating, the
+property is changed from \T{false} to \T{true} but after that it cannot be changed.
+(The property is
+thus not strictly static as it can change once but in practice we can
+treat it as being static.)
+It can be accessed on the node itself through the BIF
+\ifOld \T{erlang:is_alive/0}\index{is_alive/0 BIF@\T{is_alive/0} BIF}
+(\S\ref{section:isalive0}).\fi
+\ifStd \T{node:is_alive/0}\index{is_alive/0 BIF@\T{is_alive/0} BIF}
+(\S\ref{section:node:isalive0}).\fi
+\index{node!communicating|)}
+\index{node!isolated|)}
+\index{communicating node property@\T{communicating} node property|)}
+
+\item[\T{name[\Z{N}]}]
+\index{name node property@\T{name} node property|(}
+\index{node!name|(}
+This is the name of the node, which is an atom.  For an isolated node it
+is always \T{nonode@nohost}\index{nonode"@nohost node name@\T{nonode"@nohost} node name}.
+When a node becomes communicating, the
+name is changed but after that it cannot be changed.  (The property is
+thus not strictly static as it can change once but in practice we can
+treat it as being static.)
+It can be accessed on the node itself through the BIF
+\T{node/0}\index{node/0 BIF@\T{node/0} BIF} (\S\ref{section:node0}).
+\index{node!name|)}
+\index{name node property@\T{name} node property|)}
+
+\item[\T{preloaded[\Z{N}]}]
+\index{preloaded node property@\T{preloaded} node property|(}
+\index{module!preloaded on a node|(}
+This is a set of the names of the modules that were loaded as part of
+starting the node.  Although there should normally never be
+any reason to delete these modules, their presence in the (static)
+set does not imply that
+they are still loaded.
+The set can be accessed on the node itself through the BIF
+\ifOld \T{erlang:preloaded/0}\index{preloaded/0 BIF@\T{preloaded/0} BIF}
+(\S\ref{section:preloaded0}).\fi
+\ifStd \T{node:preloaded/0}\index{preloaded/0 BIF@\T{preloaded/0} BIF}
+(\S\ref{section:node:preloaded0}).\fi
+\index{module!preloaded on a node|)}
+\index{preloaded node property@\T{preloaded} node property|)}
+\end{Lentry}
+
+\subsection{Dynamic properties}
+
+\label{section:node-state-dynamic}
+
+\begin{Lentry}
+\item[\T{atom_tables[\Z{N}]}]
+\index{atom_tables node property@\T{atom_tables} node property|(}
+\index{node!atom table|(}
+This is a table that for each friend of \TZ{N} contains a row with the name
+and the atom table (\S\ref{section:atom-tables}) for that friend as key and value,
+respectively.
+When \TZ{N} gets a new friend, a row should be added to \T{atom_tables[\Z{N}]} with
+the name of the friend as key and an empty atom table as value.
+When a node ceases to be a friend of \TZ{N}, its row in
+\T{atom_tables[\Z{N}]} must be removed.
+\index{node!atom table|)}
+\index{atom_tables node property@\T{atom_tables} node property|)}
+
+\item[\T{distribution_port[\Z{N}]}]
+\index{distribution_port node property@\T{distribution_port} node property|(}
+On a communicating node, this is the port that was given as second argument
+to \T{node:alive/2} ???.
+The EPMD\index{EPMD} server for the computer on which the node resides
+will communicate with the \T{net_kernel}\index{net_kernel process name@\T{net_kernel} process name}
+process of \TZ{N} through that port.
+\index{distribution_port node property@\T{distribution_port} node property|)}
+
+\item[\T{entry_points[\Z{N}]}]
+\index{entry_points node property@\T{entry_points} node property|(}
+This is a table mapping triples consisting of a module name (an atom), a function
+symbol (an atom) and an arity (a nonnegative integer) to
+\ifStd implementation-defined values that denote \fi
+entry points to executable code.  The table cannot be accessed
+directly but is used when evaluating a function application where the function is specified
+through a module name, a function symbol and an arity (\S\ref{section:appl-named-function}).
+The table is updated by BIFs for module
+dynamics (\S\ref{chapter:module-dynamics},
+\ifOld\S\ref{section:module-bifs}\fi
+\ifStd\S\ref{section:module-module}\fi).
+\index{entry_points node property@\T{entry_points} node property|)}
+
+\item[\T{friends[\Z{N}]}]
+\index{friends node property@\T{friends} node property|(}
+\index{node!friendship|(}
+This is a set of atoms that are names of nodes that are friends of node \TZ{N}
+(\S\ref{section:friendship}).
+It can be accessed on node \TZ{N} by calling the BIF
+\T{nodes/0}\index{nodes/0 BIF@\T{nodes/0} BIF}
+(\S\ref{section:nodes0}).  The set is
+added to when a friendship has been established with another node, typically
+because a process on one of the nodes has attempted to communicate with a process
+on the other node.  The set is subtracted from when node \TZ{N} loses contact
+with a friend node (e.g., because communication between host computers has been
+lost, the other node has been terminated, or the host computer on which it
+resides has been restarted), or when a process on either node calls the
+BIF
+\ifOld \T{erlang:disconnect_node/1}\index{erlang:disconnect_node/1
+BIF@\T{erlang:disconnect_node/1} BIF} (\S\ref{section:disconnectnode1}) \fi
+\ifStd \T{node:disconnect/1}\index{disconnect/1 BIF@\T{disconnect/1} BIF}
+(\S\ref{section:node:disconnect1}) \fi
+with the name of the other node as argument.
+\index{node!friendship|)}
+\index{friends node property@\T{friends} node property|)}
+
+\item[\T{garbage_collection[\Z{N}]}]
+\index{garbage_collection node property@\T{garbage_collection} node property|(}
+\index{current_gc node operation@\T{current_gc} node operation|(}
+This is the state of the garbage collection gauge, which is updated
+automatically when processes collect garbage to reflect the number of
+garbage collection operations that have been carried out by processes
+on the node and the number of memory words reclaimed by such
+operations.  It can be accessed through the operation
+\T{current_gc[\Z{N}]}, which returns a 3-tuple
+\T{\{\Z{NumberOfGCs},\Z{WordsReclaimed},0\}} of integers
+where \TZ{NumberOfGCs} is the total number of garbage
+collection operations that have been carried out by
+processes on the node and \TZ{WordsReclaimed} is the total
+number of memory words reclaimed by such operations.  (The
+third integer is always zero and is there to confuse the
+enemy.)
+\index{current_gc node operation@\T{current_gc} node operation|)}
+\index{garbage_collection node property@\T{garbage_collection} node property|)}
+
+\item[\T{magic_cookie[\Z{N}]}]
+\index{magic_cookie node property@\T{magic_cookie} node property|(}
+\index{node!magic cookie|(}
+This term must be provided by any process on another node that wishes
+to communicate with a process on node \TZ{N} (cf.\
+\S\ref{section:magic-cookie}).  The value of \T{magic_cookie[\Z{N}]}
+can be obtained by a process on node \TZ{N} through the BIF
+\ifOld \T{erlang:get_cookie/0}\index{get_cookie/0 BIF@\T{get_cookie/0} BIF}
+(\S\ref{section:getcookie0}).\fi
+\ifStd \T{node:get_cookie/0}\index{get_cookie/0 BIF@\T{get_cookie/0} BIF}
+(\S\ref{section:node:getcookie0}).\fi
+\T{magic_cookie[\Z{N}]} can be set by a process on node \TZ{N} by calling
+the BIF
+\ifOld \T{erlang:set_cookie/2}\index{set_cookie/2 BIF@\T{set_cookie/2} BIF}
+(\S\ref{section:setcookie2}) \fi
+\ifStd \T{node:set_cookie/2}\index{set_cookie/2 BIF@\T{set_cookie/2} BIF}
+(\S\ref{section:node:setcookie2}) \fi
+with \T{name[\Z{N}]} and the new magic cookie as arguments.
+\index{node!magic cookie|)}
+\index{magic_cookie node property@\T{magic_cookie} node property|)}
+
+\item[\T{magic_cookies[\Z{N}]}]
+\index{magic_cookies node property@\T{magic_cookies} node property|(}
+\index{node!magic cookie|(}
+This is a mapping from atoms to terms.  Its role in process communication
+across nodes is described in \S\ref{section:magic-cookie}.
+\T{magic_cookies[\Z{N}]} cannot be accessed directly but
+can be modified by a process on node \TZ{N} by calling
+the BIF
+\ifOld \T{erlang:set_cookie/2}\index{set_cookie/2 BIF@\T{set_cookie/2} BIF}
+(\S\ref{section:setcookie2}) \fi
+\ifStd \T{node:set_cookie/2}\index{set_cookie/2 BIF@\T{set_cookie/2} BIF}
+(\S\ref{section:node:setcookie2}) \fi
+with the name of another node and
+the magic cookie to be used as arguments.
+\index{node!magic cookie|)}
+\index{magic_cookies node property@\T{magic_cookies} node property|)}
+
+\item[\T{module_table[\Z{N}]}]
+\index{module_table node property@\T{module_table} node property|(}
+\index{node!module table|(}
+This is a table where the keys are module names, i.e., atoms.  The table contains
+a row with key \TZ{Mod} if a module named \TZ{Mod} has ever been loaded on the node.
+The value \TZ{R} of each row contains two fields:
+\T{current_version[\Z{R}]} and \T{old_version[\Z{R}]}.
+\begin{itemize}
+\item \T{current_version[\Z{R}]} is either a binary representing the compiled code
+for the current version of the module, or \T{none}.
+\item \T{old_version[\Z{R}]} is either a binary representing the compiled code
+for the current version of the module, or \T{none}.
+\end{itemize}
+The table is initially empty.  For a new row both fields are \T{none}.
+It cannot be accessed or modified directly but is accessed or updated
+by most BIFs for module
+dynamics (\S\ref{chapter:module-dynamics},
+\ifOld\S\ref{section:module-bifs}\fi
+\ifStd\S\ref{section:module-module}\fi).
+\index{node!module table|)}
+\index{module_table node property@\T{module_table} node property|)}
+
+\item[\T{monitored_nodes[\Z{N}]}]
+\index{monitored_nodes node property@\T{monitored_nodes} node property|(}
+\index{node!monitored|(}
+This is a table where each row has a node name as key and a table as
+value.  Each such table has the PID of a process residing on \TZ{N} as
+key and a nonnegative integer as value.  If \T{monitored_nodes[\Z{N}]}
+contains a row with key $\TZ{N}'$ and value $t$ and $t$ contains a row
+with key \TZ{P} and value \TZ{I}, then each time node $\TZ{N}'$ ceases
+to be a friend of node \TZ{N}, $\Er[\TZ{I}]$ messages
+\T{\{node_down,$\TZ{N}'$\}} will be sent to process \TZ{P}.
+The value of \T{monitored_nodes[\Z{N}]} cannot be accessed directly.  It can be
+modified using the BIF
+\T{monitor_node/2}\index{monitor_node/2@\T{monitor_node/2}} (\S\ref{section:monitornode2}).
+It is initially empty.
+\index{node!monitored|)}
+\index{monitored_nodes node property@\T{monitored_nodes} node property|)}
+
+\item[\T{ports[\Z{N}]}]
+\index{ports node property@\T{ports} node property|(}
+This is a set of the ports that are open on node \TZ{N}.
+It can be accessed by processes on \TZ{N} through the BIF
+\ifOld \T{ports/0}\index{ports/0 BIF@\T{ports/0} BIF}
+(\S\ref{section:ports0}).\fi
+\ifStd \T{node:ports/0}\index{ports/0 BIF@\T{ports/0} BIF}
+(\S\ref{section:node:ports0}).\fi
+The set is updated implicitly when a
+new port is opened on \TZ{N} (\S\ref{section:opening-ports})
+and when a port on \TZ{N} is closed (\S\ref{section:closing-ports}).
+\index{ports node property@\T{ports} node property|)}
+
+\item[\T{processes[\Z{N}]}]
+\index{processes node property@\T{processes} node property|(}
+This is a set of the PIDs of the processes that run on node \TZ{N}.
+It consists of the PIDs of all processes that have been spawned on
+\TZ{N} and that have not yet completed.
+It can be accessed by processes on \TZ{N} through the BIF
+\ifOld \T{processes/0}\index{processes/0 BIF@\T{processes/0} BIF}
+(\S\ref{section:processes0}).\fi
+\ifStd \T{node:processes/0}\index{processes/0 BIF@\T{processes/0} BIF}
+(\S\ref{section:node:processes0}).\fi
+The set is updated implicitly when a
+new process is spawned on \TZ{N} (\S\ref{section:spawning-processes})
+and when a process on \TZ{N} completes (\S\ref{section:process-completion}).
+\index{processes node property@\T{processes} node property|)}
+
+\item[\T{reductions[\Z{N}]}]
+\index{reductions@\T{reductions}!node property|(}
+This is the state of the reduction gauge.  It
+\ifStd should be \fi \ifOld is \fi
+updated automatically to reflect the
+number of function calls that have been made on node \TZ{N}.
+\ifStd
+Implementations may
+differ in how the number of function calls is measured.  However, the count must
+be strictly increasing and it should increase at least
+each time a call of remote function application begins.
+\fi
+
+\index{current_reductions node operation@\T{current_reductions} node operation|(}
+\T{reductions[\Z{N}]} cannot be accessed directly but the atomic operation
+\T{current_reductions[\Z{N}]} uses and updates the value of \T{reductions[\Z{N}]}
+to return a 2-tuple \T{\{\Z{Total},\Z{SinceLast}\}} of integers where both
+measure the number of function calls on node \TZ{N}.
+The first is the number of reductions since node \TZ{N} was started while the second is
+since the previous invocation of \T{current_reductions[\Z{N}]}.
+
+The first time \T{current_reductions[\Z{N}]} is invoked,
+\TZ{Total} and \TZ{SinceLast} will be the same.
+This operation should only be invoked as part of an explicit
+application \T{statistics(reductions)} (\S\ref{section:statistics1}) in a user program.
+\index{current_reductions node operation@\T{current_reductions} node operation|)}
+\index{reductions@\T{reductions}!node property|)}
+
+\item[\T{ref_state[\Z{N}]}]
+\index{ref_state node property@\T{ref_state} node property|(}
+\index{next_ref node operation@\T{next_ref} node operation|(}
+This is the state of the ref generator.  It cannot be accessed directly
+but the atomic operation \T{next_ref[\Z{N}]} uses the value of \T{ref_state[\Z{N}]}
+to provide the ID for a new ref and at the same time increments the value of
+\T{ref_state[\Z{N}]}
+so that the next invocation of \T{next_ref[\Z{N}]} will produce a unique ref.
+\index{ref_state node property@\T{ref_state} node property|)}
+\index{next_ref node operation@\T{next_ref} node operation|)}
+
+\item[\T{registry[\Z{N}]}]
+\index{registry node property@\T{registry} node property|(}
+\index{process!registry|(}
+This is a mapping from atoms to PIDs.
+\ifStd The implementation must ensure \fi
+\ifOld It is ensured \fi
+that at any time,
+\begin{itemize}
+\item the mapping is invertible (i.e., that at most one name is registered
+for each PID),
+\item that all PIDs refer to processes residing on node \TZ{N}, and
+\item that all PIDs refer to live processes.
+\end{itemize}
+This implies that when a process completes, any name registered for it
+must be removed from the registry.
+
+\T{registry[\Z{N}]} can be accessed
+by processes running on node \TZ{N} through the BIFs \T{register/2}, \T{unregister/1},
+\T{registered/0} and \T{whereis/1}
+(\ifOld\S\ref{section:process-registry-bifs}\fi
+\ifStd\S\ref{section:process-module}\fi).
+It can be accessed indirectly by processes running
+on any node when sending messages (\S\ref{section:send-expr}).
+\index{process!registry|)}
+\index{registry node property@\T{registry} node property|)}
+
+\item[\T{runtime[\Z{N}]}]
+\index{runtime node property@\T{runtime} node property|(}
+\index{current_runtime node operation@\T{current_runtime} node operation|(}
+This is the state of the run time gauge.  It is updated automatically to reflect the
+amount of time spent running processes on node \TZ{N}.
+It cannot be accessed directly
+but the atomic operation \T{current_runtime[\Z{N}]} uses and updates
+the value of \T{runtime[\Z{N}]}
+to return a 2-tuple \T{\{\Z{Total},\Z{SinceLast}\}} of integers where both
+measure the total time in milliseconds spent on running processes on node \TZ{N}.
+The first element is the time since node \TZ{N} was started while the second is
+since the previous invocation of \T{current_runtime[\Z{N}]}.
+
+The first time \T{current_runtime[\Z{N}]} is invoked,
+\TZ{Total} and \TZ{SinceLast} will be the same.
+This operation should only be invoked as part of an explicit
+BIF application \T{statistics(runtime)}\index{statistics/1 BIF@\T{statistics/1} BIF}
+(\S\ref{section:statistics1}) in a user program.
+\index{current_runtime node operation@\T{current_runtime} node operation|)}
+\index{runtime node property@\T{runtime} node property|)}
+
+\item[\T{wall_clock[\Z{N}]}]
+\index{wall_clock node property@\T{wall_clock} node property|(}
+\index{current_wall_clock node operation@\T{current_wall_clock} node operation|(}
+This is the state of the real time gauge.  It is updated automatically
+to reflect the passing of real time in the world where node \TZ{N}
+resides.  It cannot be accessed directly but the value of
+\T{wall_clock[\Z{N}]} is used and updated by the atomic operation
+\T{current_wall_clock[\Z{N}]} to return a 2-tuple
+\T{\{\Z{Total},\Z{SinceLast}\}} of integers where both measure the
+time in milliseconds that has passed in the world.  The first element
+is the time since node \TZ{N} was started while the second is since
+the previous invocation of \T{current_wall_clock[\Z{N}]}.
+
+The first time \T{current_wall_clock[\Z{N}]} is invoked, \TZ{Total}
+and \TZ{SinceLast} will be the same.  This operation should only be
+invoked as part of an explicit BIF application
+\T{statistics(wall_clock)}\index{statistics/1 BIF@\T{statistics/1}
+BIF} (\S\ref{section:statistics1}) in a user program.
+\index{wall_clock node property@\T{wall_clock} node property|)}
+\index{current_wall_clock node operation@\T{current_wall_clock} node operation|)}
+\end{Lentry}
+\index{node!state|)}

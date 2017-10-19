@@ -1,0 +1,62 @@
+% grammar.sty
+% Macros for typesetting grammar rules.
+% \NT{...} for a nonterminal.
+% \OPT{...} for an optional nonterminal.
+% \TXT{...} for a terminal.
+% ... \OR ... for alternatives.
+% \grrule{nonterminal}{production}
+
+\ifsecondedition
+\newcommand{\NT}[1]{\textit{#1}}
+\newcommand{\TXT}[1]{\texttt{#1}}
+\newcommand{\OPT}[1]{\NT{#1}$_{\mathit{opt}}$}
+\newcommand{\OPX}[1]{\TXT{#1}$_{\mathit{opt}}$}
+\else
+\newcommand{\NT}[1]{{\it#1}}
+\newcommand{\TXT}[1]{{\tt#1}}
+\newcommand{\OPT}[1]{\NT{#1}$_{\it opt}$}
+\newcommand{\OPX}[1]{\TXT{#1}$_{\it opt}$}
+\fi
+\newcommand{\OR}{\\}
+\iffalse
+\newcommand{\grrule}[2]{\par\noindent\begin{tabular}{@{\hspace{0.333in}}l}\multicolumn{1}{l}{#1{\it:}} \\ #2\end{tabular}}
+\newcommand{\grruleoneof}[2]{\par\noindent\begin{tabular}{@{\hspace{0.333in}}l}\multicolumn{1}{l}{#1{\it: one of}} \\ #2\end{tabular}}
+\newcommand{\grruleoneofthefirst}[3]{\par\noindent\begin{tabular}{@{\hspace{0.333in}}l}\multicolumn{1}{l}{#1{\it: one of the first #2 of}} \\ #3\end{tabular}}
+\else
+% Sequences of \grrule etc should wrapped in this environment.
+
+%\newenvironment{rules}{\begin{trivlist}}{\end{trivlist}}
+\newenvironment{rules}{\begin{list}{}{\setlength{\tabcolsep}{0pt}%
+                                      \setlength{\leftmargin}{0pt}}}{\end{list}}
+
+%\newtoks\grruletokens
+%\newcommand{\grrulefilename}{es-grrules}
+
+%\newwrite\grrulefile
+%\newcommand{\openrules}{\immediate\openout\grrulefile=\grrulefilename}
+%\newcommand{\closerules}{\immediate\closeout\grrulefile}
+%\newcommand{\inputrules}{\input \grrulefilename}
+
+%\def\rules#1\end{rules}
+%\newenvironment{rules}{\grruletokens=\bgroup}{\egroup%
+%  \immediate\write\grrulefile{\the\grruletokens}%
+%  \begin{formatrules}\the\grruletokens\end{formatrules}}
+
+\iffalse
+\newcommand{\onerule}[2]{\begin{tabular}{@{\hspace{0.333in}}l@{\hspace{0.333in}}l@{}}\multicolumn{1}{l}{#1:} \\ #2\end{tabular}}
+
+\newcommand{\grrule}[2]{\item[]\onerule{#1}{#2}}
+\newcommand{\grruleoneof}[2]{\item[]{\setlength{\tabcolsep}{0pt}\begin{tabular}{@{\hspace{0.333in}}l@{\hspace{0.333in}}l}\multicolumn{1}{l}{#1: one of} \\ #2\end{tabular}}}
+\newcommand{\grruleoneofthefirst}[3]{\item[]{\setlength{\tabcolsep}{0pt}\begin{tabular}{@{\hspace{0.333in}}l@{\hspace{0.333in}}l}\multicolumn{1}{l}{#1: one of the first #2 of} \\ #3\end{tabular}}}
+\else
+\newif\ifgrammarindex\grammarindexfalse
+\newcommand\grammarindex[2]{\ifgrammarindex\index{#1@#2}\fi}
+\newcommand{\onerule}[4]{\item[]\grammarindex{#1}{#2}\begin{tabular}{@{\hspace{0.333in}}l@{\hspace{0.333in}}l@{}}\multicolumn{1}{l}{#2:#3} \\ #4\end{tabular}}
+
+\newcommand{\grrule}[2]{\grruleindex{#1}{\NT{#1}}{#2}}
+\newcommand{\grruleindex}[3]{\onerule{#1}{#2}{}{#3}}
+\newcommand{\grruleoneof}[2]{\onerule{#1}{\NT{#1}}{ one of}{#2}}
+\newcommand{\grruleoneofthefirst}[4]{\onerule{#1}{#2}{ one of the first #3 of}{#4}}
+\newcommand{\vdotsrule}{\item[]$\vdots$}
+\fi
+\fi

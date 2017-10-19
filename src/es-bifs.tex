@@ -1,0 +1,3715 @@
+%
+% %CopyrightBegin%
+%
+% Copyright Ericsson AB 2017. All Rights Reserved.
+%
+% Licensed under the Apache License, Version 2.0 (the "License");
+% you may not use this file except in compliance with the License.
+% You may obtain a copy of the License at
+%
+%     http://www.apache.org/licenses/LICENSE-2.0
+%
+% Unless required by applicable law or agreed to in writing, software
+% distributed under the License is distributed on an "AS IS" BASIS,
+% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+% See the License for the specific language governing permissions and
+% limitations under the License.
+%
+% %CopyrightEnd%
+%
+
+\chapter{Builtin functions}
+
+\label{chapter:bifs}
+
+As for any function application, when an application of a BIF is
+evaluated all arguments are fully evaluated before the BIF itself is
+called and begins executing.  When below we discuss the evaluation of
+a BIF with $k$ parameters, we assume that the $k$ arguments have
+already been evaluated and that their values are $\TZ{v}_1$, \ldots,
+$\TZ{v}_k$.
+
+For convenience we abuse our language slightly and may write
+\begin{itemize}
+\item ``calling a BIF'' when we mean ``evaluating an application of a BIF''
+(where the values of the $k$ arguments are the terms
+$\TZ{v}_1$, \ldots, $\TZ{v}_k$),
+\item ''the BIF returns \ldots''\ when we mean ``the evaluation of
+an application of the BIF completes normally with result \ldots'', and
+\item ``the BIF exits with reason \ldots'' when we mean
+``the evaluation of an application of the BIF exits with reason \ldots''.
+\end{itemize}
+% There is a proposal to change this!!!
+\index{BIF!exit cause of|(}
+In this chapter we write that a BIF ``exits with cause
+\TZ{R}'' to express that the evaluation of an application of the BIF
+completes abruptly with reason
+\begin{alltt}
+\{'EXIT',\{\Z{R},\{\Z{M},\Z{F},[\(\Z{v}\sb{1}\),\tdots,\(\Z{v}\sb{k}\)]\}\}\R{,}
+\end{alltt}
+where \TZ{M} is the name of the module and \TZ{F} is the symbol of the
+function that called the BIF, and as usual, $\TZ{v}_1$, \ldots,
+$\TZ{v}_k$ are the values of the arguments.
+\index{BIF!exit cause of|)}
+
+\ifOld
+\index{badarg exit cause@\T{badarg} exit cause|(}
+If the abnormal completion was because there was something wrong with
+the value of an argument, e.g., is was of the wrong type or it was an
+index outside the meaningful range, then \TZ{R} is always the atom
+\T{badarg}.
+\index{badarg exit cause@\T{badarg} exit cause|)}
+\fi
+\ifStd
+\index{badarg exit cause@\T{badarg} exit cause|(}
+If the abnormal completion was because the value of an argument was
+not valid (e.g., it was not of a permitted type or it was not one of a
+group of permitted alternatives such as a set of atoms), then \TZ{R}
+is always the atom
+\T{badarg}.
+\index{badarg exit cause@\T{badarg} exit cause|)}
+\index{badindex exit cause@\T{badindex} exit cause|(}
+If the cause for the abrupt completion was an invalid index
+in some kind of sequence, then \TZ{R} is always the atom
+\T{badindex}.
+\index{badindex exit cause@\T{badindex} exit cause|)}
+\fi
+
+\index{BIF!guard|(}
+If it is not explicitly said about a BIF that it is a guard BIF, then
+it is not a guard BIF.
+\index{BIF!guard|)}
+
+%Some BIFs are mentioned under more than one heading.
+
+\section{Recognizer BIFs}
+
+\label{section:recognizer-bifs}
+\index{BIF!recognizer|(}
+\ifOld
+\index{atom/1 BIF@\T{atom/1} BIF|(}
+\index{binary/1 BIF@\T{binary/1} BIF|(}
+\index{constant/1 BIF@\T{constant/1} BIF|(}
+\index{float/1 BIF@\T{float/1} BIF|(}
+\index{function/1 BIF@\T{function/1} BIF|(}
+\index{integer/1 BIF@\T{integer/1} BIF|(}
+\index{list/1 BIF@\T{list/1} BIF|(}
+\index{number/1 BIF@\T{number/1} BIF|(}
+\index{pid/1 BIF@\T{pid/1} BIF|(}
+\index{port/1 BIF@\T{port/1} BIF|(}
+\index{record/2 BIF@\T{record/2} BIF|(}
+\index{reference/1 BIF@\T{reference/1} BIF|(}
+\index{tuple/1 BIF@\T{tuple/1} BIF|(}
+\fi
+\ifStd
+\index{is_atom/1 BIF@\T{is_atom/1} BIF|(}
+\index{is_binary/1 BIF@\T{is_binary/1} BIF|(}
+\index{is_char/1 BIF@\T{is_char/1} BIF|(}
+\index{is_cons/1 BIF@\T{is_cons/1} BIF|(}
+\index{is_compound/1 BIF@\T{is_compound/1} BIF|(}
+\index{is_float/1 BIF@\T{is_float/1} BIF|(}
+\index{is_function/1 BIF@\T{is_function/1} BIF|(}
+\index{is_integer/1 BIF@\T{is_integer/1} BIF|(}
+\index{is_list/1 BIF@\T{is_list/1} BIF|(}
+\index{is_null/1 BIF@\T{is_null/1} BIF|(}
+\index{is_number/1 BIF@\T{is_number/1} BIF|(}
+\index{is_pid/1 BIF@\T{is_pid/1} BIF|(}
+\index{is_port/1 BIF@\T{is_port/1} BIF|(}
+\index{is_ref/1 BIF@\T{is_ref/1} BIF|(}
+\index{is_string/1 BIF@\T{is_string/1} BIF|(}
+\index{is_tuple/1 BIF@\T{is_tuple/1} BIF|(}
+\fi
+
+\ifOld
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{atom/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{binary/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{constant/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{float/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{function/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{integer/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{list/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{number/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{pid/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{port/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{record/2}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{reference/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{tuple/1}}}
+\fi
+\ifStd
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{is_atom/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{is_binary/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{is_char/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{is_compound/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{is_cons/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{is_float/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{is_function/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{is_integer/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{is_list/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{is_number/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{is_null/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{is_pid/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{is_port/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{is_ref/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{is_string/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{is_tuple/1}}}
+\fi
+
+\ifOld
+In \OldErlang\ the recognizer BIFs are not true BIFs and can only be
+used in guards as \NT{GuardRecognizer}.
+There are twelve guard recognizers:
+\T{atom/1},
+\T{binary/1},
+\T{constant/1},
+\T{float/1},
+\T{function/1},
+\T{integer/1},
+\T{list/1},
+\T{number/1},
+\T{pid/1},
+\T{port/1},
+\T{reference/1}, and
+\T{tuple/1}.
+As they all behave similarly, we describe them collectively.
+
+\EVALUATION
+
+If $\TZ{v}_1$ is one of the terms indicated in Table~\ref{table:typetests},
+then the recognizer in the guard succeeds, otherwise it fails.
+
+\begin{table}[hbp]
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\hline
+Recognizer & Succeeds if and only if the argument is \\
+\hline
+\T{atom/1} & an atom \\
+\T{binary/1} & a binary \\
+\T{constant/1} & of an elementary type (cf.\ \S\ref{chapter:types-terms}) \\
+\T{float/1} & a float \\
+\T{integer/1} & an integer \\
+\T{function/1} & a function term \\
+\T{list/1} & a cons or nil \\ % BAAAD NAME!!!
+\T{number/1} & a number \\
+\T{pid/1} & a PID \\
+\T{port/1} & a port \\
+\T{reference/1} & a reference \\
+\T{tuple/1} & a tuple \\
+\hline
+\end{tabular}
+\caption{\Erlang\ recognizer BIFs.}
+\label{table:typetests}
+\end{center}
+\end{table}
+\fi
+
+\ifStd
+A \emph{recognizer} BIF returns \T{true} for some terms and
+\T{false} for all other terms.  Most recognizer BIFs are true
+for terms of a certain type.  There are sixteen recognizer BIFs:
+\T{is_atom/1},
+\T{is_binary/1},
+\T{is_char/1},
+\T{is_cons/1},
+\T{is_compound/1},
+\T{is_float/1},
+\T{is_function/1},
+\T{is_integer/1},
+\T{is_list/1},
+\T{is_null/1},
+\T{is_number/1},
+\T{is_pid/1},
+\T{is_port/1},
+\T{is_ref/1},
+\T{is_string/1}, and
+\T{is_tuple/1}.
+As they all behave similarly, we describe them collectively.
+
+\index{record/2@\T{record/2}!recognizer|(}
+Note that although a \NT{GuardRecordTest} \T{record(\Z{E},\Z{R})}
+\S\ref{section:record2} is not an application
+of a BIF, it is used as a recognizer for records of a certain type.
+\index{record/2@\T{record/2}!recognizer|)}
+
+All recognizer BIFs are guard BIFs (to be used in \NT{GuardRecognizer}).
+
+\TYPE
+
+For each recognizer BIF \TZ{F},
+\begin{textdisplay}
+\T{\Z{F}(term()) -> bool()}.
+\end{textdisplay}
+
+\EXITS
+
+All recognizer BIFs always complete normally.
+
+\EVALUATION
+
+If $\TZ{v}_1$ is one of the terms indicated in Table~\ref{table:typetests},
+then \T{true} is returned, otherwise \T{false} is returned.
+
+All recognizers except \T{is_list/1} and \T{is_string/1} should take
+$O(1)$ time.  \T{is_list/1} and \T{is_string/1} should take $O(n)$
+time, where $n$ is the length of the (presumed) list.
+
+\begin{table}[hbp]
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\hline
+BIF & Returns \T{true} if and only if the argument is \\
+\hline
+\T{is_atom/1} & an atom \\
+\T{is_binary/1} & a binary \\
+\T{is_char/1} & a character \\
+\T{is_compound/1} & of a compound type (cf.\ \S\ref{chapter:types-terms}) \\
+\T{is_cons/1} & a cons \\
+\T{is_float/1} & a float \\
+\T{is_function/1} & a function term \\
+\T{is_integer/1} & an integer \\
+\T{is_list/1} & a (proper) list \\
+\T{is_null/1} & nil \\
+\T{is_number/1} & a number \\
+\T{is_pid/1} & a PID \\
+\T{is_port/1} & a port \\
+\T{is_ref/1} & a ref \\
+\T{is_string/1} & a (proper) string \\
+\T{is_tuple/1} & a tuple \\
+\hline
+\end{tabular}
+\caption{\Erlang\ recognizer BIFs.}
+\label{table:typetests}
+\end{center}
+\end{table}
+\fi	%\ifStd
+
+\ifOld
+Note that the name of the recognizer \T{list/1} is inaccurate: it does
+\emph{not} test whether its argument is a list.  (It succeeds for all
+lists but also for some terms that are not lists, such as \T{[a|b]}).
+
+\index{function/1@\T{function/1}!recognizer|(}
+\index{record/2@\T{record/2}!recognizer|(}
+Note that although a \NT{GuardRecordTest} \T{record(\Z{E},\Z{R})}
+\S\ref{section:record2} is not an application of a BIF, it is used as
+a recognizer for records of a certain type.  In \OldErlang\ function
+terms are implemented with tuples.
+\index{function/1@\T{function/1}!recognizer|)}
+\index{record/2@\T{record/2}!recognizer|)}
+\fi
+
+\ifOld
+\index{atom/1 BIF@\T{atom/1} BIF|)}
+\index{binary/1 BIF@\T{binary/1} BIF|)}
+\index{constant/1 BIF@\T{constant/1} BIF|)}
+\index{float/1 BIF@\T{float/1} BIF|)}
+\index{function/1 BIF@\T{function/1} BIF|)}
+\index{integer/1 BIF@\T{integer/1} BIF|)}
+\index{list/1 BIF@\T{list/1} BIF|)}
+\index{number/1 BIF@\T{number/1} BIF|)}
+\index{pid/1 BIF@\T{pid/1} BIF|)}
+\index{port/1 BIF@\T{port/1} BIF|)}
+\index{record/2 BIF@\T{record/2} BIF|)}
+\index{reference/1 BIF@\T{reference/1} BIF|)}
+\index{tuple/1 BIF@\T{tuple/1} BIF|)}
+\fi
+\ifStd
+\index{is_atom/1 BIF@\T{is_atom/1} BIF|)}
+\index{is_binary/1 BIF@\T{is_binary/1} BIF|)}
+\index{is_char/1 BIF@\T{is_char/1} BIF|)}
+\index{is_cons/1 BIF@\T{is_cons/1} BIF|)}
+\index{is_compound/1 BIF@\T{is_compound/1} BIF|)}
+\index{is_float/1 BIF@\T{is_float/1} BIF|)}
+\index{is_function/1 BIF@\T{is_function/1} BIF|)}
+\index{is_integer/1 BIF@\T{is_integer/1} BIF|)}
+\index{is_list/1 BIF@\T{is_list/1} BIF|)}
+\index{is_null/1 BIF@\T{is_null/1} BIF|)}
+\index{is_number/1 BIF@\T{is_number/1} BIF|)}
+\index{is_pid/1 BIF@\T{is_pid/1} BIF|)}
+\index{is_port/1 BIF@\T{is_port/1} BIF|)}
+\index{is_ref/1 BIF@\T{is_ref/1} BIF|)}
+\index{is_string/1 BIF@\T{is_string/1} BIF|)}
+\index{is_tuple/1 BIF@\T{is_tuple/1} BIF|)}
+\fi
+\index{BIF!recognizer|)}
+
+\section{Builtin functions on atoms}
+
+\label{section:atom-bifs}
+\index{atom!BIFs|(}
+
+\subsection{\T{atom\char'137to\char'137list/1}}
+
+\index{atom_to_list/1 BIF@\T{atom_to_list/1} BIF|(}
+
+An atom is converted to a list of \ifOld characters\fi\ifStd character
+codes\fi.
+
+\TYPE
+
+\T{atom_to_list(atom()) -> [int()]}.
+
+\EXITS
+
+Exits with cause \T{badarg} if $\TZ{v}_1$ is not an atom.
+
+\EVALUATION
+
+The BIF returns the printname of the atom $\TZ{v}_1$ represented by
+a list of
+\ifStd integers that are Unicode codes of a sequence of \fi
+characters.
+
+\EXAMPLES
+
+\T{atom_to_list(foo)} \RETURNS\ \T{[102,111,111]}\ifOld, i.e., \T{"foo"}\fi; \\
+\T{atom_to_list('')} \RETURNS\ \T{[]}\ifOld, i.e., \T{""}\fi; \\
+\T{atom_to_list('T \char`\%@\char`\\'\char`\#')} \RETURNS\ \T{[84,32,37,64,39,35]}\ifOld,
+i.e., \T{"T \char`\%@'\char`\#"}\fi; \\
+\T{atom_to_list('456')} \RETURNS\ \T{[52,53,54]}\ifOld, i.e., \T{"456"}\fi; \\
+\T{atom_to_list(456)} \EXITSWITH\ \T{\{badarg,\tdots\}}.
+\index{atom_to_list/1 BIF@\T{atom_to_list/1} BIF|)}
+
+\subsection{\T{list\char'137to\char'137atom/1}}
+
+\index{list_to_atom/1 BIF@\T{list_to_atom/1} BIF|(}
+
+A list of \ifOld characters \fi \ifStd character codes \fi is
+converted to an atom.
+
+\TYPE
+
+\T{list_to_atom([int()]) -> atom()}.
+
+\EXITS
+
+Exits with cause \T{badarg} if $\TZ{v}_1$ is not a list of
+\ifStd integers that are codes of Unicode \fi
+characters.
+
+\EVALUATION
+
+The BIF returns the atom that has a printname consisting of the characters
+\ifStd obtained by decoding the character codes \fi
+in $\TZ{v}_1$.
+
+\EXAMPLES
+
+\T{list_to_atom([102,111,111])}\ifOld, i.e., \T{list_to_atom("foo")}\fi\ \RETURNS\ \T{foo}; \\
+\T{list_to_atom([])}\ifOld, i.e., \T{list_to_atom("")}\fi\ \RETURNS\ \T{''}; \\
+\T{list_to_atom([84,32,37,64,39,35])}\ifOld, i.e., \T{list_to_atom("T \char`\%@'\char`\#")}\fi\ \RETURNS\ \T{'T \char`\%@\char`\\'\char`\#'}; \\
+\T{list_to_atom([52,53,54])}\ifOld, i.e., \T{list_to_atom("456")}\fi\ \RETURNS\ \T{'456'}; \\
+\T{list_to_atom([102,-5,111])} \EXITSWITH\ \T{\{badarg,\tdots\}}.
+\index{list_to_atom/1 BIF@\T{list_to_atom/1} BIF|)}
+\index{atom!BIFs|)}
+
+\section{Builtin arithmetic functions}
+\index{number!BIFs|(}
+
+\label{section:number-bifs}
+
+\subsection{\T{abs/1}}
+
+\index{abs/1 BIF@\T{abs/1} BIF|(}
+
+The magnitude of a number is computed.  \T{abs/1} is a guard BIF.
+
+\TYPE
+
+\T{abs(int()) -> int() ; \\
+abs(float()) -> float()}.
+
+\EXITS
+
+Exits with cause \T{badarg} if $\TZ{v}_1$ is not a number.
+May exit with \T{integer_overflow} when $\TZ{v}_1$ is an integer (see below).
+
+\EVALUATION
+
+If $\TZ{v}_1$ is an integer, compute
+$\mathit{abs}_I(\Er[\TZ{v}_1])$; otherwise $\TZ{v}_1$ is a float, compute
+$\mathit{abs}_F(\Er[\TZ{v}_1])$. Let $r$ be the result.
+If $r$ is a number, the the BIF returns $\Re[r]$;
+otherwise the BIF exits with cause $\Re[r]$.
+
+\EXAMPLES
+
+\T{abs(42)} \RETURNS\ \T{42}; \\
+\T{abs(-88)} \RETURNS\ \T{88}; \\
+\T{abs(5.0)} \RETURNS\ \T{5.0}; \\
+\T{abs(-0.1)} \RETURNS\ \T{0.1}; \\
+\T{abs(whoopee)} \EXITSWITH\ \T{\{badarg,\tdots\}}.
+\index{abs/1 BIF@\T{abs/1} BIF|)}
+
+\ifStd
+\subsection{\T{sign/1}}
+
+\label{section:sign1}
+\index{sign/1 BIF@\T{sign/1} BIF|(}
+
+The sign of a number is computed.  The result is always
+an integer.  \T{sign/1} is a guard BIF.
+
+\TYPE
+
+\T{sign(num()) -> int()}.
+
+\EXITS
+
+Exits with cause \T{badarg} if $\TZ{v}_1$ is not a number.
+
+\EVALUATION
+
+If $\TZ{v}_1$ is an integer, compute
+$\mathit{sign}_I(\Er[\TZ{v}_1])$; otherwise $\TZ{v}_1$ is a float, compute
+$\mathit{nearest}_{F\to I}(\mathit{sign}(\Er[\TZ{v}_1]))$. Let $r$ be the result.
+If $r$ is an integer, the the BIF returns $\Re[r]$;
+otherwise the BIF exits with cause $\Re[r]$.
+
+\EXAMPLES
+
+\T{sign(42)} \RETURNS\ \T{1}; \\
+\T{sign(-88.56)} \RETURNS\ \T{-1}; \\
+\T{sign(0.0)} \RETURNS\ \T{0}; \\
+\T{sign(0)} \RETURNS\ \T{0}; \\
+\T{sign(whoopee)} \EXITSWITH\ \T{\{badarg,\tdots\}}.
+\index{sign/1 BIF@\T{sign/1} BIF|)}
+\fi
+
+\subsection{\T{float/1}}
+
+\index{float/1 BIF@\T{float/1} BIF|(}
+
+There are two BIFs named \T{float/1} and which one of them is denoted in an
+application \T{float(\Z{E})} depends on the context in which the application appears.
+
+If the application is a \NT{GuardRecognizer} expression
+(\S\ref{section:guards}), then it is the guard test \T{float/1}
+described in \S\ref{section:recognizer-bifs}; otherwise it is a
+function converting numbers to floating-point numbers (which may
+appear in guard expressions).  The following description is for the
+latter case.
+
+Both BIFs \T{float/1} are guard BIFs.
+
+\TYPE
+
+\T{float(num()) -> float()}.
+
+\EXITS
+
+Exits with cause \T{badarg} if $\TZ{v}_1$ is not a number.
+May exit with \T{float_overflow} when $\TZ{v}_1$ is an integer (see below).
+
+\EVALUATION
+
+The evaluation depends on the type of $\TZ{v}_1$:
+\begin{itemize}
+\item If $\TZ{v}_1$ is a float, it is returned.
+\item If $\TZ{v}_1$ is an integer, compute
+$\mathit{cvt}_{I\to F}(\Er[\TZ{v}_1])$, let the result be $r$.
+If $r$ is a float, the the BIF returns $\Re[r]$;
+otherwise the BIF exits with cause $\Re[r]$.
+\end{itemize}
+
+\EXAMPLES
+
+\T{float(3)} \RETURNS\ \T{3.0}; \\
+\T{float(0)} \RETURNS\ \T{0.0}; \\
+\T{float(123456789123456789123456789)} \RETURNS\ \T{1.23456789123457E26}\ifStd
+(on an implementation with $r=2$ and $p=53$, cf.\ \S\ref{section:float-type})\fi; \\
+\T{float(whoopee)} \EXITSWITH\ \T{\{badarg,\tdots\}}.
+\index{float/1 BIF@\T{float/1} BIF|)}
+
+\subsection{\T{float\char'137to\char'137list/1}}
+
+\label{section:floattolist1}
+\index{float_to_list/1 BIF@\T{float_to_list/1} BIF|(}
+
+The function produces a list of \ifOld characters \fi
+\ifStd integers that are character codes \fi
+of a printed representation of a float.
+
+\TYPE
+
+\T{float_to_list(float()) -> [int()]}.
+
+\EXITS
+
+Exits with cause \T{badarg} if $\TZ{v}_1$ is not a float (there is thus no coercion
+from integers).
+
+\EVALUATION
+
+The BIF returns the list of
+\ifStd integers that are Unicode codes of the sequence of \fi
+characters which is like the canonical decimal numeral for $\Er[\TZ{v}_1]$
+(\S\ref{section:float-to-numeral}) except that:
+\begin{itemize}
+\item There are exactly 20 digits between the decimal point and the `e'.
+The right end is adjusted by dropping digits or padding with zeroes.
+\item If the character after `e' is not a minus sign, then a plus sign is inserted.
+\item If the exponent part (i.e., the digits after `e') has only one digit,
+a zero is inserted before that digit.
+\end{itemize}
+
+\EXAMPLES
+
+\T{float_to_list(-0.00672)} \RETURNS\ \\
+\T{[45,54,46,55,50,48,48,48,48,48,48,48,48,48,48,48,48,48,50,55,56,54,55,101,45,48,51]}\ifOld, i.e.,
+\T{"-6.72000000000000027867e-03"}\fi; \\
+\T{float_to_list(13e4)} \RETURNS\ \\
+\T{[49,46,51,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,101,43,48,53]}\ifOld, i.e.,
+\T{"1.30000000000000000000e+05"}\fi; \\
+\T{float_to_list(0.0)} \RETURNS\ \\
+\T{[48,46,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,101,43,48,48]}\ifOld, i.e.,
+\T{"0.00000000000000000000e+00"}\fi; \\
+\T{float_to_list(636.9e121)} \RETURNS\ \\
+\T{[54,46,51,54,56,57,57,57,57,57,57,57,57,57,57,57,57,53,52,53,53,51,101,43,49,50,51]}\ifOld, i.e.,
+\T{"6.36899999999999954553e+123"}\fi; \\
+\T{float_to_list(whoopee)} \EXITSWITH\ \T{\{badarg,\tdots\}}.
+\index{float_to_list/1 BIF@\T{float_to_list/1} BIF|)}
+
+\subsection{\T{integer\char'137to\char'137list/1}}
+
+\label{section:integertolist1}
+\index{integer_to_list/1 BIF@\T{integer_to_list/1} BIF|(}
+
+The function produces a list of \ifOld characters \fi
+\ifStd integers that are character codes \fi
+of a printed representation of an integer.
+
+\TYPE
+
+\T{integer_to_list(int()) -> [int()]}.
+
+\EXITS
+
+Exits with cause \T{badarg} if $\TZ{v}_1$ is not an integer.
+
+\EVALUATION
+
+The BIF returns the list of
+\ifStd integers that are Unicode codes of the sequence of \fi
+characters making up the canonical decimal numeral for $\Er[\TZ{v}_1]$
+(\S\ref{section:integer-to-numeral}).
+
+\EXAMPLES
+
+\T{integer_to_list(0)} \RETURNS\ \T{[48]}\ifOld, i.e., \T{"0"}\fi; \\
+\T{integer_to_list(42)} \RETURNS\ \T{[52,50]}\ifOld, i.e., \T{"42"}\fi; \\
+\T{integer_to_list(-39)} \RETURNS\ \T{[45,51,57]}\ifOld, i.e., \T{"-39"}\fi; \\
+\T{integer_to_list(whoopee)} \EXITSWITH\ \T{\{badarg,\tdots\}}.
+\index{integer_to_list/1 BIF@\T{integer_to_list/1} BIF|)}
+
+\subsection{\T{list\char'137to\char'137float/1}}
+
+\label{section:listtofloat1}
+\index{list_to_float/1 BIF@\T{list_to_float/1} BIF|(}
+
+A float is obtained from a float literal represented by a list of
+\ifStd integers that are Unicode codes of \fi the characters of the literal.
+
+\TYPE
+
+\T{list_to_float([int()]) -> float()}.
+
+\EXITS
+
+Exits with cause \T{badarg} if $\TZ{v}_1$ is not a list of
+\ifStd integers that are the codes of Unicode \fi
+characters making up a float numeral, or if the number
+it represents is not representable as a float (see below).
+Leading or trailing spaces are not permitted.
+
+\EVALUATION
+
+If the sequence of characters denotes a number $f\in F$
+(\S\ref{section:numeral-to-float}), then
+$\Re[f]$ is returned, otherwise the BIF exits with cause \T{badarg}.
+
+\EXAMPLES
+
+\T{list_to_float([45,49,55,46,53,48,48])}\ifOld, i.e., \\
+\T{list_to_float("-17.500")}\fi\ \RETURNS\ \T{-17.5}; \\
+\T{list_to_float([49,50,51,46,52,53,101,56,55])}\ifOld, i.e., \\
+\T{list_to_float("123.45e87")}\fi\ \RETURNS\ \T{1.23450e89}; \\
+\T{list_to_float([54,50,46,53,69,45,51])}\ifOld, i.e., \\
+\T{list_to_float("62.5E-3")}\fi\ \RETURNS\ \T{0.0625}; \\
+\T{list_to_float([54,50,53,101,45,52])}\ifOld, i.e., \\
+\T{list_to_float("625e-4")}\fi\ \EXITSWITH\ \T{\{badarg,\tdots\}}; \\
+\T{list_to_float(whoopee)} \EXITSWITH\ \T{\{badarg,\tdots\}}.
+\index{list_to_float/1 BIF@\T{list_to_float/1} BIF|)}
+
+\subsection{\T{list\char'137to\char'137integer/1}}
+
+\label{section:listtointeger1}
+\index{list_to_integer/1 BIF@\T{list_to_integer/1} BIF|(}
+
+An integer is obtained from an integer literal represented by a list of
+\ifStd integers that are Unicode codes of \fi the characters of the literal.
+
+\TYPE
+
+\T{list_to_integer([int()]) -> integer()}.
+
+\EXITS
+
+Exits with cause \T{badarg} if $\TZ{v}_1$ is not a list of
+\ifStd integers that are the codes of Unicode \fi
+characters making up a decimal integer numeral, or if the
+integer it represents is too large to be represented (see below).
+Leading or trailing spaces are not permitted.
+
+\EVALUATION
+
+If the sequence of characters denotes an integer $i\in I$
+(\S\ref{section:numeral-to-integer}), then
+$\Re[i]$ is returned, otherwise the BIF exits with cause \T{badarg}.
+
+\EXAMPLES
+
+\T{list_to_integer([52,50])}\ifOld, i.e., \T{list_to_integer("42")}\fi\ \RETURNS\ \T{42}; \\
+\T{list_to_integer([48,48,48,48,48,48,53,54,55])}\ifOld, i.e., \T{list_to_integer("000000567")}\fi\ \RETURNS\ \T{567}; \\
+\T{list_to_integer([45,51,57])}\ifOld, i.e., \T{list_to_integer("-39")}\fi\ \RETURNS\ \T{-39}; \\
+\T{list_to_integer([111,105,110,107])}\ifOld, i.e., \T{list_to_integer("oink")}\fi\ \EXITSWITH\ \T{\{badarg,\tdots\}}; \\
+\T{list_to_integer(whoopee)} \EXITSWITH\ \T{\{badarg,\tdots\}}.
+\index{list_to_integer/1 BIF@\T{list_to_integer/1} BIF|)}
+
+\subsection{\T{round/1}}
+
+\index{round/1 BIF@\T{round/1} BIF|(}
+
+The integer closest to a given number is computed.
+\T{round/1} is a guard BIF.
+
+\TYPE
+
+\T{round(num()) -> int()}.
+
+\EXITS
+
+Exits with cause \T{badarg} if $\TZ{v}_1$ is not a number.
+May exit with \T{integer_overflow} when $\TZ{v}_1$ is a float (see below).
+
+\EVALUATION
+
+The evaluation depends on the type of $\TZ{v}_1$:
+\begin{itemize}
+\item If $\TZ{v}_1$ is an integer, it is returned.
+\item If $\TZ{v}_1$ is a float, compute
+$\mathit{nearest}_{F\to I}(\Er[\TZ{v}_1])$, let the result be $r$.
+If $r$ is an integer, the the BIF returns $\Re[r]$;
+otherwise the BIF exits with cause $\Re[r]$.
+\end{itemize}
+
+\EXAMPLES
+
+\T{round(42)} \RETURNS\ \T{42}; \\
+\T{round(88.56)} \RETURNS\ \T{89}; \\
+\T{round(-88.56)} \RETURNS\ \T{-89}; \\
+\T{round(0.0)} \RETURNS\ \T{0}; \\
+\T{round(whoopee)} \EXITSWITH\ \T{\{badarg,\tdots\}}.
+\index{round/1 BIF@\T{round/1} BIF|)}
+
+\subsection{\T{trunc/1}}
+
+\index{trunc/1 BIF@\T{trunc/1} BIF|(}
+
+The first float between a given number and zero is computed.
+\T{trunc/1} is a guard BIF.
+
+\TYPE
+
+\T{trunc(num()) -> int()}.
+
+\EXITS
+
+Exits with cause \T{badarg} if $\TZ{v}_1$ is not a number.
+May exit with \T{integer_overflow} when $\TZ{v}_1$ is a float (see below).
+
+\EVALUATION
+
+The evaluation depends on the type of $\TZ{v}_1$:
+\begin{itemize}
+\item If $\TZ{v}_1$ is an integer, it is returned.
+\item If $\TZ{v}_1$ is a float, compute
+$\mathit{truncate}_{F\to I}(\Er[\TZ{v}_1])$, let the result be $r$.
+If $r$ is an integer, the the BIF returns $\Re[r]$;
+otherwise the BIF exits with cause $\Re[r]$.
+\end{itemize}
+
+\EXAMPLES
+
+\T{trunc(42)} \RETURNS\ \T{42}; \\
+\T{trunc(88.56)} \RETURNS\ \T{88}; \\
+\T{trunc(-88.56)} \RETURNS\ \T{-88}; \\
+\T{trunc(0.0)} \RETURNS\ \T{0}; \\
+\T{trunc(whoopee)} \EXITSWITH\ \T{\{badarg,\tdots\}}.
+\index{trunc/1 BIF@\T{trunc/1} BIF|)}
+\index{number!BIFs|)}
+
+\section{Builtin functions on binaries}
+
+\label{section:binary-bifs}
+\index{binary!BIFs|(}
+
+Binaries are described in \S\ref{section:binaries}.
+
+\subsection{\T{binary\char'137to\char'137list/1}}
+\index{binary_to_list/1 BIF@\T{binary_to_list/1} BIF|(}
+
+A list of bytes that are the elements of a binary, in the same order
+as in the binary, is returned.
+
+\TYPE
+
+\T{binary_to_list(bin()) -> [int()]}.
+
+\EXITS
+
+\T{binary_to_list/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a binary.
+
+\EVALUATION
+
+Suppose that $\TZ{v}_1$ is a binary consisting of the bytes
+$\TZ{I}_1$, \ldots, $\TZ{I}_k$.
+A list \T{[$\TZ{I}_1$,\tdots,$\TZ{I}_k$]} is returned.
+The time for computing the answer should be $O(k)$.
+\index{binary_to_list/1 BIF@\T{binary_to_list/1} BIF|)}
+
+\subsection{\T{binary\char'137to\char'137list/3}}
+\index{binary_to_list/3 BIF@\T{binary_to_list/3} BIF|(}
+
+A list of integers that are part of the elements of a binary, in the
+same order as in the binary, is returned.
+
+\TYPE
+
+\T{binary_to_list(bin(),int(),int()) -> [int()]}.
+
+\EXITS
+
+% Note:
+% the proposed binary:to_list takes different arguments.
+
+\T{binary_to_list/3} exits with cause \T{badarg} if $\TZ{v}_1$ is not a binary,
+if $\TZ{v}_2$ or $\TZ{v}_3$ is not an integer.
+It exits with cause \ifOld \T{badarg} \fi \ifStd \T{\badindex} \fi
+if the integers represented
+by $\TZ{v}_2$ and $\TZ{v}_3$ are out of range (see below).
+
+\EVALUATION
+
+Suppose that $\TZ{v}_1$ is a binary consisting of the bytes
+$\TZ{I}_1$, \ldots, $\TZ{I}_k$ and that $i=\Er[\TZ{v}_2]$ and $j=\Er[\TZ{v}_3]$.
+\T{binary_to_list/2} exits with cause \T{badarg} if $i<1$, $j<i$ or $j>k$.
+% Should change so j=i-1 or even any j for which j<i is permitted???
+A list \T{[$\TZ{I}_i$,\tdots,$\TZ{I}_j$]} is returned.
+% Note: This is bad bad bad bad!
+The result is thus always a nonempty list.
+
+\iffalse
+The list returned depends on $i$ and $j$:
+\begin{itemize}
+\item If $i\leq j$, then
+a list \T{[$\TZ{I}_i$,\tdots,$\TZ{I}_j$]} is returned.
+\item If $i>j$, then an empty list is returned.
+\end{itemize}
+\fi
+
+The time for computing the result should be $O(j)$.
+\index{binary_to_list/3 BIF@\T{binary_to_list/3} BIF|)}
+
+\subsection{\T{binary\char'137to\char'137term/1}}
+
+\label{section:binarytoterm1}
+\index{binary_to_term/1 BIF@\T{binary_to_term/1} BIF|(}
+\index{term!external format|(}
+
+Given a binary that is a representation in the external format
+(\S\ref{chapter:external-format}) of a term, that term is returned.
+
+\TYPE
+
+\T{binary_to_term(bin()) -> term()}.
+
+\EXITS
+
+\T{binary_to_term/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a binary.
+It also exits with cause \T{badarg} if the elements of $\TZ{v}_1$ are not
+the external format representation of some term (see below).
+
+\EVALUATION
+
+If the bytes that are the elements of $\TZ{v}_1$ constitute a
+representation in the external format
+(\S\ref{chapter:external-format}) of some term \TZ{t}, then \TZ{t} is
+returned; otherwise \T{binary_to_term/1} exits with cause \T{badarg}.
+
+% Is this true???
+The time for computing the result should be $O(k)$.
+\index{binary_to_term/1 BIF@\T{binary_to_term/1} BIF|)}
+\index{term!external format|)}
+
+\subsection{\T{concat\char'137binary/1}}
+
+\index{concat_binary/1 BIF@\T{concat_binary/1} BIF|(}
+
+Given a list of binaries, one binary is returned which has
+as elements the elements of the binaries in the list, in the same order as
+in which the elements appear in the binaries and the binaries in the list.
+
+\TYPE
+
+\T{concat_binary([bin()]) -> bin()}.
+
+\EXITS
+
+\T{concat_binary/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a
+list of binaries.
+
+\EVALUATION
+
+Suppose that $\TZ{v}_1$ is a list
+\T{[$\T{B}_1$,\tdots,$\Z{B}_k$]}, such that each
+$\TZ{B}_i$, $1\leq i\leq k$, is a binary consisting of the bytes
+$\TZ{b}_{i,1}$, \ldots, $\TZ{b}_{i,n_i}$.
+A binary consisting of the bytes
+$\TZ{b}_{1,1}$, \ldots, $\TZ{b}_{1,n_1}$, \ldots,
+$\TZ{b}_{k,1}$, \ldots, $\TZ{b}_{k,n_k}$
+is returned.
+
+The time for computing the result should be $O(\max(\sum_{i=1}^{k}n_i,k))$.
+\index{concat_binary/1 BIF@\T{concat_binary/1} BIF|)}
+
+\subsection{\T{list\char'137to\char'137binary/1}}
+
+\index{list_to_binary/1 BIF@\T{list_to_binary/1} BIF|(}
+
+Given a list of bytes, a binary consisting of the same bytes in the
+same order is returned.
+
+\TYPE
+
+\T{list_to_binary([int()]) -> bin()}.
+
+\EXITS
+
+\T{list_to_binary/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a list of bytes.
+
+\EVALUATION
+
+Suppose that $\TZ{v}_1$ is a list of bytes \T{[$\Z{I}_1$,\tdots,$\Z{I}_k$]}.
+A binary consisting of the bytes $\TZ{I}_1$, \ldots, $\TZ{I}_k$ is returned.
+
+The time for computing the result should be $O(k)$.
+\index{list_to_binary/1 BIF@\T{list_to_binary/1} BIF|)}
+
+\subsection{\T{size/1}}
+
+\index{size/1 BIF@\T{size/1} BIF|(}
+See \S\ref{section:size1}.
+\index{size/1 BIF@\T{size/1} BIF|)}
+
+\subsection{\T{split\char'137binary/2}}
+
+\label{section:splitbinary2}
+\index{split_binary/2 BIF@\T{split_binary/2} BIF|(}
+
+A binary is split into two binaries, where the number of elements in
+the first binary is given.
+
+\TYPE
+
+\T{split_binary(bin(),int()) -> \{bin(),bin()\}}.
+
+\EXITS
+
+\T{split_binary/2} exits with cause \T{badarg} if $\TZ{v}_1$ is not a binary or
+$\TZ{v}_2$ is not an integer.  It also exits with cause
+\ifOld \T{badarg} \fi \ifStd \T{\badindex} \fi
+if the number represented by $\TZ{v}_2$
+is out of range (see below).
+
+\EVALUATION
+
+Suppose that $\TZ{v}_1$ is a binary consisting of the bytes
+$\TZ{I}_1$, \ldots, $\TZ{I}_k$ and that $i=\Er[\TZ{v}_2]$.
+The evaluation depends on $i$ and $k$:
+\begin{itemize}
+\item If $i<0$ or $i>k$, then \T{split_binary/2} exits with cause
+\ifOld \T{badarg}\fi \ifStd \T{\badindex}\fi.
+\item Otherwise a 2-tuple of binaries \T{\{$\Z{B}_l$,$\Z{B}_r$\}} is returned,
+where $\TZ{B}_l$ consists of the bytes $\TZ{I}_1$, \ldots, $\TZ{I}_i$
+and $\TZ{B}_r$ consists of the bytes $\TZ{I}_{i+1}$, \ldots, $\TZ{I}_k$.
+(If $i=0$ then $\TZ{B}_l$ is an empty binary and $\TZ{B}_r$ equals
+$\TZ{v}_1$, while if $i=k$ then $\TZ{B}_l$ equals
+$\TZ{v}_1$ and $\TZ{B}_r$ is an empty binary.)
+\end{itemize}
+The time for computing the answer should be $O(1)$.
+\index{split_binary/2 BIF@\T{split_binary/2} BIF|)}
+
+\subsection{\T{term\char'137to\char'137binary/1}}
+
+\label{section:termtobinary1}
+\index{term_to_binary/1 BIF@\T{term_to_binary/1} BIF|(}
+\index{term!external format|(}
+
+Given a term, a binary having elements that represent the term in the external format
+(\S\ref{chapter:external-format}) is returned.
+
+\TYPE
+
+\T{term_to_binary(term()) -> bin()}.
+
+\EXITS
+
+\ifStd
+\T{term_to_binary/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a
+term for which the implementation provides an external
+representation.\footnote{The only case for which this is allowed to happen is
+if $\TZ{v}_1$ contains a function.}
+\fi
+\ifOld
+\T{term_to_binary/1} always completes normally.
+\fi
+
+\EVALUATION
+
+Let the representation in the external format
+(\S\ref{chapter:external-format}) of $\TZ{v}_1$ be
+the sequence of bytes
+$\TZ{I}_1$, \ldots, $\TZ{I}_k$.  A binary consisting
+of these bytes, in that order, is returned.
+% too strong???
+The time for computing the answer should be $O(k)$.
+\index{term_to_binary/1 BIF@\T{term_to_binary/1} BIF|)}
+\index{term!external format|)}
+\index{binary!BIFs|)}
+
+\section{Builtin functions on tuples}
+
+\label{section:tuple-bifs}
+\index{tuple!BIFs|(}
+
+Tuples are described in \S\ref{section:tuples}.
+
+\subsection{\T{element/2}}
+
+\index{element/2 BIF@\T{element/2} BIF|(}
+
+One element of a tuple is returned.
+\T{element/2} is a guard BIF.
+
+\TYPE
+
+\T{element(int(),tuple()) -> term()}.
+
+\EXITS
+
+\T{element/2} exits with cause \T{badarg} if $\TZ{v}_1$ is not an integer or
+$\TZ{v}_2$ is not a tuple. It also exits with cause
+\ifOld \T{badarg} \fi \ifStd \T{\badindex} \fi
+if the number represented by $\TZ{v}_1$ is out of range (see below).
+
+\EVALUATION
+
+Suppose that $i=\Er[\TZ{v}_1]$ and that $\TZ{v}_2$
+is a tuple with elements $\TZ{T}_1$, \ldots, $\TZ{T}_k$.
+The evaluation depends on $i$ and $k$:
+\begin{itemize}
+\item If $i<1$ or $i>k$, then \T{element/2} exits with
+cause \ifOld \T{badarg}\fi \ifStd \T{\badindex}\fi.
+\item Otherwise, $\TZ{T}_i$ is returned.
+\end{itemize}
+The time for computing the result should be $O(1)$.
+\index{element/2 BIF@\T{element/2} BIF|)}
+
+\subsection{\T{list\char'137to\char'137tuple/1}}
+
+\label{section:listtotuple1}
+\index{list_to_tuple/1 BIF@\T{list_to_tuple/1} BIF|(}
+
+A tuple with the same elements as a given list is returned.
+
+\TYPE
+
+\T{list_to_tuple([term()]) -> tuple()}.
+
+\EXITS
+
+\T{list_to_tuple/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a list.
+
+\EVALUATION
+
+Let $\TZ{v}_1$ be a list with elements
+$\TZ{T}_1$, \ldots, $\TZ{T}_k$.  A tuple
+\T{\{$\Z{T}_1$,\tdots,$\Z{T}_k$\}} is returned.
+The time for computing the answer should be $O(k)$.
+\index{list_to_tuple/1 BIF@\T{list_to_tuple/1} BIF|)}
+
+\subsection{\T{setelement/3}}
+
+\index{setelement/3 BIF@\T{setelement/3} BIF|(}
+
+A tuple is computed that differs from a given tuple in exactly one element.
+
+\TYPE
+
+\T{setelement(int(),tuple(),term()) -> tuple()}.
+
+\EXITS
+
+\T{setelement/3} exits with cause \T{badarg} if $\TZ{v}_1$ is not an integer or
+$\TZ{v}_2$ is not a tuple. It also exits with cause
+\ifOld \T{badarg} \fi \ifStd \T{\badindex} \fi
+if the number represented by $\TZ{v}_1$ is out of range (see below).
+
+\EVALUATION
+
+Suppose that $i=\Er[\TZ{v}_1]$ and that $\TZ{v}_2$
+with elements $\TZ{T}_1$, \ldots, $\TZ{T}_k$.
+The evaluation depends on $i$ and $k$:
+\begin{itemize}
+\item If $i<1$ or $i>k$, then \T{setelement/3} exits with
+cause \ifOld \T{badarg}\fi \ifStd \T{\badindex}\fi.
+\item Otherwise, a tuple
+\T{\{$\Z{T}_1$,\tdots,$\Z{T}_{i-1}$,$\TZ{v}_3$,$\Z{T}_{i+1}$,$\Z{T}_k$\}}
+is returned.  (That is, a tuple that is exactly like $\TZ{v}_2$ except
+that the element at position $i$ is $\TZ{v}_3$.)
+\end{itemize}
+The time for computing the answer should be $O(k)$.  (This is not a
+destructive operation so the tuple given as argument must not be observably affected.)
+\index{setelement/3 BIF@\T{setelement/3} BIF|)}
+
+\subsection{\T{size/1}}
+
+\label{section:size1}
+\index{size/1 BIF@\T{size/1} BIF|(}
+
+The number of elements of a binary or a tuple is returned.  \T{size/1}
+is a guard BIF.
+
+\TYPE
+
+\T{size(bin()) -> int()} ; \\
+\T{size(tuple()) -> int()}.
+
+\EXITS
+
+\T{size/1} exits with cause \T{badarg} if $\TZ{v}_1$ is neither a binary, nor a tuple.
+
+\EVALUATION
+
+The integer $\Re[k]$ is returned, where $k$ is the number of elements in the binary
+or tuple $\TZ{v}_1$.
+The time for computing the answer should be $O(1)$.
+\index{size/1 BIF@\T{size/1} BIF|)}
+
+\subsection{\T{tuple\char'137to\char'137list/1}}
+
+\index{tuple_to_list/1 BIF@\T{tuple_to_list/1} BIF|(}
+
+A list with the same elements as a given tuple is returned.
+
+\TYPE
+
+\T{tuple_to_list(tuple()) -> [term()]}.
+
+\EXITS
+
+\T{tuple_to_list/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a tuple.
+
+\EVALUATION
+
+Let $\TZ{v}_1$ be a tuple with elements
+$\TZ{T}_1$, \ldots, $\TZ{T}_k$.  A list
+\T{[$\Z{T}_1$,\tdots,$\Z{T}_k$]} is returned.
+The time for computing the result should be $O(k)$.
+\index{tuple_to_list/1 BIF@\T{tuple_to_list/1} BIF|)}
+\index{tuple!BIFs|)}
+
+\section{Builtin functions on lists and conses}
+
+\label{section:list-bifs}
+\index{list!BIFs|(}
+\index{cons!BIFs|(}
+
+Lists and conses are described in \S\ref{section:lists}.
+
+\subsection{\T{hd/1}}
+
+\index{hd/1 BIF@\T{hd/1} BIF|(}
+
+The head of a cons, e.g., the first element of a list, is returned.
+\T{hd/1} is a guard BIF.
+
+\TYPE
+
+If cons is used as intended, the type is
+\begin{textdisplay}
+\T{hd([T]) -> T}.
+\end{textdisplay}
+If cons is used as a general pairing operator, the type is instead
+\begin{textdisplay}
+\T{hd([T|_]) -> T}.
+\end{textdisplay}
+
+\EXITS
+
+\T{hd/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a cons.
+
+\EVALUATION
+
+The head of the cons $\TZ{v}_1$ is returned.
+The time for computing the result should be $O(1)$.
+\index{hd/1 BIF@\T{hd/1} BIF|)}
+
+\subsection{\T{length/1}}
+
+\index{length/1 BIF@\T{length/1} BIF|(}
+
+The number of elements of a list is returned.
+\T{length/1} is a guard BIF.
+
+\TYPE
+
+\T{length([term()]) -> int()}.
+
+\EXITS
+
+\T{length/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a list.
+
+\EVALUATION
+
+The integer $\Re[k]$ is returned, where $k$ is the number of elements
+in the list.
+The time for computing the answer should be $O(1)$.
+\index{length/1 BIF@\T{length/1} BIF|)}
+
+\subsection{\T{tl/1}}
+
+\index{tl/1 BIF@\T{tl/1} BIF|(}
+
+The tail of a cons, e.g., all but the first element of a list, is
+returned.  \T{tl/1} is a guard BIF.
+
+\TYPE
+
+If cons is used as intended, the type is
+\begin{textdisplay}
+\T{tl([T]) -> [T]}.
+\end{textdisplay}
+If cons is used as a general pairing operator, the type is instead
+\begin{textdisplay}
+\T{tl([_|T]) -> T}.
+\end{textdisplay}
+
+\EXITS
+
+\T{tl/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a cons.
+
+\EVALUATION
+
+The tail of the cons $\TZ{v}_1$ is returned.
+The time for computing the result should be $O(1)$.
+\index{tl/1 BIF@\T{tl/1} BIF|)}
+\index{list!BIFs|)}
+\index{cons!BIFs|)}
+
+\iffalse
+% There are such functions in \StdErlang\ but in a separate module.
+\section{Builtin functions on strings}
+
+\label{section:string-bifs}
+
+TO BE DECIDED.
+\fi
+
+\iffalse
+% It could be that ord and chr will be provided in \OldErlang.
+\section{Builtin functions on characters}
+
+\label{section:char-bifs}
+
+ord/1
+chr/1
+
+TO BE DECIDED.
+\fi
+
+\section{Builtin functions for modules}
+
+\label{section:module-bifs}
+\index{module!BIFs|(}
+
+The syntax of modules is described in \S\ref{section:module-declarations}
+and their dynamics in \S\ref{chapter:module-dynamics}.
+
+The BIFs in this section are not designed to be used directly in applications.
+Rather,
+\ifStd
+a \StdErlang\ implementation is expected to use them for providing a more
+\fi
+\ifOld
+they are provided for implementing more
+\fi
+high-level interface to dynamic loading and replacement
+of modules.\footnote{Cf.\ the \T{code} module of
+OTP \cite[pp.~158--167]{otp-dev-ref}.}
+
+\subsection{\T{erlang:check_process_code/2}}
+
+\label{section:checkprocesscode2}
+\index{erlang:check_process_code/2 BIF@\T{erlang:check_process_code/2} BIF|(}
+\index{check_process_code/2 BIF@\T{check_process_code/2} BIF|(}
+
+A check is made whether a particular process is using a given module
+(\S\ref{section:process-using-module}).
+
+\TYPE
+
+\T{erlang:check_process_code(pid(),atom()) -> bool()}.
+
+\EXITS
+
+\T{erlang:check_process_code/2} exits with cause \T{badarg} if $\TZ{v}_1$ is not a pid
+or $\TZ{v}_2$ is not an atom.\ifOld\footnote{\OldErlang\ actually allows $\TZ{v}_2$
+to be anything and always returns \T{false} if $\TZ{v}_2$ is not an atom.}\fi
+
+\EVALUATION
+
+Let \TZ{N} be \T{node[$\TZ{v}_1$]}.
+\begin{itemize}
+\item If module_table[\Z{N}] contains a row with $\TZ{v}_2$ as key and \TZ{R} as value,
+\T{old_version[\TZ{R}]} is not \T{none} and 
+a reference to \T{old_version[\TZ{R}]} is found in \T{stack_trace[\Z{P}]},
+then the BIF returns \T{true} (cf.\ \S\ref{section:checking-process-module}).
+\item Otherwise, it returns \T{false}.
+\end{itemize}
+\index{erlang:check_process_code/2 BIF@\T{erlang:check_process_code/2} BIF|)}
+\index{check_process_code/2 BIF@\T{check_process_code/2} BIF|)}
+
+\subsection{\T{erlang:delete_module/1}}
+
+\label{section:deletemodule1}
+\index{erlang:delete_module/1 BIF@\T{erlang:delete_module/1} BIF|(}
+\index{delete_module/1 BIF@\T{delete_module/1} BIF|(}
+
+The current version of a module is changed to be the old version
+(\S\ref{section:replacing-module}).
+
+\TYPE
+
+\T{erlang:delete_module(atom()) -> atom()}.
+
+\EXITS
+
+\T{erlang:delete_module/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not
+an atom.  Moreover, it will exit with cause \T{badarg} % bad choice!!!
+if there is already an old version of the module (see below)
+
+\EVALUATION
+
+Let \TZ{P} be the process calling \T{delete_module/1} and
+let \TZ{N} be \T{node[\Z{P}]}.
+\begin{itemize}
+% WEIRD!!! it should look for a current version!
+\item If there is no row with key $\TZ{v}_1$ in \T{module_table[\Z{N}]},
+then \T{undefined} is returned.\footnote{This is contrary to the reasonable intuition
+that the BIF should return \T{undefined} if, and only if, \T{module_loaded/1}
+returns \T{false} for the module.}
+Otherwise, let \TZ{R} be the value for $\TZ{v}_1$ in \T{module_table[\Z{N}]}.
+\item If \T{old_version[\Z{R}]} is not \T{none},
+the BIF exits with cause \T{badarg}. % yeah, bad choice!!!
+% I think this one should be checked first
+\item Otherwise, if \T{current_version[\Z{R}]} is not \T{none},
+it is made the old version of module $\TZ{v}_1$ as described in
+\S\ref{section:making-old-version} and \T{true} is returned.
+\item Otherwise, no action is taken and \T{true} is returned.
+\end{itemize}
+\index{erlang:delete_module/1 BIF@\T{erlang:delete_module/1} BIF|)}
+\index{delete_module/1 BIF@\T{delete_module/1} BIF|)}
+
+\subsection{\T{erlang:load_module/2}}
+
+\label{section:loadmodule2}
+\index{erlang:load_module/2 BIF@\T{erlang:load_module/2} BIF|(}
+\index{load_module/2 BIF@\T{load_module/2} BIF|(}
+
+A compiled module is loaded as the current version of the module
+(\S\ref{section:loading}).
+If there is already a current version of the module, it is made the
+old version of the module.
+
+\TYPE
+
+\T{erlang:load_module(atom(),bin()) -> atom()}.
+
+\EXITS
+
+\T{erlang:load_module/2} exits with cause \T{badarg} if $\TZ{v}_1$ is not
+an atom or $\TZ{v}_2$ is not a binary.
+
+\EVALUATION
+
+Let \TZ{P} be the process calling \T{load_module/2} and
+let \TZ{N} be \T{node[\Z{P}]}.
+\begin{itemize}
+\item If the binary $\TZ{v}_2$ does not contain compiled code for a module
+named $\TZ{v}_1$, the BIF returns a tuple \T{\{error, badfile\}}.
+\item Otherwise, the following is done:
+
+First, if \T{module_table[\Z{N}]} contains no row with $\TZ{v}_1$ as
+key, a row is added with $\TZ{v}_1$ as key and \TZ{R} as value, such that
+\T{old_version[\Z{R}]} and \T{current_version[\Z{R}]]} are both \T{none}.
+
+Otherwise, let \TZ{R} be the value of the row with $\TZ{v}_1$ as key;
+if neither of \T{old_version[\Z{R}]} and \T{current_version[\Z{R}]]}
+is \T{none}, the BIF returns a tuple \T{\{error, not_purged\}}.
+
+Next, if \T{current_version[\Z{R}]} is not \T{none},
+it is made the old version of module $\TZ{v}_1$ on node \TZ{N} as described in
+\S\ref{section:making-old-version}.
+
+Finally, the binary $\TZ{v}_2$ is made the current version of module
+$\TZ{v}_1$ on node \TZ{N} as described in
+\S\ref{section:making-current-version}.
+\end{itemize}
+\index{erlang:load_module/2 BIF@\T{erlang:load_module/2} BIF|)}
+\index{load_module/2 BIF@\T{load_module/2} BIF|)}
+
+\subsection{\T{erlang:preloaded/0}}
+
+\label{section:preloaded0}
+\index{erlang:preloaded/0 BIF@\T{erlang:preloaded/0} BIF|(}
+\index{preloaded/0 BIF@\T{preloaded/0} BIF|(}
+
+A list is returned of the names of all modules that were loaded
+as part of starting the current node.
+
+\TYPE
+
+\T{erlang:preloaded() -> [atom()]}.
+
+\EXITS
+
+\T{erlang:preloaded/0} always completes normally.
+
+\EVALUATION
+
+The BIF returns a list representing the value of
+\T{preloaded[node[\Z{P}]]}, where \TZ{P} is the
+process calling the BIF.
+\index{erlang:preloaded/0 BIF@\T{erlang:preloaded/0} BIF|)}
+\index{preloaded/0 BIF@\T{preloaded/0} BIF|)}
+
+\subsection{\T{erlang:purge_module/1}}
+
+\label{section:purgemodule1}
+\index{erlang:purge_module/1 BIF@\T{erlang:purge_module/1} BIF|(}
+\index{purge_module/1 BIF@\T{purge_module/1} BIF|(}
+
+The old version of a module is purged (\S\ref{section:replacing-module}).
+
+\TYPE
+
+\T{erlang:purge_module(atom()) -> true}.
+
+\EXITS
+
+\T{erlang:purge_module/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not
+an atom.  Moreover, it will exit with cause \T{badarg} % bad choice!!!
+if there is no old version of the module (see below)
+
+\EVALUATION
+
+Let \TZ{P} be the process calling \T{purge_module/1} and
+let \TZ{N} be \T{node[\Z{P}]}.
+\begin{itemize}
+\item If there is a row in \T{module_table[\Z{N}]} with $\TZ{v}_1$ as key and 
+some \TZ{R} as value, and \T{old_version[\TZ{R}]} is not \T{none}, then
+\T{old_version[\TZ{R}]} is purged as described in
+\S\ref{section:purging-old-version} and \T{true} is returned.
+\item Otherwise, the BIF exits with cause \T{badarg}. % yuck, bad choice!!!
+\end{itemize}
+\index{erlang:purge_module/1 BIF@\T{erlang:purge_module/1} BIF|)}
+\index{purge_module/1 BIF@\T{purge_module/1} BIF|)}
+
+\subsection{\T{erlang:module_loaded/1}}
+
+\label{section:moduleloaded1}
+\index{erlang:module_loaded/1 BIF@\T{erlang:module_loaded/1} BIF|(}
+\index{module_loaded/1 BIF@\T{module_loaded/1} BIF|(}
+
+It is found out whether there is a current version (\S\ref{section:current-version}) of some module.
+
+\TYPE
+
+\T{erlang:module_loaded(atom()) -> bool()}.
+
+\EXITS
+
+\T{erlang:module_loaded/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not
+an atom.
+
+\EVALUATION
+
+Let \TZ{P} be the process calling \T{module_loaded/1} and
+let \TZ{N} be \T{node[\Z{P}]}.
+\begin{itemize}
+\item If there is a row in \T{module_table[\Z{N}]} with $\TZ{v}_1$ as key and 
+some \TZ{R} as value, and \T{current_version[\TZ{R}]} is not \T{none}, then
+the BIF returns \T{true}.
+\item Otherwise, the BIF returns \T{false}.
+\end{itemize}
+\index{erlang:module_loaded/1 BIF@\T{erlang:module_loaded/1} BIF|)}
+\index{module_loaded/1 BIF@\T{module_loaded/1} BIF|)}
+\index{module!BIFs|)}
+
+\section{Builtin functions for functions and processes}
+
+\label{section:process-bifs}
+\index{function!BIFs|(}
+\index{process!BIFs|(}
+
+\subsection{\T{apply/2}}
+
+\label{section:apply2}
+\index{apply/2 BIF@\T{apply/2} BIF|(}
+\index{function!application|(}
+
+A given function is applied to a sequence of arguments.
+
+\TYPE
+
+\T{apply(\{atom(),atom()\},[term()]) -> term()} ; \\
+\T{apply(function(),[term()]) -> term()}
+
+\EXITS
+
+\T{apply/2} exits with cause \T{badarg} if $\TZ{v}_1$ is neither a 2-tuple of atoms,
+nor a function,
+or $\TZ{v}_2$ is not a list. \T{apply/2} may also exit with the reasons described in
+\S\ref{section:function-application}.
+(In addition, the function being applied may complete abnormally
+with any reason.)
+
+\EVALUATION
+
+The evaluation depends on the type of the first argument:
+\begin{itemize}
+\item If $\TZ{v}_1$ is a 2-tuple of atoms \TZ{Mod} and \TZ{Fun}, then
+evaluation proceeds as described by case~\ref{item:explicit-mod-fun}
+in \S\ref{section:function-application} with the atoms \TZ{Mod} and
+\TZ{Fun} specifying the module name and function symbol, respectively, and
+the list $\TZ{v}_2$ specifying the values of the arguments (and the arity).
+\item If $\TZ{v}_1$ is a function, then evaluation proceeds as
+described by case~\ref{item:function-application-impl-fun}
+or~\ref{item:function-application-expl-fun}
+in \S\ref{section:function-application} with $\TZ{v}_1$ being
+the function and
+the list $\TZ{v}_2$ specifying the values of the arguments.
+\end{itemize}
+\index{apply/2 BIF@\T{apply/2} BIF|)}
+\index{function!application|)}
+
+\subsection{\T{apply/3}}
+
+\label{section:apply3}
+\index{apply/3 BIF@\T{apply/3} BIF|(}
+\index{function!application|(}
+
+Given a module name, a function symbol and a list of arguments, a function
+is looked up and applied to the arguments.
+
+\TYPE
+
+\T{apply(atom(),atom(),[term()]) -> term()}.
+
+\EXITS
+
+\T{apply/3} exits with cause \T{badarg} if $\TZ{v}_1$ is not an atom,
+$\TZ{v}_2$ is not an atom, or $\TZ{v}_3$ is not a list.
+\T{apply/3} may also exit with the reasons described in
+\S\ref{section:function-application}.
+(In addition, the function being applied may complete abnormally
+with any reason.)
+
+\EVALUATION
+
+The evaluation of \T{apply/3} is described by case~\ref{item:explicit-mod-fun}
+in \S\ref{section:function-application} with the atoms $\TZ{v}_1$ and
+$\TZ{v}_2$ specifying the module name and function symbol, respectively, and
+the list $\TZ{v}_3$ specifying the values of the arguments.
+\index{apply/3 BIF@\T{apply/3} BIF|)}
+\index{function!application|)}
+
+\subsection{\T{exit/1}}
+
+\label{section:exit1}
+\index{exit/1 BIF@\T{exit/1} BIF|(}
+\index{exit|(}
+
+The BIF always exits with the argument as reason.  Unless the application is
+governed by a
+\ifOld \T{catch} expression (\S\ref{section:catch})\fi
+\ifStd \T{try} expression (\S\ref{section:try-expr})\fi,
+the process calling the BIF will exit.
+
+\TYPE
+
+\T{exit(term()) -> _}.
+
+\EXITS
+
+\T{exit/1} always exits, see below.
+
+\EVALUATION
+
+The evaluation of \T{exit/1} exits with reason $\TZ{v}_1$.
+\index{exit/1 BIF@\T{exit/1} BIF|)}
+\index{exit|)}
+
+\subsection{\T{exit/2}}
+
+\label{section:exit2}
+\index{exit/2 BIF@\T{exit/2} BIF|(}
+\index{exit!signal|(}
+
+An exit signal with the given reason is sent to a process or port.
+Reception of the exit signal will cause
+the receiving process to complete abruptly\index{completion!abrupt}
+unless it traps exit signals\index{exit!signal!trapping} or the
+reason is the atom \T{normal}\index{normal@\T{normal}!exit signal},
+cf.~\S\ref{section:receiving-exit-signal}.
+If the reason is the atom \T{kill}\index{kill@\T{kill}!exit signal},
+the receiving process will always complete abruptly.
+
+\TYPE
+
+\T{exit(pid(),term()) -> true} ; \\
+\T{exit(port(),term()) -> true}.
+
+\EXITS
+
+\T{exit/2} exits with cause \T{badarg} if $\TZ{v}_1$ is neither a PID,
+nor a port.
+
+\EVALUATION
+
+An exit signal with $\TZ{v}_2$ as reason is sent to the process or port
+identified by $\TZ{v}_1$, as described in \S\ref{section:sending-exit-signal}.
+The result is always the atom \T{true}.
+\index{exit/2 BIF@\T{exit/2} BIF|)}
+\index{exit!signal|)}
+
+\subsection{\T{group_leader/0}}
+
+\label{section:groupleader0}
+\index{group_leader/0 BIF@\T{group_leader/0} BIF|(}
+\index{process!group|(}
+
+The BIF returns the group leader (\S\ref{section:group-leader}) of the calling process.
+
+\TYPE
+
+\T{group_leader() -> pid()}.
+
+\EXITS
+
+\T{group_leader/0} always completes normally.
+
+\EVALUATION
+
+The result is \T{group_leader[\Z{P}]}, where \TZ{P} is the process calling the
+BIF.
+\index{group_leader/0 BIF@\T{group_leader/0} BIF|)}
+\index{process!group|)}
+
+\subsection{\T{group_leader/2}}
+
+\label{section:groupleader2}
+\index{group_leader/2 BIF@\T{group_leader/2} BIF|(}
+\index{process!group|(}
+
+The BIF changes the group leader of a process.
+
+\TYPE
+
+\T{group_leader(pid(),pid()) -> true}.
+
+\EXITS
+
+\T{group_leader/2} exits with cause \T{badarg} if $\TZ{v}_1$ or $\TZ{v}_2$
+is not a PID.
+
+\EVALUATION
+
+A group leader signal (\S\ref{section:signals}) is sent to $\TZ{v}_2$ with
+$\TZ{v}_1$ as additional data.  When the signal is received by $\TZ{v}_2$,
+\T{group_leader[$\Z{v}_2$]} will be set to $\TZ{v}_1$
+(\S\ref{section:signal-arrival}).
+
+The result is always the atom \T{true}.
+\index{group_leader/2 BIF@\T{group_leader/2} BIF|)}
+\index{process!group|)}
+
+\subsection{\T{link/1}}
+
+\label{section:link1}
+\index{link/1 BIF@\T{link/1} BIF|(}
+\index{process!linking|(}
+
+A request to add a link between the process calling the BIF and some process
+or port is submitted.
+
+\TYPE
+
+\T{link(pid()) -> true} ; \\
+\T{link(port()) -> true}.
+
+\EXITS
+
+\T{link/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a PID or a port.
+
+\EVALUATION
+
+Let \TZ{P} be the process evaluating the application of \T{link/1}.
+\begin{itemize}
+\item If $\TZ{P}\neq\TZ{v}_1$ and $\TZ{v}_1$ is not
+in \T{linked[\Z{P}]}, then $\TZ{v}_1$ is added to
+\T{linked[\Z{P}]} and a \I{link} signal with \TZ{P} as sender
+is dispatched to process $\TZ{v}_1$ (\S\ref{section:links}, \S\ref{section:signals}).
+\item Otherwise, nothing is done.
+\end{itemize}
+The result is always the atom \T{true}.
+\index{link/1 BIF@\T{link/1} BIF|)}
+\index{process!linking|)}
+
+\ifOld
+
+\subsection{\T{list_to_pid/1}}
+
+\label{section:listtopid1}
+\index{list_to_pid/1 BIF@\T{list_to_pid/1} BIF|(}
+\index{process!PID|(}
+
+A list of characters is converted to a PID.
+
+\TYPE
+
+\T{list_to_pid([int()]) -> pid()}.
+
+\EXITS
+
+\T{list_to_pid/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a
+list of characters that represents a PID.
+
+\EVALUATION
+
+The result of a BIF call of \T{list_to_pid/1} is a PID \TZ{P}
+such that the value of \T{pid_to_list(\Z{P})}
+(cf.\ \S\ref{section:pidtolist1}) on the same node
+equals $\TZ{v}_1$.
+\index{list_to_pid/1 BIF@\T{list_to_pid/1} BIF|)}
+\index{process!PID|)}
+
+\subsection{\T{pid_to_list/1}}
+
+\label{section:pidtolist1}
+\index{pid_to_list/1 BIF@\T{pid_to_list/1} BIF|(}
+\index{process!PID|(}
+
+A PID is converted to a list of characters.
+
+\TYPE
+
+\T{list_to_pid(pid()) -> [int()]}.
+
+\EXITS
+
+\T{list_to_pid/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a PID.
+
+\EVALUATION
+
+The result of a BIF call of \T{list_to_pid/1} is
+\ifStd an implementation-defined \fi
+\ifOld some \fi
+list of characters.  It
+\ifStd must hold \fi
+\ifOld is guaranteed \fi
+that for any PID \TZ{P}, the value
+of an expression \T{list_to_pid(pid_to_list(\Z{P}))} equals \TZ{P}.
+\index{pid_to_list/1 BIF@\T{pid_to_list/1} BIF|)}
+\index{process!PID|)}
+
+\fi % ifOld
+
+\subsection{\T{process_flag/2}}
+
+\label{section:processflag2}
+\index{process_flag/2 BIF@\T{process_flag/2} BIF|(}
+\index{process!flag|(}
+
+The value of a process flag is read and updated.
+
+\TYPE
+
+\T{process_flag(trap_exit,bool()) -> bool()} ; \\
+\T{process_flag(error_handler,atom()) -> atom()} ; \\
+\T{process_flag(priority,atom()) -> atom()}.
+
+\EXITS
+
+\T{process_flag/2} exits with cause \T{badarg} if $\TZ{v}_1$ and $\TZ{v}_2$
+is not one of the following combinations:
+\begin{itemize}
+\item The atom \T{trap_exit} and a Boolean atom.
+\item The atom \T{error_handler} and a module name (i.e., an atom).
+\item The atom \T{priority} and a priority atom, i.e., one of
+\T{normal}, \T{high} and \T{low} \S\ref{section:scheduling}).
+\end{itemize}
+
+\EVALUATION
+
+The action depends on $\TZ{v}_1$:
+\begin{itemize}
+\item If $\TZ{v}_1$ is \T{trap_exit}, then
+\T{trap_exit[\Z{P}]} is set to $\TZ{v}_2$ and
+the previous value of \T{trap_exit[\Z{P}]} is returned.
+\item If $\TZ{v}_1$ is \T{error_handler}, then
+\T{error_handler[\Z{P}]} is set to $\TZ{v}_2$ and
+the previous value of \T{error_handler[\Z{P}]} is returned.
+\item If $\TZ{v}_1$ is \T{priority}, then
+\T{priority[\Z{P}]} is set to $\TZ{v}_2$ and
+the previous value of \T{priority[\Z{P}]} is returned.
+\end{itemize}
+\index{process_flag/2 BIF@\T{process_flag/2} BIF|)}
+\index{process!flag|)}
+
+\subsection{\T{process_info/1}}
+
+\label{section:processinfo1}
+\index{process_info/1 BIF@\T{process_info/1} BIF|(}
+\index{process!information|(}
+
+Information about various properties of a process is returned.
+
+\TYPE
+
+\iftrue
+\T{process_info(pid()) -> term()}.
+\else
+% This just isn't correct: the atom undefined may be returned.
+\T{process_info(pid()) -> [\{atom(),term()\}]}.
+\fi
+
+\EXITS
+
+\T{process_info/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a PID.
+
+\EVALUATION
+
+The BIF returns information about the process $\TZ{v}_1$.
+\begin{itemize}
+\item If that process is not alive, the result is the atom \T{undefined}.
+\item Otherwise, the result is
+a list of 2-tuples, each of which is the same as the result of an
+application of the BIF \T{process_info/2} (\S\ref{section:processinfo2})
+to $\TZ{v}_1$ and a distinct atom in the left column of Table~\ref{table:processinfo}.
+The list should include all properties for which \T{process_info/2} gives meaningful
+information.
+\end{itemize}
+\index{process_info/1 BIF@\T{process_info/1} BIF|)}
+\index{process!information|)}
+
+\subsection{\T{process_info/2}}
+
+\label{section:processinfo2}
+\index{process_info/2 BIF@\T{process_info/2} BIF|(}
+\index{process!information|(}
+
+Information about some property of a process is returned,
+as described in Table~\ref{table:processinfo}.
+
+\begin{table}[htb]
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\hline
+Second argument & Information returned about the process \\
+\hline
+\T{current_function} & The most recently entered function. \\ 
+\T{dictionary} & The process dictionary. \\
+\T{error_handler} & The error handler module. \\
+\T{group_leader} & The group leader of the process. \\
+\T{heap_size} & The current heap size. \\
+\T{initial_call} & The initial application of the process. \\
+\T{links} & The processes and ports to which the process is \\
+& linked. \\
+\T{memory} & The total amount of memory occupied by the \\
+& process. \\
+\T{message_queue_len} & The number of unprocessed messages in the queue. \\
+\T{messages} & The unprocessed messages in the queue. \\
+\T{priority} & The scheduling priority of the process. \\
+\T{reductions} & The current number of reductions. \\
+\T{registered_name} & The registered name of the process, if any. \\
+\T{stack_size} & The current stack size. \\
+\T{status} & The scheduling status: waiting, runnable or \\
+& running. \\
+\T{trap_exit} & Whether exit signals are trapped. \\
+\hline
+\end{tabular}
+\caption{Alternatives for the BIF \T{process_info/2}.}
+\label{table:processinfo}
+\end{center}
+\end{table}
+
+\TYPE
+
+\iftrue
+\T{process_info(pid(),atom()) -> term()}.
+\else
+% This just isn't correct: the atom undefined may be returned, and for
+% current_function we may also get the atom undefined instead of a 3-tuple.
+\T{process_info(pid(),current_function) -> \{current_function,\{atom(),atom(),[term()]\}\}} ; \\
+\T{process_info(pid(),dictionary) -> \{dictionary,[\{term(),term()\}]\}} ; \\
+\T{process_info(pid(),error_handler) -> \{error_handler,atom()\}} ; \\
+\T{process_info(pid(),group_leader) -> \{group_leader,pid()\}} ; \\
+\T{process_info(pid(),heap_size) -> \{heap_size,int()\}} ; \\
+\T{process_info(pid(),initial_call) -> \{initial_call,\{atom(),atom(),[term()]\}\}} ; \\
+\T{process_info(pid(),links) -> \{links,[pid()]\}} ; \\
+\T{process_info(pid(),memory) -> \{memory,int()\}} ; \\
+\T{process_info(pid(),message_queue_len) -> \{message_queue_len,int()\}} ; \\
+\T{process_info(pid(),messages) -> \{messages,[term()]\}} ; \\
+\T{process_info(pid(),priority) -> \{priority,atom()\}} ; \\
+\T{process_info(pid(),reductions) -> \{reductions,int()\}} ; \\
+\T{process_info(pid(),registered_name) -> \{registered_name,atom()\}} ; \\
+\T{process_info(pid(),stack_size) -> \{stack_size,int()\}} ; \\
+\T{process_info(pid(),status) -> \{status,atom()\}} ; \\
+\T{process_info(pid(),trap_exit) -> \{trap_exit,bool()\}}.
+\fi
+
+\EXITS
+
+\T{process_info/2} exits with cause \T{badarg} if $\TZ{v}_1$ is not a PID
+or $\TZ{v}_2$ is not one of the atoms in the left column of
+Table~\ref{table:processinfo}.
+
+\EVALUATION
+
+\begin{itemize}
+\item If process $\TZ{v}_1$ is not alive, the result is the atom \T{undefined}.
+\item Otherwise, the BIF returns information about the process $\TZ{v}_1$ and
+the result is always a 2-tuple where the first element is $\TZ{v}_2$:
+\begin{itemize}
+\item If $\TZ{v}_2$ is \T{current_function}, then
+return \T{\{current_function,\linebreak[0]current_function[$\TZ{v}_1$]\}}.
+\item If $\TZ{v}_2$ is \T{dictionary}, then
+return \T{\{dictionary,\Z{Dict}\}}, where \TZ{Dict} is an
+association list representing the contents of \T{dictionary[$\TZ{v}_1$]}
+(cf.\ the BIF \T{get/0} [\S\ref{section:get0}]).
+\item If $\TZ{v}_2$ is \T{error_handler}, then
+return \T{\{error_handler,\linebreak[0]error_handler[$\TZ{v}_1$]\}}.
+\item If $\TZ{v}_2$ is \T{group_leader}, then
+return \T{\{group_leader,\linebreak[0]group_leader[$\TZ{v}_1$]\}}.
+\item If $\TZ{v}_2$ is \T{heap_size}, then
+return \T{\{heap_size,heap_size[$\TZ{v}_1$]\}}.
+\item If $\TZ{v}_2$ is \T{initial_call}, then
+return \T{\{initial_call,\linebreak[0]initial_call[$\TZ{v}_1$]\}}.
+\item If $\TZ{v}_2$ is \T{links}, then
+return \T{\{links,\Z{Lst}\}}, where \TZ{Lst} is a
+list representing the value of \T{linked[$\TZ{v}_1$]}.
+\item If $\TZ{v}_2$ is \T{memory}, then
+return \T{\{memory,memory_in_use[$\TZ{v}_1$]\}}.
+\item If $\TZ{v}_2$ is \T{message_queue_len}, then
+return \T{\{message_queue_len,\linebreak[0]$\Re[l]$\}}, where $l$ is the
+length of \T{message_queue[$\TZ{v}_1$]}.
+\item If $\TZ{v}_2$ is \T{messages}, then
+return \T{\{messages,\Z{Lst}\}}, where \TZ{Lst} is a
+list representing the value of \T{message_queue[$\TZ{v}_1$]}
+(i.e., a list of the messages in the queue, in the same order).
+\item If $\TZ{v}_2$ is \T{priority}, then
+return \T{\{priority,priority[$\TZ{v}_1$]\}}.
+\item If $\TZ{v}_2$ is \T{reductions}, then
+return \T{\{reductions,reductions[$\TZ{v}_1$]\}}.
+\item If $\TZ{v}_2$ is \T{registered_name}, then
+return \T{\{registered_name,\linebreak[0]registered_name[$\TZ{v}_1$]\}}.
+\item If $\TZ{v}_2$ is \T{stack_size}, then
+return \T{\{stack_size,$\Re[s]$\}}, where $s$ is a measure of
+the size of \T{stack_trace[$\TZ{v}_1$]}.
+\item If $\TZ{v}_2$ is \T{status}, then
+return \T{\{status,status[$\TZ{v}_1$]\}}.
+\item If $\TZ{v}_2$ is \T{trap_exit}, then
+return \T{\{trap_exit,trap_exit[$\TZ{v}_1$]\}}.
+\end{itemize}
+\end{itemize}
+Let \TZ{P} be the process calling the BIF.  The behaviour with respect
+to signals (\S\ref{section:signals}) should be as if the result was
+obtained by \TZ{P} sending an \I{info request} signal to process $\TZ{v}_1$
+with $\TZ{v}_2$ as additional information, and process $\TZ{v}_1$ responding
+with a message to \TZ{P} containing the result.
+\index{process_info/2 BIF@\T{process_info/2} BIF|)}
+\index{process!information|)}
+
+\subsection{\T{processes/0}}
+
+\index{processes/0 BIF@\T{processes/0} BIF|(}
+See \S\ref{section:processes0}.
+\index{processes/0 BIF@\T{processes/0} BIF|)}
+
+\subsection{\T{self/0}}
+
+\label{section:self0}
+\index{self/0 BIF@\T{self/0} BIF|(}
+
+The PID of the process calling the BIF is returned.
+\T{self/0} is a guard BIF.
+
+\TYPE
+
+\T{self() -> pid()}.
+
+\EXITS
+
+\T{self/0} always completes normally.
+
+\EVALUATION
+
+The PID of the process calling the BIF is returned.
+\index{self/0 BIF@\T{self/0} BIF|)}
+
+\subsection{\T{spawn/3}}
+
+\label{section:spawn3}
+\index{spawn/3 BIF@\T{spawn/3} BIF|(}
+\index{process!spawning a|(}
+
+A new process is spawned on the same node.
+
+\TYPE
+
+\T{spawn(atom(),atom(),[term()]) -> pid()}.
+
+\EXITS
+
+\T{spawn/3} exits with cause \T{badarg} if $\TZ{v}_1$ or $\TZ{v}_2$ is not an atom,
+or if $\TZ{v}_3$ is not a list.
+
+\EVALUATION
+
+Let the elements of $\TZ{v}_3$ be $\TZ{T}_1$, \ldots, $\TZ{T}_k$.
+A new process is spawned on the same node as the process calling the BIF
+(\S\ref{section:spawning-processes}).
+The initial call of the process is \T{$\Z{v}_1$:$\Z{v}_2$($\Z{T}_1$,\tdots,$\Z{T}_k$)}.
+The PID of the newly spawned process is returned.
+\index{spawn/3 BIF@\T{spawn/3} BIF|)}
+\index{process!spawning a|)}
+
+\subsection{\T{spawn/4}}
+
+\label{section:spawn4}
+\index{spawn/4 BIF@\T{spawn/4} BIF|(}
+\index{process!spawning a|(}
+
+A new process is spawned on a particular node.
+
+\TYPE
+
+\T{spawn(atom(),atom(),atom(),[term()]) -> pid()}.
+
+\EXITS
+
+\T{spawn/4} exits with cause \T{badarg} if $\TZ{v}_1$, $\TZ{v}_2$ or $\TZ{v}_3$ is not an atom,
+or if $\TZ{v}_4$ is not a list.
+
+\EVALUATION
+
+Let the elements of $\TZ{v}_4$ be $\TZ{T}_1$, \ldots, $\TZ{T}_k$.
+A new process is spawned on node $\TZ{v}_1$ (\S\ref{section:spawning-processes}).
+The initial call of the process is \T{$\Z{v}_2$:$\Z{v}_3$($\Z{T}_1$,\tdots,$\Z{T}_k$)}.
+The PID of the newly spawned process is returned.
+\index{spawn/4 BIF@\T{spawn/4} BIF|)}
+\index{process!spawning a|)}
+
+\subsection{\T{spawn_link/3}}
+
+\label{section:spawnlink3}
+\index{spawn_link/3 BIF@\T{spawn_link/3} BIF|(}
+\index{process!spawning a|(}
+
+A new process, initially linked to its creator, is spawned on the same node.
+
+\TYPE
+
+\T{spawn_link(atom(),atom(),[term()]) -> pid()}.
+
+\EXITS
+
+\T{spawn_link/3} exits with cause \T{badarg} if $\TZ{v}_1$ or $\TZ{v}_2$ is not an atom,
+or if $\TZ{v}_3$ is not a list.
+
+\EVALUATION
+
+The BIF does exactly the same thing as \T{spawn/3} (\S\ref{section:spawn3}),
+except that when the BIF returns, the newly spawned process is linked with
+the process calling \T{spawn_link/3}.
+\index{spawn_link/3 BIF@\T{spawn_link/3} BIF|)}
+\index{process!spawning a|)}
+
+\subsection{\T{spawn_link/4}}
+
+\label{section:spawnlink4}
+\index{spawn_link/4 BIF@\T{spawn_link/4} BIF|(}
+\index{process!spawning a|(}
+
+A new process, initially linked to its creator, is spawned on a particular node.
+
+\TYPE
+
+\T{spawn_link(atom(),atom(),atom(),[term()]) -> pid()}.
+
+\EXITS
+
+\T{spawn/4} exits with cause \T{badarg} if $\TZ{v}_1$, $\TZ{v}_2$ or $\TZ{v}_3$ is not an atom,
+or if $\TZ{v}_4$ is not a list.
+
+\EVALUATION
+
+The BIF does exactly the same thing as \T{spawn/4} (\S\ref{section:spawn4}),
+except that when the BIF returns, the newly spawned process is linked with
+the process calling \T{spawn_link/4}.
+\index{spawn_link/4 BIF@\T{spawn_link/4} BIF|)}
+\index{process!spawning a|)}
+
+\subsection{\T{unlink/1}}
+
+\label{section:unlink1}
+\index{unlink/1 BIF@\T{unlink/1} BIF|(}
+\index{process!linking|(}
+
+A request to remove any link between the process calling the BIF and
+some process or port is submitted.
+
+\TYPE
+
+\T{unlink(pid()) -> true} ; \\
+\T{unlink(port()) -> true}.
+
+\EXITS
+
+\T{unlink/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a PID or a port.
+
+\EVALUATION
+
+Let \TZ{P} be the process evaluating the application of \T{unlink/1}.
+\begin{itemize}
+\item If $\TZ{P}\neq\TZ{v}_1$ and $\TZ{v}_1$ is
+in \T{linked[\Z{P}]}, then $\TZ{v}_1$ is removed from
+\T{linked[\Z{P}]} and an \I{unlink} signal with \TZ{P} as sender
+is dispatched to process $\TZ{v}_1$.
+\item Otherwise, nothing is done.
+\end{itemize}
+The result is always the atom \T{true}.
+\index{unlink/1 BIF@\T{unlink/1} BIF|)}
+\index{process!linking|)}
+\index{function!BIFs|)}
+\index{process!BIFs|)}
+
+\section{Builtin functions for process dictionaries}
+
+\label{section:dictionary-bifs}
+\index{process!dictionary!BIFs|(}
+
+As described in \S\ref{section:process-state-dynamic},
+each process \TZ{P} has associated with it a table
+\T{dictionary[\Z{P}]} (\S\ref{section:tables}).
+
+\subsection{\T{erase/0}}
+\index{erase/0 BIF@\T{erase/0} BIF|(}
+
+The process calling the BIF has every row of its dictionary removed
+but a representation of the previous contents is returned.
+
+\TYPE
+
+\T{erase() -> [\{term(),term()\}]}.
+
+\EXITS
+
+\T{erase/0} always completes normally.
+
+\EVALUATION
+
+Let $d$ be the value of \T{dictionary[\Z{P}]}, where \TZ{P} is the
+process calling \T{erase/0} and let \TZ{lst} be an association list
+representing the contents of $d$ (\S\ref{section:tables}).
+The effect of the call is to remove every
+row of $d$ and the result is \TZ{lst}.
+
+The operation must be atomic.
+
+\iffalse
+The time for producing the effect and computing the answer should
+be $O(\mathit{size}(d))$.
+\fi
+\index{erase/0 BIF@\T{erase/0} BIF|)}
+
+\subsection{\T{erase/1}}
+\index{erase/1 BIF@\T{erase/1} BIF|(}
+
+In the dictionary of the process calling the BIF, the value recorded
+for a certain key (if any) is erased, but the previously recorded
+value (or \T{undefined}) is returned.
+
+\TYPE
+
+\T{erase(term()) -> term()}.
+
+\EXITS
+
+\T{erase/1} always completes normally.
+
+\EVALUATION
+
+Let $d$ be the value of \T{dictionary[\Z{P}]}, where \TZ{P} is the
+process calling \T{erase/1}.
+There are two cases depending on whether $\TZ{v}_1$ is a key in $d$ or not:
+\begin{itemize}
+\item If $d$ contains a row with $\TZ{v}_1$ as key and some term $\TZ{T}_1$ as
+value, then that row is removed from $d$ and \TZ{t} is $\TZ{t}_1$.
+\item Otherwise, $d$ is unchanged and \TZ{t} is the atom \T{undefined}.
+\end{itemize}
+The result is \TZ{t}.
+
+The operation must be atomic.
+
+\iffalse
+The time for producing the effect and computing the answer should
+be $O(\mathit{size}(\mathit{keys}(d))+size(\TZ{t}))$.
+\fi
+\index{erase/1 BIF@\T{erase/1} BIF|)}
+
+\subsection{\T{get/0}}
+
+\label{section:get0}
+\index{get/0 BIF@\T{get/0} BIF|(}
+
+A representation of the dictionary of
+the process calling the BIF is returned.
+
+\TYPE
+
+\T{get() -> [\{term(),term()\}]}.
+
+\EXITS
+
+\T{get/0} always completes normally.
+
+\EVALUATION
+
+Let $d$ be the value of \T{dictionary[\Z{P}]}, where \TZ{P} is the
+process calling \T{get/0}.
+The result of calling \T{get/0} is a list representing $d$
+(\S\ref{section:tables}).
+
+\iffalse
+The time for computing the answer should
+be $O(\mathit{size}(d))$.
+\fi
+\index{get/0 BIF@\T{get/0} BIF|)}
+
+\subsection{\T{get/1}}
+
+\index{get/1 BIF@\T{get/1} BIF|(}
+
+The value recorded for a certain
+key in the dictionary of the process calling the BIF is returned
+(or \T{undefined} is returned if there is no value recorded).
+
+\TYPE
+
+\T{get(term()) -> term()}.
+
+\EXITS
+
+\T{get/1} always completes normally.
+
+\EVALUATION
+
+Let $d$ be the value of \T{dictionary[\Z{P}]}, where \TZ{P} is the
+process calling \T{get/1}.
+There are two cases depending on whether $\TZ{v}_1$ is a key in $d$ or not:
+\begin{itemize}
+\item If $d$ contains a row with $\TZ{v}_1$ as key and some term $\TZ{T}_1$ as
+value, then \TZ{t} is $\TZ{t}_1$.
+\item Otherwise, \TZ{t} is  the atom \T{undefined}.
+\end{itemize}
+The result is \TZ{t}.
+
+\iffalse
+The time for computing the answer cannot be expected to be less than
+$O(\mathit{size}(\mathit{keys}(d))+size(\TZ{t}))$.
+\fi
+\index{get/1 BIF@\T{get/1} BIF|)}
+
+\subsection{\T{get\char'137keys/1}}
+
+\index{get_keys/1 BIF@\T{get_keys/1} BIF|(}
+
+A list of all keys in the dictionary of the process calling the BIF
+that have a certain value is returned.
+
+\TYPE
+
+\T{get_keys(term()) -> [term()]}.
+
+\EXITS
+
+\T{get_keys/1} always completes normally.
+
+\EVALUATION
+
+Let $d$ be the value of \T{dictionary[\Z{P}]}, where \TZ{P} is the
+process calling \T{get/0}.
+The result of calling \T{get_keys/1} is a list without duplicates
+that contains each key
+of $d$ for which the value is $\TZ{v}_1$.  The elements
+of the resulting list may be in any order.
+
+\iffalse
+The time for computing the answer should be
+$O(\mathit{size}(\mathit{keys}(d)))$.
+\fi
+\index{get_keys/1 BIF@\T{get_keys/1} BIF|)}
+
+\subsection{\T{put/2}}
+
+\index{put/2 BIF@\T{put/2} BIF|(}
+
+In the dictionary of the process calling the BIF, a value
+is set for some key, replacing any previous value, which is returned
+(or \T{undefined} is returned if there was no value recorded previously).
+
+\TYPE
+
+\T{put(term(),term()) -> term()}.
+
+\EXITS
+
+\T{put/2} always completes normally.
+
+\EVALUATION
+
+Let $d$ be the value of \T{dictionary[\Z{P}]}, where \TZ{P} is the
+process calling \T{put/2}.
+There are two cases depending on whether $\TZ{v}_1$ is a key in $d$ or not:
+\begin{itemize}
+\item If $d$ contains a row with $\TZ{v}_1$ as key and some term $\TZ{t}_1$ as value,
+then that row is replaced with one having $\TZ{v}_1$ as key and
+$\TZ{v}_2$ as value; \TZ{t} is $\TZ{t}_1$.
+\item Otherwise, a row with key $\TZ{v}_1$ and value $\TZ{v}_2$ is added
+to $d$ and \TZ{t} is \T{undefined}.
+\end{itemize}
+The result is \TZ{t}.
+
+The operation must be atomic.
+
+\iffalse
+The time for producing the effect and computing the answer should
+be $O(\mathit{size}(\mathit{keys}(d))+size(\TZ{t})+size(\TZ{v}_2))$.
+\fi
+\index{put/2 BIF@\T{put/2} BIF|)}
+\index{process!dictionary!BIFs|)}
+
+\section{Builtin functions for nodes}
+
+% Have a look at all these when we are an isolated node!!!
+
+\label{section:node-bifs}
+\index{node!BIFs|(}
+
+\iffalse
+% Not part of the specification (or even \OldErlang).
+\subsection{\T{alive/2}}
+
+\label{section:alive2}
+\index{erlang:alive/2 BIF@\T{erlang:alive/2} BIF|(}
+\index{alive/2 BIF@\T{alive/2} BIF|(}
+\index{node!communicating|(}
+
+% ASKED VARIOUS QUESTIONS BY EMAIL 980524:
+\iffalse
+Hej!
+
+BIFen alive/2 är lite bökig för mig att testa så jag undrar:
+
+1. Vad returnerar den?
+
+2. Vad händer om den anropas på en redan kommunicerande nod?
+
+3. Vad händer om den försöker ange ett namn som redan används?
+
+Mvh,
+
+-- Jonas
+\fi
+
+Calling this BIF has as effect to make the node on which the calling process
+resides a communicating node, provided that certain preconditions are met.
+
+\TYPE
+
+\T{alive(atom(),port()) -> ???}.
+
+\EXITS
+
+\T{alive/2} exits with cause \T{badarg} if $\TZ{v}_1$ is
+not an atom or if $\TZ{v}_2$ is not a port.  \T{register/2} may also
+exit with cause \T{badarg} % really lousy choice...
+if certain preconditions are not met (see below).
+
+\EVALUATION
+
+Let \TZ{P} be the process calling \T{alive/2}.
+\begin{itemize}
+\item If there is no process registered under the name \T{net_kernel}
+on \T{node[\Z{P}]}, then the BIF exits with cause \T{badarg}.  % yuck
+\item Something about EPMD???
+\item Otherwise, the node becomes a communicating node, as described in
+\S\ref{section:single-multi-node} and \S\ref{section:registering-nodes}.
+\end{itemize}
+The result is ???.
+\index{erlang:alive/2 BIF@\T{erlang:alive/2} BIF|)}
+\index{alive/2 BIF@\T{alive/2} BIF|)}
+\index{node!communicating|)}
+\fi % iffalse
+
+\subsection{\T{erlang:disconnect_node/1}}
+
+\label{section:disconnectnode1}
+\index{erlang:disconnect_node/1 BIF@\T{erlang:disconnect_node/1} BIF|(}
+\index{disconnect_node/1 BIF@\T{disconnect_node/1} BIF|(}
+
+Friendship is terminated with a given node.
+
+\TYPE
+
+\T{disconnect_node(term()) -> atom()}. % yuck, should be atom() -> bool().
+
+\EXITS
+
+\T{disconnect_node/1} always completes normally.
+
+\EVALUATION
+
+Let \TZ{P} be the process calling \T{disconnect_node/1}.
+\begin{itemize}
+\item If \T{node[\Z{P}]} is not communicating, then \T{ignored} is returned.
+\item Otherwise, if $\TZ{v}_1$ is not an atom or $\TZ{v}_1$ is not in
+\T{friends[node[\Z{P}]]}, \T{false} is returned.
+\item Otherwise the same things happen as when node \T{node[\Z{P}]} has
+lost contact with node $\TZ{v}_1$, as described in \S\ref{section:friendship}
+and \S\ref{section:monitor-node}, and then \T{true} is returned.
+\end{itemize}
+\index{erlang:disconnect_node/1 BIF@\T{erlang:disconnect_node/1} BIF|)}
+\index{disconnect_node/1 BIF@\T{disconnect_node/1} BIF|)}
+
+\subsection{\T{erlang:get_cookie/0}}
+
+\label{section:getcookie0}
+\index{erlang:get_cookie/0 BIF@\T{erlang:get_cookie/0} BIF|(}
+\index{get_cookie/0 BIF@\T{get_cookie/0} BIF|(}
+\index{node!magic cookie|(}
+
+The magic cookie of the current node is returned.
+
+\TYPE
+
+\T{get_cookie() -> atom()}.
+
+\EXITS
+
+\T{get_cookie/0} always completes normally.
+
+\EVALUATION
+
+The BIF returns \T{magic_cookie[node[\Z{P}]]}, where \TZ{P} is the process
+calling \T{get_cookie/0}.
+\index{erlang:get_cookie/0 BIF@\T{erlang:get_cookie/0} BIF|)}
+\index{get_cookie/0 BIF@\T{get_cookie/0} BIF|)}
+\index{node!magic cookie|)}
+
+\subsection{\T{erlang:halt/0}}
+
+\label{section:halt0}
+\index{halt/0 BIF@\T{halt/0} BIF|(}
+\index{node!termination|(}
+
+The current node is terminated.
+
+\TYPE
+
+\T{halt() -> _}.
+
+\EXITS
+
+\T{halt/0} never completes abnormally.
+
+\EVALUATION
+
+The node \T{node[\Z{P}]}, where \TZ{P} is the process
+calling \T{halt/0}, is terminated immediately.  The BIF thus never returns.
+\index{node!termination|)}
+\index{halt/0 BIF@\T{halt/0} BIF|)}
+
+\subsection{\T{is_alive/0}}
+
+\label{section:isalive0}
+\index{is_alive/0 BIF@\T{is_alive/0} BIF|(}
+\index{node!communicating|(}
+
+The BIF tests whether the current node is communicating or not.
+
+\TYPE
+
+\T{is_alive() -> bool()}.
+
+\EXITS
+
+\T{is_alive/0} always completes normally.
+
+\EVALUATION
+
+The BIF returns the value of \T{communicating[node[\Z{P}]]},
+where \TZ{P} is the process calling the BIF.
+\index{is_alive/0 BIF@\T{is_alive/0} BIF|)}
+\index{node!communicating|)}
+
+\subsection{\T{monitor_node/2}}
+
+\label{section:monitornode2}
+\index{monitor_node/2 BIF@\T{monitor_node/2} BIF|(}
+\index{node!monitoring|(}
+
+Calling this BIF has as effect to increase or decrease the number of messages
+that the current process will receive as notification that friendship between
+the current node and a certain (other) node has ceased.
+
+\TYPE
+
+\T{monitor_node(atom(),bool()) -> true}.
+
+\EXITS
+
+\T{monitor_node/2} exits with cause \T{badarg} if $\TZ{v}_1$ is
+not an atom or if $\TZ{v}_2$ is not a Boolean atom.  On an isolated node,
+it will also exit with cause \T{badarg} % baaaad
+if the node to be monitored is not the current node.
+
+\EVALUATION
+
+Let \TZ{P} be the process calling \T{monitor_node/2}.
+\begin{itemize}
+\item If \T{alive[node[\Z{P}]]} is \T{false} and $\TZ{v}_1$ is not
+\T{node[\Z{P}]}, then the BIF exits with cause \T{badarg}. % questionable
+\item If $\TZ{v}_1$ is \T{node[\Z{P}]}, do nothing.
+\item If $\TZ{v}_1$ is \T{true}, do the following:
+\begin{enumerate}
+\item If there is not already a row in \T{monitored_nodes[node[\Z{P}]]}
+with $\TZ{v}_1$ as key, then add one with an empty table as value.
+\item Let $t$ be the value for $\TZ{v}_1$ in \T{monitored_nodes[node[\Z{P}]]}.
+If there is no row with \TZ{P} as key in that table, add such a row with value 1.
+Otherwise, add 1 to the value for \TZ{P} in $t$.
+\end{enumerate}
+\item Otherwise ($\TZ{v}_1$ is \T{false}):
+\begin{itemize}
+\item If there is no row with $\TZ{v}_1$ as key in
+\T{monitored_nodes[node[\Z{P}]]}, then do nothing.
+\item Otherwise, let $t$ be the value for $\TZ{v}_1$.
+If there is no entry for \TZ{P} in $t$, do nothing.
+\item Otherwise, if the row for \TZ{P} in $t$ has value 1, then remove the
+row for \TZ{P}.
+\item Otherwise, subtract 1 from the value for \TZ{P} in $t$.
+\end{itemize}
+\end{itemize}
+The result is always \T{true}.
+\index{monitor_node/2 BIF@\T{monitor_node/2} BIF|)}
+\index{node!monitoring|)}
+
+\subsection{\T{node/0}}
+
+\label{section:node0}
+\index{node/0 BIF@\T{node/0} BIF|(}
+
+This BIF returns (the name of) the node on which the calling process
+resides.  \T{node/0} is a guard BIF.
+
+\TYPE
+
+\T{node() -> atom()}.
+
+\EXITS
+
+\T{node/0} always completes normally.
+
+\EVALUATION
+
+The result is \T{node[\Z{P}]}, where \TZ{P} is the
+process calling \T{node/0} (\S\ref{section:process-state-static}).
+\index{node/0 BIF@\T{node/0} BIF|)}
+
+\subsection{\T{node/1}}
+
+\label{section:node1}
+\index{node/1 BIF@\T{node/1} BIF|(}
+
+This BIF returns (the name of) the node on which a given ref, PID or
+port was created.  \T{node/1} is a guard BIF.
+
+\TYPE
+
+\T{node(ref()) -> atom()} ; \\
+\T{node(pid()) -> atom()} ; \\
+\T{node(port()) -> atom()}.
+
+\EXITS
+
+\T{node/1} exits with cause \T{badarg} if $\TZ{v}_1$ is
+not a ref, nor a PID or a port.
+
+\EVALUATION
+
+The result is \T{node[$\Z{v}_1$]} (\S\ref{section:process-state-static},
+\S\ref{section:port-state-static}).
+\index{node/1 BIF@\T{node/1} BIF|)}
+
+\subsection{\T{nodes/0}}
+
+\label{section:nodes0}
+\index{nodes/0 BIF@\T{nodes/0} BIF|(}
+
+A list is returned of all friends
+of the node on which the BIF is called.
+
+\TYPE
+
+\T{nodes() -> [atom()]}.
+
+\EXITS
+
+\T{nodes/0} always completes normally.
+
+\EVALUATION
+
+The BIF returns a list representing the value of
+\T{friends[node[\Z{P}]]}, where \TZ{P} is the
+process calling the BIF.
+\index{nodes/0 BIF@\T{nodes/0} BIF|)}
+
+\subsection{\T{processes/0}}
+
+\ifStd \label{section:node:processes0} \fi
+\ifOld \label{section:processes0} \fi
+\index{processes/0 BIF@\T{processes/0} BIF|(}
+
+A list is returned of the PIDs of all live processes
+on the node on which the BIF is called.
+
+\TYPE
+
+\T{processes() -> [pid()]}.
+
+\EXITS
+
+\T{processes/0} always completes normally.
+
+\EVALUATION
+
+The BIF returns a list representing the value of \T{processes[node[\Z{P}]]},
+where \TZ{P} is the process calling the BIF.
+\index{processes/0 BIF@\T{processes/0} BIF|)}
+
+\subsection{\T{erlang:set_cookie/2}}
+
+\label{section:setcookie2}
+\index{erlang:set_cookie/2 BIF@\T{erlang:set_cookie/2} BIF|(}
+\index{set_cookie/2 BIF@\T{set_cookie/2} BIF|(}
+\index{node!magic cookie|(}
+
+The magic cookie of the current node and/or the presumed magic cookie of
+another node is set.
+
+\TYPE
+
+\T{set_cookie(atom(),atom()) -> bool()}.
+
+\EXITS
+
+\T{set_cookie/2} exits with cause \T{badarg} if $\TZ{v}_1$ or $\TZ{v}_2$ is
+not an atom, or if the atom $\TZ{v}_1$ could not be the name of a node (i.e.,
+it does not contain exactly one `\T{@}' character,
+cf.\ \S\ref{section:single-multi-node}).
+
+\EVALUATION
+
+There are two cases, depending on the value of $\TZ{v}_1$.  Let \TZ{P} be
+the process calling \T{set_cookie/2} and let \TZ{N} be \T{node[\Z{P}]}.
+\begin{itemize}
+\item If $\TZ{v}_1$ equals \TZ{N}, then
+\begin{enumerate}
+\item Set \T{magic_cookie[\Z{N}]} to $\TZ{v}_2$.
+\item For each pair in \T{magic_cookies[\Z{N}]} where the presumed magic cookie
+is \T{nocookie}, change the presumed magic cookie to $\TZ{v}_2$.
+\end{enumerate}
+\item If $\TZ{v}_1$ does not equal \TZ{N}, then
+delete any pair for $\TZ{v}_1$ in \T{magic_cookies[\Z{N}]} and add a pair
+$(\TZ{v}_1,\TZ{v}_2)$ to \T{magic_cookies[\Z{N}]}.
+\end{itemize}
+
+\index{erlang:set_cookie/2 BIF@\T{erlang:set_cookie/2} BIF|)}
+\index{set_cookie/2 BIF@\T{set_cookie/2} BIF|)}
+\index{node!magic cookie|)}
+
+\subsection{\T{set_node/2}}
+
+\label{section:setnode2}
+\index{erlang:set_node/2 BIF@\T{erlang:set_node/2} BIF|(}
+\index{set_node/2 BIF@\T{set_node/2} BIF|(}
+\index{node!communicating|(}
+
+Calling this BIF has as effect to make the node on which the calling process
+resides a communicating node, provided that certain preconditions are met.
+
+\TYPE
+
+\T{set_node(???,???) -> ???}.
+
+\EXITS
+
+???
+\iffalse
+\T{alive/2} exits with cause \T{badarg} if $\TZ{v}_1$ is
+not an atom or if $\TZ{v}_2$ is not a port.  \T{register/2} may also
+exit with cause \T{badarg} % really lousy choice...
+if certain preconditions are not met (see below).
+\fi
+
+\EVALUATION
+
+???
+\iffalse
+Let \TZ{P} be the process calling \T{alive/2}.
+\begin{itemize}
+\item If there is no process registered under the name \T{net_kernel}
+on \T{node[\Z{P}]}, then the BIF exits with cause \T{badarg}.  % yuck
+\item Something about EPMD???
+\item Otherwise, the node becomes a communicating node, as described in
+\S\ref{section:single-multi-node} and \S\ref{section:registering-nodes}.
+\end{itemize}
+The result is ???.
+\fi
+\index{erlang:set_node/2 BIF@\T{erlang:set_node/2} BIF|)}
+\index{set_node/2 BIF@\T{set_node/2} BIF|)}
+
+\subsection{\T{erlang:set_node/3}}
+
+\label{section:setnode3}
+\index{erlang:set_node/3 BIF@\T{erlang:set_node/3} BIF|(}
+\index{set_node/3 BIF@\T{set_node/3} BIF|(}
+
+Ugga mugga.
+
+\TYPE
+
+\T{set_node(???,???,???) -> ???}.
+
+\EXITS
+
+\T{set_node/3} \ldots
+
+\EVALUATION
+
+Yumm yumm!
+\index{erlang:set_node/3 BIF@\T{erlang:set_node/3} BIF|)}
+\index{set_node/3 BIF@\T{set_node/3} BIF|)}
+
+\subsection{\T{statistics/1}}
+
+\label{section:statistics1}
+\index{statistics/1 BIF@\T{statistics/1} BIF|(}
+
+Information about the current state of the node is returned.
+
+\TYPE
+
+\ifOld
+\T{statistics(garbage_collection) -> \{int(),int(),int()\}} \\
+\fi
+\T{statistics(reductions) -> \{int(),int()\}} \\
+\T{statistics(runtime) -> \{int(),int()\}} \\
+\T{statistics(run_queue) -> int()} \\
+\T{statistics(wall_clock) -> \{int(),int()\}}.
+
+\EXITS
+
+\T{statistics/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not an atom
+or if it is not one of the atoms \T{runtime}, \T{wall_clock} or
+\T{reductions}.
+\ifStd
+An implementation may extend \T{statistics/1} to
+accept additional atoms as argument.
+\fi
+
+\EVALUATION
+
+Let \TZ{N} be the node on which the BIF is called.
+The evaluation depends on $\TZ{v}_1$:
+\begin{itemize}
+\item \T{garbage_collection}: return the result of \T{current_gc[\Z{N}]}
+(\S\ref{section:node-state-dynamic}), i.e., a 3-tuple
+\T{\{\Z{NumberOfGCs},\Z{WordsReclaimed},0\}} of integers where \TZ{NumberOfGCs} is the
+total number of garbage collection operations
+that have been carried out by processes on the node and \TZ{WordsReclaimed} is
+the total number of memory words reclaimed by such operations, and the third integer
+is always 0.
+
+\item \T{reductions}: return the result of \T{current_reductions[\Z{N}]}
+(\S\ref{section:node-state-dynamic}), i.e.,
+a 2-tuple \T{\{\Z{TotalReductions},\Z{RecentReductions}\}} where \TZ{TotalReductions}
+is an \Erlang\ integer representing the number of function calls made
+on the node and \Z{RecentReductions} is the same but
+only since the last call \T{statistics(reductions)}.
+
+\item \T{run_queue}: return $\Re[i]$, where $i$ is the number
+of processes on the node that have \T{runnable} or \T{running} status.
+
+\item \T{runtime}: return the result of \T{current_runtime[\Z{N}]}
+(\S\ref{section:node-state-dynamic}), i.e.,
+a 2-tuple \T{\{\Z{TotalRuntime},\Z{RecentRuntime}\}} where \TZ{TotalRuntime}
+is an \Erlang\ integer representing the total time spent
+running processes on the node and \Z{RecentRunTime} is the same but
+only since the last call \T{statistics(runtime)}.
+
+\item \T{wall_clock}: return the result of \T{current_wall_clock[\Z{N}]}
+(\S\ref{section:node-state-dynamic}), i.e.,
+a 2-tuple \T{\{\Z{TotalWallClock},\Z{RecentWallClock}\}} where \TZ{TotalWallClock}
+is an \Erlang\ integer representing the time which has passed since the
+node was started and \Z{RecentWallClock} is the same but
+only since the last call \T{statistics(wall_clock)}.
+\end{itemize}
+% garbage_collection omitted.
+\index{statistics/1 BIF@\T{statistics/1} BIF|)}
+\index{node!communicating|)}
+\index{node!BIFs|)}
+
+\section{Builtin functions for process registries}
+
+\label{section:process-registry-bifs}
+\index{process!registry!BIFs|(}
+
+The process registry of a node is described in \S\ref{section:process-registry}.
+
+\subsection{\T{register/2}}
+
+\label{section:register2}
+\index{register/2 BIF@\T{register/2} BIF|(}
+
+A name is registered for a process on a node.
+
+\TYPE
+
+\T{register(atom(),pid()) -> true}.
+
+\EXITS
+
+\T{register/2} exits with cause \T{badarg} if $\TZ{v}_1$ is
+not an atom or if $\TZ{v}_2$ is not a PID.  \T{register/2} may also
+exit with cause
+\ifOld \T{badarg} \fi
+\ifStd \T{registry} \fi
+if some process is already registered
+under the name, there is already a name registered for the process,
+the process resides on a different node than the one on which the BIF
+is called, or the process has completed (see below).
+
+\EVALUATION
+
+Let \TZ{N} be the node on which the BIF is called.
+
+\begin{itemize}
+\item
+If \T{node[$\Z{v}_2$]} is not \TZ{N}
+or \T{registry[\Z{N}]} already contains a process with name $\TZ{v}_1$
+or \T{registry[\Z{N}]} already contains a name for process $\TZ{v}_2$,
+or process $\Z{v}_2$ has completed,
+then the BIF exits with cause \ifStd\T{registry}\fi\ifOld\T{badarg}\fi.
+\item
+Otherwise, the name $\TZ{v}_1$ is added for $\TZ{v}_2$ in \T{registry[\Z{N}]}.
+The BIF always returns the atom \T{true}.
+\end{itemize}
+The operation should be atomic to ensure the integrity of the registry.
+\index{register/2 BIF@\T{register/2} BIF|)}
+
+\subsection{\T{registered/0}}
+
+\label{section:registered0}
+\index{registered/0 BIF@\T{registered/0} BIF|(}
+
+A list of all names in the registry on the current node is returned.
+
+\TYPE
+
+\T{registered() -> [atom()]}.
+
+\EXITS
+
+\T{registered/0} always completes normally.
+
+\EVALUATION
+
+Let \TZ{N} be the node on which the BIF is called.
+A list without duplicates of all names in \T{registry[\Z{N}]} is returned.
+The order of the atoms in the list is not defined.
+The operation should be atomic to ensure the integrity of the registry.
+\index{registered/0 BIF@\T{registered/0} BIF|)}
+
+\subsection{\T{unregister/1}}
+
+\label{section:unregister1}
+\index{unregister/1 BIF@\T{unregister/1} BIF|(}
+
+Any registration for a name is removed.
+
+\TYPE
+
+\T{unregister(atom()) -> true}.
+
+\EXITS
+
+\T{unregister/1} exits with cause \T{badarg} if $\TZ{v}_1$ is
+not an atom.
+
+\EVALUATION
+
+Let \TZ{N} be the node on which the BIF is called.
+\begin{itemize}
+\item If \T{registry[\Z{N}]} does not contains the name $\TZ{v}_1$,
+then the BIF has no effect.
+\item Otherwise, the association for the name $\TZ{v}_1$ is removed
+from \T{registry[\Z{N}]}.
+\end{itemize}
+In either case, the atom \T{true} is returned.
+The operation should be atomic to ensure the integrity of the registry.
+\index{unregister/1 BIF@\T{unregister/1} BIF|)}
+
+\subsection{\T{whereis/1}}
+
+\label{section:whereis1}
+\index{whereis/1 BIF@\T{whereis/1} BIF|(}
+
+The PID of a process registered under the given name is returned, if any.
+
+\TYPE
+
+\T{whereis(atom()) -> term()}.
+
+\EXITS
+
+\T{whereis/1} exits with cause \T{badarg} if $\TZ{v}_1$ is
+not an atom.
+
+\EVALUATION
+
+Let \TZ{N} be the node on which the BIF is called.
+\begin{itemize}
+\item If \T{registry[\Z{N}]} does not contains the name $\TZ{v}_1$,
+then the BIF returns the atom \T{undefined}.
+\item Otherwise, the PID that is the value for $\TZ{v}_1$ in
+\T{registry[\Z{N}]} is returned.
+\end{itemize}
+The operation should be atomic to ensure the integrity of the registry.
+\index{whereis/1 BIF@\T{whereis/1} BIF|)}
+\index{process!registry!BIFs|)}
+
+\section{Builtin functions for I/O and ports}
+
+\label{section:port-bifs}
+\index{port!BIFs|(}
+
+\subsection{\T{open_port/2}}
+
+\label{section:openport2}
+\index{open_port/2 BIF@\T{open_port/2} BIF|(}
+\index{port!opening|(}
+
+A new port is opened to a recently opened driver or
+recently spawned external process.
+
+\TYPE
+
+\T{open_port(term(),[term()]) -> port()}.
+
+\EXITS
+
+\T{open_port/2} exits with cause \T{badarg} if $\TZ{v}_1$ is not one
+of the permitted alternatives or $\TZ{v}_2$ contains an invalid
+option (\S\ref{section:opening-ports}).
+
+\EVALUATION
+
+The BIF \T{open_port/2} is described fully in \S\ref{section:opening-ports}.
+\index{open_port/2 BIF@\T{open_port/2} BIF|)}
+\index{port!opening|)}
+
+\subsection{\T{port_close/1}}
+
+\label{section:portclose1}
+\index{port_close/1 BIF@\T{port_close/1} BIF|(}
+\index{port!closing|(}
+
+A port is closed.
+
+\TYPE
+
+\T{port_close(port()]) -> true}.
+
+\EXITS
+
+\T{port_close/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a port.
+It may also exit with cause \T{badarg} if $\TZ{v}_1$ is  already closed.
+
+\EVALUATION
+
+If $\TZ{v}_1$ is already closed, exit with cause \T{badarg}.  % bad choice
+Otherwise, close port $\TZ{v}_1$.
+\index{port_close/1 BIF@\T{port_close/1} BIF|)}
+\index{port!closing|)}
+
+\subsection{\T{port_info/1}}
+
+\label{section:portinfo1}
+\index{port_info/1 BIF@\T{port_info/1} BIF|(}
+\index{port!information|(}
+
+Information about various properties of a port is returned.
+
+\TYPE
+
+\iftrue
+\T{port_info(port()) -> term()}.
+\else
+% This just isn't correct: the atom undefined may be returned.
+\T{port_info(port()) -> [\{atom(),term()\}]}.
+\fi
+
+\EXITS
+
+\T{port_info/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a port.
+
+\EVALUATION
+
+The BIF returns information about the port $\TZ{v}_1$.
+\begin{itemize}
+\item If that port is not open, the result is the atom \T{undefined}.
+\item Otherwise, the result is
+a list of 2-tuples, each of which is the same as the result of an
+application of the BIF \T{port_info/2} (\S\ref{section:portinfo2})
+to $\TZ{v}_1$ and a distinct atom in the left column of Table~\ref{table:portinfo}.
+The list should include all properties for which \T{port_info/2} gives meaningful
+information.
+\end{itemize}
+\index{port_info/1 BIF@\T{port_info/1} BIF|)}
+\index{port!information|)}
+
+\subsection{\T{port_info/2}}
+
+\label{section:portinfo2}
+\index{port_info/2 BIF@\T{port_info/2} BIF|(}
+\index{port!information|(}
+
+Information about some property of a port is returned,
+as described in Table~\ref{table:portinfo}.
+
+\begin{table}[hbp]
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\hline
+Second argument & Information returned about the port \\
+\hline
+\T{id} & The ID of the port. \\ 
+\T{connected} & The process owning the port. \\
+\T{input} & The number of bytes read from the port. \\
+\T{links} & The processes to which the port is linked. \\
+\T{name} & The driver or external process to which the port \\
+& is opened. \\
+\T{output} & The number of bytes written to the port. \\
+\hline
+\end{tabular}
+\caption{Alternatives for the BIF \T{port_info/2}.}
+\label{table:portinfo}
+\end{center}
+\end{table}
+
+\TYPE
+
+\T{port_info(pid(),atom()) -> term()}.
+
+\EXITS
+
+\T{port_info/2} exits with cause \T{badarg} if $\TZ{v}_1$ is not a port
+or $\TZ{v}_2$ is not one of the atoms in the left column of
+Table~\ref{table:portinfo}.
+
+\EVALUATION
+
+\begin{itemize}
+\item If port $\TZ{v}_1$ is closed, the result is the atom \T{undefined}.
+\item Otherwise, the BIF returns information about the port $\TZ{v}_1$ and
+the result is always a 2-tuple where the first element is $\TZ{v}_2$:
+\begin{itemize}
+\item If $\TZ{v}_2$ is \T{id}, then
+return \T{\{id,ID[$\TZ{v}_1$]\}}.
+\item If $\TZ{v}_2$ is \T{connected}, then
+return \T{\{connected,owner[$\TZ{v}_1$]\}}.
+\item If $\TZ{v}_2$ is \T{input}, then
+return \T{\{input,count_in[$\TZ{v}_1$]\}}.
+\item If $\TZ{v}_2$ is \T{links}, then
+return \T{\{links,\Z{Lst}\}}, where \TZ{Lst} is a
+list representing the value of \T{linked[$\TZ{v}_1$]}.
+\item If $\TZ{v}_2$ is \T{name}, then
+return \T{\{name,command[$\TZ{v}_1$]\}}.
+\item If $\TZ{v}_2$ is \T{output}, then
+return \T{\{output,count_out[$\TZ{v}_1$]\}}.
+\end{itemize}
+\end{itemize}
+Let \TZ{P} be the process calling the BIF.  The behaviour with respect
+to signals (\S\ref{section:signals}) should be as if the result was
+obtained by \TZ{P} sending an \I{info request} signal to port $\TZ{v}_1$
+with $\TZ{v}_2$ as additional information, and port $\TZ{v}_1$ responding
+with a message to \TZ{P} containing the result.
+\index{port_info/2 BIF@\T{port_info/2} BIF|)}
+\index{port!information|)}
+
+\subsection{\T{ports/0}}
+
+\label{section:ports0}
+\index{ports/0 BIF@\T{ports/0} BIF|(}
+
+A list is returned of all open ports
+on the node on which the BIF is called.
+
+\TYPE
+
+\T{ports() -> [port()]}.
+
+\EXITS
+
+\T{ports/0} always completes normally.
+
+\EVALUATION
+
+The BIF returns a list representing the value of \T{ports[node[\Z{P}]]},
+where \TZ{P} is the process calling the BIF.
+\index{ports/0 BIF@\T{ports/0} BIF|)}
+
+\iffalse
+WHAT ABOUT THESE BIFS???
+\begin{verbatim}
+port_command
+port_control
+port_connect
+\end{verbatim}
+\fi
+\index{port!BIFs|)}
+
+\section{Miscellaneous builtin functions}
+
+\label{section:misc-bifs}
+
+\subsection{\T{date/0}}
+
+\label{section:date0}
+\index{date/0 BIF@\T{date/0} BIF|(}
+
+The local date when the BIF is called is returned as a triple.
+
+\TYPE
+
+\T{date() -> \{int(),int(),int()\}}.
+
+\EXITS
+
+\T{date/0} always completes normally.
+
+\EVALUATION
+
+Let the current local year, month and day at the time of evaluation be
+$y$, $m$ and $d$.  Let \I{Month} be a function mapping January to 1,
+February to 2, \ldots, December to 12.
+
+A triple \T{\{\Z{Year},\Z{Month},\Z{Day}\}} is returned, where
+\TZ{Year} is the \Erlang\ integer $\Er[y]$, \TZ{Month} is
+the \Erlang\ integer $\Er[\I{Month}(m)]$, and
+\TZ{Day} is the \Erlang\ integer $\Er[d]$.
+
+\EXAMPLES
+
+\begin{itemize}
+\item \T{date()} evaluated on the 29th of June, 1996, would return \T{\{1996,6,29\}}.
+\item \T{date()} evaluated on the 1st of January, 2000, would return \T{\{2000,1,1\}}.
+\end{itemize}
+\index{date/0 BIF@\T{date/0} BIF|)}
+
+\subsection{\T{erlang:hash/2}}
+
+\label{section:hash2}
+\index{erlang:hash/2 BIF@\T{erlang:hash/2} BIF|(}
+\index{hash/2 BIF@\T{hash/2} BIF|(}
+\index{term!hashing|(}
+
+A hash value in a specified range for an arbitrary term is returned.
+
+\TYPE
+
+\T{hash(term(),fixnum()) -> int()}.
+
+\EXITS
+
+\T{hash/2} exits with cause \T{badarg} if $\TZ{v}_2$ is not a nonnegative
+integer.
+
+\EVALUATION
+
+The BIF returns $\Re[\I{Hash}(\TZ{v}_1,\Er[\TZ{v}_2])+1]$, where the function
+\I{Hash} is as defined in \S\ref{chapter:hashing}.  That is, the BIF maps each
+\Erlang\ term to an integer in the range $[1,\TZ{v}_2]$. The function \I{Hash}
+is defined in such a way as to be portable across nodes and
+independent of time.  (It is obviously not invertible.)
+\index{erlang:hash/2 BIF@\T{erlang:hash/2} BIF|)}
+\index{hash/2 BIF@\T{hash/2} BIF|)}
+\index{term!hashing|)}
+
+\subsection{\T{make_ref/0}}
+
+\label{section:makeref0}
+\index{make_ref/0 BIF@\T{make_ref/0} BIF|(}
+\index{ref!creating new|(}
+
+A ref is returned that is different from all refs created previously on the node
+and that is different from all refs created on other nodes.
+
+\TYPE
+
+\T{make_ref() -> ref()}.
+
+\EXITS
+
+\T{make_ref/0} always completes normally.
+
+\EVALUATION
+
+Let \TZ{N} be the node on which \T{make_ref/0} is called.  The BIF
+invokes the operation \T{next_ref[\Z{N}]}
+(\S\ref{section:node-state-dynamic}) and the result is a new ref
+that is returned.  This also modifies the state
+\T{ref_state[\Z{N}]} so future invocations of
+\T{next_ref[\Z{N}]} will produce different refs.
+\index{make_ref/0 BIF@\T{make_ref/0} BIF|)}
+\index{ref!creating new|)}
+
+\subsection{\T{now/0}}
+
+\label{section:now0}
+\index{now/0 BIF@\T{now/0} BIF|(}
+
+A 3-tuple of integers is returned that is guaranteed to be different
+for each invocation on a node.
+
+\TYPE
+
+\T{now() -> \{int(),int(),int()\}}.
+
+\EXITS
+
+\T{now/0} always completes normally.
+
+\EVALUATION
+
+Two calls of the BIF \T{now()} by processes residing on the same node can never
+return the same term.\footnote{The name of the BIF comes from the fact that the
+three integers normally represent the universal time (with microsecond resolution).
+However, the time might be inaccurate if several calls are made within a microsecond.}
+\index{now/0 BIF@\T{now/0} BIF|)}
+
+\subsection{\T{throw/1}}
+
+\label{section:throw1}
+\index{throw/1 BIF@\T{throw/1} BIF|(}
+
+A value is thrown.
+
+\TYPE
+
+\T{throw(term()) -> _}.
+
+\EXITS
+
+\T{throw/1} always completes abruptly with reason \T{\{'THROW',$\Z{v}_1$\}}.
+\index{throw/1 BIF@\T{throw/1} BIF|)}
+
+\subsection{\T{time/0}}
+
+\label{section:time0}
+\index{time/0 BIF@\T{time/0} BIF|(}
+
+The local time of day when the BIF is called is returned as a triple.
+
+\TYPE
+
+\T{time() -> \{int(),int(),int()\}}.
+
+\EXITS
+
+\T{time/0} always completes normally.
+
+\EVALUATION
+
+Let the current local hour, minute and second at the time of evaluation be
+$h$, $m$ and $s$.  The hour is on 24-hour format.
+
+A triple \T{\{\Z{Hour},\Z{Minute},\Z{Second}\}} is returned, where
+\TZ{Hour} is the \Erlang\ integer $\Er[h]$, \TZ{Minute} is
+the \Erlang\ integer $\Er[m]$, and
+\TZ{Second} is the \Erlang\ integer $\Er[s]$.
+
+\EXAMPLES
+
+\begin{itemize}
+\item \T{time()} evaluated at five minutes and forty-two seconds
+past midnight would return \T{\{0,5,42\}}.
+\item \T{time()} evaluated at five minutes and forty-two seconds
+past noon would return \T{\{12,5,42\}}.
+\item \T{time()} evaluated at five minutes and forty-two seconds
+before midnight would return \T{\{23,44,18\}}.
+\end{itemize}
+\index{time/0 BIF@\T{time/0} BIF|)}
+
+\section{Reserved function names}
+
+\label{section:reserved-function-names}
+\index{function!reserved names|(}
+\index{apply_lambda/2@\T{apply_lambda/2} reserved|(}
+\index{module_info/0@\T{module_info/0}!reserved|(}
+\index{module_info/1@\T{module_info/1}!reserved|(}
+\index{module_lambdas/4 reserved@\T{module_lambdas/4} reserved|(}
+\index{record/2@\T{record/2}!reserved|(}
+\index{record_index/2@\T{record_index/2} reserved|(}
+\index{record_info/2@\T{record_info/2} reserved|(}
+
+The function names in Table~\ref{table:reserved-functions}
+do not name BIFs but
+are recognized by the compiler and
+a module must not define any function with one of these names.
+
+The reason may be that the compiler automatically generates
+a definition of a function with such a name (e.g., \T{module_info/0}
+and \T{module_info/1}), or that applications
+of function named as such are treated specially (e.g., \T{record_info/2}).
+
+Function names without a reference in Table~\ref{table:reserved-functions}
+are reserved because
+\ifStd it is known that existing implementations use \fi
+\ifOld \OldErlang\ uses \fi
+them for internal purposes.  If a module defines a function with one
+of the names below, the compiler gives a compile-time error.
+
+\begin{table}[hbp]
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\hline
+Function name & Described \\ \hline
+\T{apply_lambda/2} \\
+\T{module_info/0} & \S\ref{section:moduleinfo0} \\
+\T{module_info/1} & \S\ref{section:moduleinfo1} \\
+\T{module_lambdas/4} \\
+\T{record/2} & \S\ref{section:record2} \\
+\T{record_index/2} \\
+\T{record_info/2} \\ \hline
+\end{tabular}
+\caption{Reserved function names}
+\label{table:reserved-functions}
+\end{center}
+\end{table}
+\index{function!reserved names|)}
+\index{apply_lambda/2@\T{apply_lambda/2} reserved|)}
+\index{module_info/0@\T{module_info/0}!reserved|)}
+\index{module_info/1@\T{module_info/1}!reserved|)}
+\index{module_lambdas/4 reserved@\T{module_lambdas/4} reserved|)}
+\index{record/2@\T{record/2}!reserved|)}
+\index{record_index/2@\T{record_index/2} reserved|)}
+\index{record_info/2@\T{record_info/2} reserved|)}
+
+\iffalse
+\chapter{BIFs in the standard libraries}
+
+% this is sort of \StdErlang\ stuff, except limits.
+\section{The \T{atom} library}
+
+\label{section:atom-library}
+
+\subsection{\T{to_string/1}}
+
+The printname of an atom is obtained as a string.
+
+\TYPE
+
+\T{atom:to_string(atom()) -> string()}.
+
+\EXITS
+
+\T{atom:to_string/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not an atom.
+
+\EVALUATION
+
+A string representing the printname of the atom $\TZ{v}_1$ is returned.
+
+\subsection{\T{from_string/1}}
+
+Given a string, an atom with that printname is obtained.
+
+\TYPE
+
+\T{atom:from_string(string()) -> atom()}.
+
+\EXITS
+
+\T{atom:from_string/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not a string.
+
+\EVALUATION
+
+An atom having the printname represented by the string $\TZ{v}_1$ is returned.
+
+\subsection{\T{size/1}}
+
+The length of the printname of an atom is returned.
+\T{size/1} is a guard BIF.
+
+\TYPE
+
+\T{atom:size(atom()) -> int()}.
+
+\EXITS
+
+\T{atom:size/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not an atom.
+
+\EVALUATION
+
+The size of the printname of the atom $\TZ{v}_1$ is returned.
+
+\section{The \T{char} library}
+
+\label{section:char-module}
+
+\section{The \T{float} library}
+
+\label{section:float-module}
+
+\section{The \T{integer} library}
+
+\label{section:integer-module}
+
+\subsection{\T{to_string/1}}
+
+The shortest decimal numeral denoting an integer
+is obtained as a string.
+
+\TYPE
+
+\T{integer:to_string(int()) -> string()}.
+
+\EXITS
+
+\T{integer:to_string/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not an integer.
+
+\EVALUATION
+
+Let $n$ be a numeral satisfying satisfies
+the following axioms:
+\begin{itemize}
+\item $n$ interpreted as a decimal numeral denotes $\Re[\TZ{v}_1]$;
+\item $n$ consists of decimal digits, except that the leftmost character
+is \T{-} when $\Re[\TZ{v}_1]<0$;
+\item the leftmost digit of $n$ is not \T{0} when $\Re[\TZ{v}_1]<>0$;
+\item $n$ is \T{0} when $\Re[\TZ{v}_1]=0$.
+\end{itemize}
+$n$ is unique and is the shortest numeral
+denoting the integer $\Re[\TZ{v}_1]$.
+
+\T{integer:to_string/1} returns a string representing $n$.
+
+\subsection{\T{from_string/1}}
+
+Given a string that is a decimal numeral, the corresponding integer is obtained.
+
+\TYPE
+
+\T{integer:from_string(string()) -> int()}.
+
+\EXITS
+
+\T{integer:from_string/1} exits with cause \T{badarg} if $\TZ{v}_1$ is
+not a string or if that string does not represent an
+\NT{IntegerLiteral} (\S\ref{section:integer-literals}).
+
+\EVALUATION
+
+An \Erlang\ integer representing the number denoted by the \NT{IntegerLiteral}
+is returned.
+
+\section{The \T{list} library}
+
+\label{section:list:nth2}
+
+\section{The \T{math} library}
+
+\label{section:math-library}
+
+This library contains a collection of simple arithmetic functions
+on floats.
+
+\subsection{Void functions}
+
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{pi/0}}}
+
+\TYPE
+
+\T{math:pi() -> float()}.
+
+\EXITS
+
+\T{pi/0} always completes normally.
+
+\EVALUATION
+
+\begin{tabular}{@{}ll@{}}
+\T{pi/0} & $\Re[\pi]$
+\end{tabular}
+
+\subsection{Unary functions}
+
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{cos/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{cosh/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{sin/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{sinh/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{tan/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{tanh/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{acos/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{acosh/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{asin/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{asinh/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{atan/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{atanh/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{erf/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{erfc/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{exp/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{log/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{log10/1}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{sqrt/1}}}
+
+\TYPE
+
+\T{math:cos(num()) -> float()}, \\
+\T{math:cosh(num()) -> float()}, \\
+\T{math:sin(num()) -> float()}, \\
+\T{math:sinh(num()) -> float()}, \\
+\T{math:tan(num()) -> float()}, \\
+\T{math:tanh(num()) -> float()}, \\
+\T{math:acos(num()) -> float()}, \\
+\T{math:acosh(num()) -> float()}, \\
+\T{math:asin(num()) -> float()}, \\
+\T{math:asinh(num()) -> float()}, \\
+\T{math:atan(num()) -> float()}, \\
+\T{math:atanh(num()) -> float()}, \\
+\T{math:erf(num()) -> float()}, \\
+\T{math:erfc(num()) -> float()}, \\
+\T{math:exp(num()) -> float()}, \\
+\T{math:log(num()) -> float()}, \\
+\T{math:log10(num()) -> float()}, \\
+\T{math:sqrt(num()) -> float()}.
+
+\EXITS
+
+TBW. % !!!
+
+\EVALUATION
+
+\begin{tabular}{@{}ll@{}}
+\T{cos/1} & $\cos \TZ{v}_1$ \\
+\T{cosh/1} & $\cosh \TZ{v}_1$ \\
+\T{sin/1} & $\sin \TZ{v}_1$ \\
+\T{sinh/1} & $\sinh \TZ{v}_1$ \\
+\T{tan/1} & $\tan \TZ{v}_1$ \\
+\T{tanh/1} & $\tanh \TZ{v}_1$ \\
+\T{acos/1} & $\arccos \TZ{v}_1$ \\
+\T{acosh/1} & hyperbolic $\arccos \TZ{v}_1$ \\
+\T{asin/1} & $\arcsin \TZ{v}_1$ \\
+\T{asinh/1} & hyperbolic $\arcsin \TZ{v}_1$ \\
+\T{atan/1} & $\arctan \TZ{v}_1$ \\
+\T{atanh/1} & hyperbolic $\arctan \TZ{v}_1$ \\
+\T{erf/1} & error function of $\TZ{v}_1$ \\
+\T{erfc/1} &  error function of $\TZ{v}_1$ \\
+\T{exp/1} & $e^{\TZ{v}_1}$ \\
+\T{log/1} & $\ln\TZ{v}_1$ \\
+\T{log10/1} & $\log_{10}\TZ{v}_1$ \\
+\T{sqrt/1} & $\sqrt{\TZ{v}_1}$
+\end{tabular}
+
+\subsection{Binary functions}
+
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{pow/2}}}
+\addcontentsline{toc}{subsection}{\protect\numberline{}{\T{atan2/2}}}
+
+\TYPE
+
+\T{math:pow(num(),num()) -> float()}, \\
+\T{math:atan2(num(),num()) -> float()}.
+
+\EXITS
+
+TBW. % !!!
+
+\EVALUATION
+
+\begin{tabular}{@{}ll@{}}
+\T{pow/2} & $\TZ{v}_1^{\TZ{v}_1}$ \\
+\T{atan2/2} & $\arctan \frac{\TZ{v}_1}{\TZ{v}_2}$
+\end{tabular}
+
+\section{The \T{string} library}
+\fi
+
+\iffalse
+% Don't include this stuff either until we know.
+\section{The \T{limits} library}
+
+\label{section:limits-library}
+
+\subsection{\T{atom_parameter/1}}
+
+A parameter of the atom type of the implementation is returned
+(cf.\ \S\ref{section:atoms}).
+
+\TYPE
+
+\T{limits:atom_parameter(maxatomlength) -> int()}.
+
+\EXITS
+
+\T{limits:atom_parameter/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not an atom
+or if it is not the atom \T{maxatomlength}.
+
+\EVALUATION
+
+$\TZ{v}_1$ must be \T{maxatomlength} and the BIF returns
+$\Re[\mathit{maxatomlength}]$.
+
+\subsection{\T{integer_parameter/1}}
+
+A parameter of the integer type of the implementation is returned
+(cf.\ \S\ref{section:integer-type}).
+
+\TYPE
+
+\T{limits:integer_parameter(bounded) -> bool()} ; \\
+\T{limits:integer_parameter(minint) -> int()} ; \\
+\T{limits:integer_parameter(maxint) -> int()} ; \\
+\T{limits:integer_parameter(minfixnum) -> int()} ; \\
+\T{limits:integer_parameter(maxfixnum) -> int()}.
+
+\EXITS
+
+\T{limits:integer_parameter/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not an atom
+or if it is not one of the atoms \T{bounded}, \T{minint}, \T{maxint},
+\T{minfixnum} or \T{maxfixnum}.
+
+\EVALUATION
+
+The evaluation depends on $\TZ{v}_1$:
+\begin{itemize}
+\item \T{bounded}: return $\Re[\mathit{bounded}]$.
+\item \T{minint}: return $\Re[\mathit{minint}]$.
+\item \T{maxint}: return $\Re[\mathit{maxint}]$.
+\item \T{minfixnum}: return $\Re[\mathit{minfixnum}]$.
+\item \T{maxfixnum}: return $\Re[\mathit{maxfixnum}]$.
+\end{itemize}
+
+\subsection{\T{float_parameter/1}}
+
+A parameter of the float type of the implementation is returned
+(cf.\ \S\ref{section:float-type}).
+
+\TYPE
+
+\T{limits:float_parameter(radix) -> int()} ; \\
+\T{limits:float_parameter(precision) -> int()} ; \\
+\T{limits:float_parameter(emin) -> int()} ; \\
+\T{limits:float_parameter(emax) -> int()} ; \\
+\T{limits:float_parameter(denorm) -> bool()} ; \\
+\T{limits:float_parameter(fmax) -> float()} ; \\
+\T{limits:float_parameter(fmin) -> float()} ; \\
+\T{limits:float_parameter(fmin_norm) -> float()} ; \\
+\T{limits:float_parameter(epsilon) -> float()} ; \\
+\T{limits:float_parameter(rnd_error) -> float()} ; \\
+\T{limits:float_parameter(rnd_style) -> atom()} ; \\
+\T{limits:float_parameter(iec_559) -> bool()}.
+
+\EXITS
+
+\T{limits:float_parameter/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not an atom
+or if it is not one of the atoms \T{radix}, \T{precision}, \T{emin},
+\T{emax}, \T{denorm}, \T{fmax}, \T{fmin}, \T{fmin_norm}, \T{epsilon}, \T{rnd_error},
+\T{rnd_style} or \T{iec_559}.
+
+\EVALUATION
+
+The evaluation depends on $\TZ{v}_1$:
+\begin{itemize}
+\item \T{radix}: return $\Re[r]$.
+\item \T{precision}: return $\Re[p]$.
+\item \T{emin}: return $\Re[\mathit{emin}]$.
+\item \T{emax}: return $\Re[\mathit{emax}]$.
+\item \T{denorm}: return $\Re[\mathit{denorm}]$.
+\item \T{fmax}: return $\Re[\mathit{fmax}]$.
+\item \T{fmin}: return $\Re[\mathit{fmin}]$.
+\item \T{fmin_norm}: return $\Re[\mathit{fmin}_N]$.
+\item \T{epsilon}: return $\Re[\mathit{epsilon}]$.
+\item \T{rnd_error}: return $\Re[\mathit{rnd\_error}]$ (\S\ref{section:float-operations}).
+\item \T{rnd_style}: return $\begin{cases}
+\T{nearest} & \text{if $\I{rnd\_style}=\B{nearest}$,} \\
+\T{truncate} & \text{if $\I{rnd\_style}=\B{truncate}$, and} \\
+\T{other} & \text{if $\I{rnd\_style}=\B{other}$.}
+\end{cases}$ (\S\ref{section:float-operations}).
+\item \T{iec_559}: return $\Re[\mathit{iec\_559}]$ (\S\ref{section:arith-iec559}).
+\end{itemize}
+
+\subsection{\T{tuple_parameter/1}}
+
+A parameter of the tuple type of the implementation is returned
+(cf.\ \S\ref{section:atoms}).
+
+\TYPE
+
+\T{limits:tuple_parameter(maxtuplesize) -> int()}.
+
+\EXITS
+
+\T{limits:tuple_parameter/1} exits with cause \T{badarg} if $\TZ{v}_1$ is not an atom
+or if it is not the atom \T{maxtuplesize}.
+
+\EVALUATION
+
+$\TZ{v}_1$ must be \T{maxtuplesize} and the BIF returns
+$\Re[\mathit{maxtuplesize}]$.
+\fi

@@ -1,0 +1,370 @@
+%
+% %CopyrightBegin%
+%
+% Copyright Ericsson AB 2017. All Rights Reserved.
+%
+% Licensed under the Apache License, Version 2.0 (the "License");
+% you may not use this file except in compliance with the License.
+% You may obtain a copy of the License at
+%
+%     http://www.apache.org/licenses/LICENSE-2.0
+%
+% Unless required by applicable law or agreed to in writing, software
+% distributed under the License is distributed on an "AS IS" BASIS,
+% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+% See the License for the specific language governing permissions and
+% limitations under the License.
+%
+% %CopyrightEnd%
+%
+
+\chapter{Dynamics of modules}
+
+\label{chapter:module-dynamics}
+
+\Erlang\ has been designed to make it possible to incorporate functionality for
+replacing a version of a module with a new version of that module, even though
+at the same time there are processes executing the old version of the module.
+
+\ifOld
+An example of such functionality is provided by a collection of BIFs:
+\T{load_module/2}, \T{delete_module/1}, \T{purge_module/1}, etc.,
+which are described in this chapter.\footnote{These BIFs are, in turn, used for
+implementing the \T{code} module of OTP \cite[p.~158--167]{otp-dev-ref}.}
+\fi
+\ifStd
+An example of such functionality is provided by the standard module
+\T{codeload} which is described in this chapter.\footnote{The module
+\T{codeload} is, in turn, used for
+implementing the \T{code} module of OTP \cite[p.~158--167]{otp-dev-ref}.}
+Other (nonstandard) modules for code maintenance could behave differently.
+\fi
+
+A process that is evaluating
+an application of a function in the old version of module can finish the evaluation
+of that application even though a new version of the function has been loaded.
+However, there can be only one ``old version'' of a module so
+it is presumed that the \Erlang\ code of the modules has been written
+so that processes will begin using the new version of the module as soon as possible.
+
+As soon as a new version of a module named \TZ{Mod} has been loaded, evaluation of
+remote applications of functions in module \TZ{Mod} will use the new version of module
+(\S\ref{section:exported-functions}).
+
+\index{function!tail recursive|(}
+This implies, for example, that a tail recursive function which is intended to run
+for a long time should typically use a remote function application
+for the tail recursive call.  The tail recursive call will then use
+the most recently loaded version of the module.  (Note also that
+\ifStd
+the requirement that an \Erlang\ implementation must provide
+\fi
+\ifOld the \fi
+\emph{last call optimization}\index{last call optimization}
+[\S\ref{section:lco}] entails that evaluation of such a tail recursive function
+can run using stack space bounded only by the need for each iteration.)
+\index{function!tail recursive|)}
+
+Obviously, the programmer must be aware of the possibility that modules may be
+replaced by new versions and design the code so it will cope gracefully with such
+replacements.
+
+\section{Loading or replacing a module}
+
+\label{section:current-version}
+\label{section:replacing-module}
+\label{section:loading}
+
+\index{module!version of|(}
+A \emph{version} of a module named \TZ{Mod} is the result of compiling a
+\NT{ModuleDeclaration} with a module attribute \T{-module(\Z{Mod})}, represented
+as a binary (\S\ref{section:code-generation}).
+(Module declarations are described in \S\ref{chapter:programs-modules}
+and their compilation in \S\ref{chapter:compilation}.)
+
+\index{module!version of!current|(}
+The \emph{current version} of a module named \TZ{Mod} on a node \TZ{N} is the
+one for which there are rows in \T{entry_points[\Z{N}]} (\S\ref{section:exported-functions}).
+the current version of \TZ{Mod} on \TZ{N} is accessible as
+\T{current_version[module_table[\Z{N}](\Z{Mod})]} (\S\ref{section:loaded-modules}).
+
+\index{module!version of!old|(}
+A version of a module named \TZ{Mod}, represented as a binary \TZ{B},
+is the \emph{current version} on node \TZ{N} from the time it has been loaded on node \TZ{N}
+(\S\ref{section:making-current-version}) until it is made old
+on node \TZ{N} (\S\ref{section:making-old-version}).
+\index{module!version of!current|)}
+
+The \emph{old version} of a module named \TZ{Mod} on a node \TZ{N} has all its code
+intact on \TZ{N} but there are no longer any rows for it in \T{entry_points[\Z{N}]} so
+no new remote function calls can reach code in it.  The version is the old version
+until it is purged
+\index{module!version of!old|)}
+(\S\ref{section:purging-old-version}).
+
+When we write that a process \TZ{P} uses some version of a module \TZ{Mod},
+represented as a binary \TZ{B}, we mean that \TZ{P} is
+using\label{section:process-using-module}
+some exported function \T{\Z{F}/\Z{A}} in \TZ{B} (\S\ref{section:function-use},
+\S\ref{section:checking-process-module}).
+\index{module!version of|)}
+
+\index{module!replacing a version|(}
+When a version of a module named \TZ{Mod} is to be replaced with a
+new version on an \Erlang\ node
+\TZ{N}, the following sequence of steps is intended to be followed:
+\begin{itemize}
+\item The current version of module \TZ{Mod} on node \TZ{N}, if any,
+is made the old version (\S\ref{section:making-old-version}).
+\item A version of module \TZ{Mod} is made the current version of \TZ{Mod}
+on node \TZ{N} (\S\ref{section:making-current-version}).
+\item When it has been ensured that no process on node \TZ{N} is using the old version
+of module \TZ{Mod} anymore,
+the old version of \TZ{Mod} is purged (\S\ref{section:purging-old-version}).
+This reclaims the space used on node \TZ{N} by the old version of the code.
+\index{module!replacing a version|)}
+
+Ensuring that no process is using the old version
+of a module can be accomplished in several ways, e.g.:
+\begin{itemize}
+\item Waiting until all such processes complete or no longer use the old version
+of the code (cf.\ \S\ref{section:checking-process-module}).
+\item Killing such processes.
+\item Designing the code of the module so that a process using it can be sent a message that
+makes it prepare for a version change by, e.g., completing or evaluating a remote
+tail recursive call.
+\end{itemize}
+\end{itemize}
+
+\section{Loaded modules}
+
+\label{section:loaded-modules}
+\index{module!loaded on a node|(}
+
+At any time, a module is \emph{loaded} on node \TZ{N} if there is a current version of
+\TZ{Mod} on \TZ{N}, i.e., if \T{current_version[module_table[\Z{N}](\Z{Mod})]} is a binary.
+
+\S\ref{section:making-current-version} and \S\ref{section:making-old-version}
+describe how \T{current_version[module_table[\Z{N}](\Z{Mod})]} is set to a binary or
+to \T{none}, respectively.
+
+A process residing on node \TZ{N} can find out whether module \TZ{Mod} is loaded on
+node \TZ{N} through a BIF call
+\ifOld \T{erlang:module_loaded(\Z{Mod})}\fi
+\ifStd \T{codeload:module_loaded(\Z{Mod})}\fi,
+which inspects \T{current_version[module_table[\Z{N}](\Z{Mod})]} and
+returns \T{true} if the value is a binary
+and \T{false} if it is \T{none} (\S\ref{section:moduleloaded1}).
+
+% 0.7 removed, there is enugh elsewhere.
+\iffalse
+\index{module!preloaded on a node|(}
+A process residing on node \TZ{N} can obtain a list of the module names in
+\T{preloaded[\Z{N}]}, i.e., the names of the modules
+that were loaded as part
+of starting the node \TZ{N}, through a BIF call
+\ifOld \T{erlang:pre_loaded()}\fi
+\ifStd \T{codeload:pre_loaded()}\fi.
+The order of the elements in the list is not specified.
+\index{module!preloaded on a node|)}
+\fi
+\index{module!loaded on a node|)}
+
+\section{Exported functions of a module}
+
+\label{section:exported-functions}
+\index{module!exported functions of|(}
+\index{function!exported|(}
+
+Each node maintains a table \T{entry_points[\Z{N}]} (\S\ref{section:node-state-dynamic})
+in which the keys are triples consisting of a module name (an atom), a function
+symbol (an atom) and an arity (a nonnegative integer) and the values are
+\ifStd implementation-defined \fi
+entry points to executable code.  The table contains one row for
+each exported function of each loaded module.
+
+\S\ref{section:making-current-version} and \S\ref{section:making-old-version}
+describe how rows are are added to and removed from
+\T{entry_points[\Z{N}]}, respectively.
+
+The table \T{entry_points[\Z{N}]} is used implicitly
+when evaluating remote function applications (\S\ref{section:appl-named-function}).
+Only while a version \TZ{B} of a module \TZ{Mod} is current on a node \TZ{N} can
+a remote call of an exported function \T{\Z{F}/\Z{n}} in \TZ{B} begin.
+\index{module!exported functions of|)}
+\index{function!exported|)}
+
+\section{Loading a new current version}
+
+\label{section:making-current-version}
+\index{module!making version current|(}
+
+When a binary \TZ{B} is to be made the current version of a module \TZ{Mod}
+on a node \TZ{N}, there are two preconditions:
+\begin{itemize}
+\item \TZ{B} must represent the result of compiling a module declaration for
+a module \TZ{Mod}, and
+\item there must be no current version of module \TZ{Mod} on node \TZ{N}, i.e.,
+\T{current_version[module_table[\Z{N}](\Z{Mod})]} should be \T{none}.
+\end{itemize}
+The actions required to make \TZ{B} the current version are
+\begin{enumerate}
+\item For each exported function \T{\Z{Name}/\Z{Arity}} of the version
+of \TZ{Mod} represented by \TZ{B}, add to \T{entry_points[\Z{N}]} a
+row with $(\TZ{Mod},\TZ{Name},\linebreak[0]\TZ{Arity})$ as key and an
+entry point of the executable code for that function as value.
+\item Set \T{current_version[module_table[\Z{N}](\Z{Mod})]} to \TZ{B}.
+\end{enumerate}
+\index{module!making version current|)}
+
+\section{Making a current version old}
+
+\label{section:making-old-version}
+\index{module!making version old|(}
+
+When the current version of a module \TZ{Mod} on a node \TZ{N} is to become the
+old version of that module on the node, the precondition is that there is
+not already an old version, i.e., that 
+\T{old_version[module_table[\Z{N}](\Z{Mod})]} is \T{none}.
+
+Let the value of
+\T{current_version[module_table[\Z{N}](\Z{Mod})]}, i.e.,
+the current version of \TZ{Mod} on \TZ{N} be \TZ{B}.
+The actions required to make \TZ{B} the old version of \TZ{Mod} on \TZ{N} are
+\begin{enumerate}
+\item Remove every row from
+\T{entry_points[\Z{N}]} that has \TZ{Mod} as key.
+\item Set \T{old_version[module_table[\Z{N}](\Z{Mod})]} to \TZ{B}.
+\item Set \T{current_version[module_table[\Z{N}](\Z{Mod})]} to \T{none}.
+\end{enumerate}
+\index{module!making version old|)}
+
+\section{Purging an old version}
+
+\label{section:purging-old-version}
+\index{module!purging old version|(}
+
+When the old version of a module \TZ{Mod} on a node \TZ{N} is to be
+purged, there had better be no process using it.  If some process
+residing on \TZ{N} is using the old version of \TZ{Mod}, the behaviour
+of that process is thereafter undefined.
+
+The action required to purge the old version of \TZ{Mod} on \TZ{N} is
+setting\linebreak[2] \T{old_version[module_table[\Z{N}](\Z{Mod})]} to
+\T{none}.  If that was the last reference to the binary that was the
+old version of \TZ{Mod} on \TZ{N}, then the memory management
+subsystem (\S\ref{section:memory-management}) will eventually reclaim
+the memory occupied by it.  (The reason that processes still using the
+old version may behave erratically is that it cannot be expected that
+their references through return addresses will prevent the binary from
+being ``garbage collected''.)
+\index{module!purging old version|)}
+
+\section{Checking a process for module usage}
+
+\label{section:checking-process-module}
+\index{module!used by process|(}
+\index{process!using a module|(}
+
+A BIF call
+\ifOld \T{erlang:check_process_code(\Z{P},\Z{Mod})}
+(\S\ref{section:checkprocesscode2}) \fi
+\ifStd \T{codeload:check_process_code(\Z{P},\Z{Mod})}
+(\S\ref{section:codeload:checkprocesscode2}) \fi
+inspects the value of \T{stack_trace[\Z{P}]} and returns \T{true} if there is
+a reference to the code of some function in
+\T{old_version[module_table[node[\Z{P}]](\Z{Mod})]} and \T{false} otherwise.
+
+A list of the PIDs of all processes residing on node \TZ{N} can be obtained
+through a BIF call
+\ifOld \T{processes()} (\S\ref{section:processes0}) \fi
+\ifStd \T{node:processes()} (\S\ref{section:node:processes0}) \fi
+on node \TZ{N}.
+\index{module!used by process|)}
+\index{process!using a module|)}
+
+
+%%% OLD STUFF FROM HERE ON!
+
+
+\iffalse
+\section{Terminology}
+
+% This is MID stuff.
+%The most recently loaded module named \TZ{Mod} is called the \emph{current version of
+%\TZ{Mod}}.  A module named \TZ{Mod} that is not the current version of \TZ{Mod}
+%is called an \emph{old version of \TZ{Mod}}.
+
+% This is MID stuff.
+%\section{Modules}
+
+% This is MID stuff with structs too.
+Each node \TZ{N} has as part of its state a dictionary
+\T{modules[\Z{N}]} mapping atoms (module names) to modules.
+This dictionary is used at run time for obtaining the
+current version of a named module when evaluating
+a remote function application or resolving a remote struct name.
+It can also be accessed through the BIF \T{get_module/1}.
+
+A module \TZ{M} consists of
+\begin{itemize}
+\item A module name (an atom).
+\item A mapping \T{exported_functions[\Z{M}]} from exported function
+names to functions.
+\item A mapping \T{internal_functions[\Z{M}]} from internal function
+names to functions.
+\item A mapping \T{exported_structs[\Z{M}]} from exported struct names
+(atoms) to struct descriptors.
+\item A mapping \T{internal_structs[\Z{M}]} from internal struct names
+(atoms) to struct descriptors.
+\end{itemize}
+
+Given a module \TZ{M}, the mappings \T{exported_functions[\Z{M}]} and
+\T{exported_structs[\Z{M}]} can be accessed from within any module
+either
+\begin{itemize}
+\item by evaluating
+a remote function application or resolving a remote struct name, or
+\item through the BIFs \T{get_function/3} and \T{get_struct/2}.
+\end{itemize}
+The mappings \T{internal_functions[\Z{M}]} and
+\T{internal_structs[\Z{M}]} can only be accessed from code occurring
+lexically inside the module declaration for \TZ{M} by evaluating a
+local function application or resolving a local struct name.
+
+\section{The module dictionary}
+
+Modules having the same name are presumed to provide similar
+functionality and a module is thus presumed to supercede any
+previously loaded module with the same name.  A remote function
+application or remote struct name uses the module with that name most
+recently loaded onto the node.  This is accomplished through the table
+\T{modules[\Z{N}]} for each node \TZ{N}, which has module names as
+keys BLURP...  to the most recently loaded module with that name.
+
+Loading a module \TZ{M} with name \TZ{Mod} onto a node \TZ{N} means
+that \T{modules[\Z{N}]} should be updated so that it maps the module
+name \TZ{Mod} to \TZ{M}.  This does not have any effect on any
+previously loaded module $\TZ{M}'$ named \TZ{Mod}.  A process that is
+evaluating an application of a function in such a module $\TZ{M}'$
+will continue to use functions in $\TZ{M}'$ for evaluating local
+function applications and resolving local struct names.  However,
+should it evaluate a remote function application or resolve a remote
+struct name, that module name will be looked up in
+\T{modules[\Z{N}]} and may yield \TZ{M} but never $\TZ{M}'$.
+
+When there is no longer any reference to a module, the memory it
+occupies can be reclaimed, as for any other data structure.
+
+This means that the \emph{language} permits the simultaneous existence
+of an unlimited number of versions of a module. For some
+\emph{applications} this may not be desirable.  There are thus means
+for obtaining at run time information about which processes have
+ongoing evaluations of functions in a certain module. Such processes
+can then be killed in order to purge all references to a module so
+that its memory will eventually be reclaimed.
+
+\section{Loading modules}
+
+\T{codeload:load_module/1} or \T{2}?
+\fi

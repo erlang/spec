@@ -1,0 +1,632 @@
+%
+% %CopyrightBegin%
+%
+% Copyright Ericsson AB 2017. All Rights Reserved.
+%
+% Licensed under the Apache License, Version 2.0 (the "License");
+% you may not use this file except in compliance with the License.
+% You may obtain a copy of the License at
+%
+%     http://www.apache.org/licenses/LICENSE-2.0
+%
+% Unless required by applicable law or agreed to in writing, software
+% distributed under the License is distributed on an "AS IS" BASIS,
+% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+% See the License for the specific language governing permissions and
+% limitations under the License.
+%
+% %CopyrightEnd%
+%
+
+\chapter{Compiling a module}
+
+\label{chapter:compilation}
+\index{module!compilation|(}
+The unit of compilation in \Erlang\ is a module.
+The compilation of a module is carried out in the following steps:
+\begin{enumerate}
+\item Lexical processing, as described in \S\ref{chapter:lexical}.
+This takes a sequence of
+\ifNew Unicode characters (\S\ref{section:unicode}) \fi
+\ifOld ASCII characters \fi
+and produces a sequence
+of tokens and full stops, i.e., a sequence of \NT{TokenSequence}
+(\S\ref{section:tokenseq}).
+\item Preprocessing, as described in \S\ref{section:preprocessing}.
+This takes a sequence of \NT{TokenSequence} and produces a new
+sequence of \NT{TokenSequence}, after conditional compilation
+and macro expansion.
+\item Parsing, as described in \S\ref{section:parsing}.
+Each \NT{TokenSequence} in the sequence is parsed as an
+\Erlang\ form (\S\ref{chapter:programs-modules}).
+The result is a list of parse trees, which are represented as
+\Erlang\ terms
+(\S\ref{chapter:parse-trees}).
+\item Parse transformation, as described in \S\ref{section:parse-transform}.
+If a parse transform function has been specified, it is applied
+to the list of parse trees,
+resulting in a new list of parse trees.  Otherwise the result is the
+same list of parse trees.
+\item Code generation, as described in \S\ref{section:code-generation}.
+This takes a list of parse trees and returns a binary representation
+of a module, which can be loaded (\S\ref{chapter:module-dynamics}).
+\end{enumerate}
+The resulting binary can be loaded into a running \Erlang\ system or be saved in a
+file and loaded from there (\S\ref{section:loading}).
+\index{module!compilation|)}
+
+\section{Preprocessing}
+
+\label{section:preprocessing}
+\index{module!preprocessing of|(}
+
+The preprocessing step takes a sequence of \NT{TokenSequence}
+as input and produces a new sequence of \NT{TokenSequence}.
+(A \NT{TokenSequence} is a sequence of tokens followed by a full stop,
+cf.\ \S\ref{section:tokenseq}.)
+
+\index{skipping mode|(}
+\index{processing mode|(}
+During preprocessing, the compiler is in one of two modes: skipping
+or processing.  When the compiler is in skipping mode, a \NT{TokenSequence}
+is ignored unless it is one of the directives for conditional compilation
+discussed in \S\ref{section:condcomp}.  When the compiler is in processing mode,
+the treatment of a \NT{TokenSequence} is as described in this section.
+The compiler is originally in processing mode.
+\index{skipping mode|)}
+\index{processing mode|)}
+
+Each \NT{TokenSequence} that is one of the following directives
+is processed and is not part of the output sequence of \NT{TokenSequence}.
+\begin{rules}
+\grrule{Directive}
+       {\NT{MacroDefinition} & (\S\ref{section:macrodef}) \OR
+        \NT{MacroUndefinition} & (\S\ref{section:macroundef}) \OR
+        \NT{IncludeDirective} & (\S\ref{section:include}) \OR
+        \NT{IncludeLibDirective} & (\S\ref{section:include}) \OR
+        \NT{IfdefDirective} & (\S\ref{section:condcomp}) \OR
+        \NT{IfndefDirective} & (\S\ref{section:condcomp}) \OR
+        \NT{ElseDirective} & (\S\ref{section:condcomp}) \OR
+        \NT{EndifDirective} & (\S\ref{section:condcomp})}
+\end{rules}
+\index{define directive@\T{define} directive|(}
+\index{undef directive@\T{undef} directive|(}
+The directives \T{-define(\Z{M}$[\text{($\NT{V}_1$,\tdots,$\NT{V}_k$)}]$,\Z{Toks})}
+and \T{-undef(\Z{M})} maintain the set of macro definitions,
+\index{define directive@\T{define} directive|)}
+\index{undef directive@\T{undef} directive|)}
+\index{include directive@\T{include} directive|(}
+\index{include_lib directive@\T{include_lib} directive|(}
+the directives \T{-include(\Z{F})} and \T{-include_lib(\Z{F})} control file inclusion,
+\index{include directive@\T{include} directive|)}
+\index{include_lib directive@\T{include_lib} directive|)}
+\index{ifdef directive@\T{ifdef} directive|(}
+\index{ifndef directive@\T{ifndef} directive|(}
+\index{else directive@\T{else} directive|(}
+\index{endif directive@\T{endif} directive|(}
+and the directives \T{-ifdef(\Z{M})}, \T{-ifndef(\Z{M})}, \T{-else} and \T{-endif} control
+conditional compilation (\S\ref{section:condcomp}).
+\index{ifdef directive@\T{ifdef} directive|)}
+\index{ifndef directive@\T{ifndef} directive|)}
+\index{else directive@\T{else} directive|)}
+\index{endif directive@\T{endif} directive|)}
+
+The tokens in a \NT{TokenSequence} that is not a \NT{Directive} are
+subject to macro expansion\index{macro!expansion}
+(\S\ref{section:macroexp}) and the resulting tokens, followed by a
+full stop, form a \NT{TokenSequence} that is part of the output of the
+preprocessing.
+
+\section{Macros}
+
+\label{section:macros}
+
+As the preprocessor goes through the sequence of \NT{TokenSequence},
+it maintains a set of macro definitions.  A \NT{MacroDefinition} adds
+to the set (\S\ref{section:macrodef}), a \NT{MacroUndefinition} may
+remove from the set (\S\ref{section:macroundef}), any other
+\NT{TokenSequence} leaves it unchanged.
+
+A \NT{TokenSequence} that is not recognized as a \NT{Directive}
+(\S\ref{section:preprocessing}) is subject to macro expansion
+(\S\ref{section:macroexp}).
+
+The initial set of macro definitions is described in \S\ref{section:initial-macros}.
+
+\subsection{Macro definition}
+
+\label{section:macrodef}
+\index{define directive@\T{define} directive|(}
+\index{macro!definition|(}
+
+A macro definition is a directive that adds a macro definition.
+
+\begin{rules}
+\grrule{MacroDefinition}
+       {\TXT{-} \TXT{define} \TXT{(} \NT{MacroName} \OPT{MacroParams}
+       \TXT{,} \NT{MacroBody} \TXT{)} \NT{FullStop}}
+
+\grrule{MacroName}
+      {\NT{AtomLiteral} \OR
+       \NT{Variable}}
+
+\grrule{MacroParams}
+       {\TXT{(} \OPT{Variables} \TXT{)}}
+
+\grrule{Variables}
+       {\NT{Variable} \OR
+        \NT{Variables} \TXT{,} \NT{Variable}}
+
+\grrule{MacroBody}
+       {\NT{Tokens}}
+\end{rules}
+
+A macro definition \T{-define(\Z{M},\Z{Toks})} associates the macro
+name \TZ{M} with no sequence of parameters and an arbitrary (and
+possibly empty) sequence of tokens \TZ{Toks}.
+
+A macro definition
+\T{-define(\Z{M}($\NT{V}_1$,\tdots,$\NT{V}_k$),\Z{Toks})}, where
+$k\geq0$, associates the macro name \TZ{M} with a (possibly empty)
+sequence of macro parameters $\NT{V}_1$, \ldots, $\NT{V}_k$ which must
+be distinct variables, and a (possibly empty) sequence of tokens
+\TZ{Toks}.
+
+Unlike the case for function names, which associate a symbol and an
+arity with a function, a macro name is simply a symbol and the macro
+named \TZ{M} either takes no parameters at all or obtains the arity
+$k$ above.  It is thus not possible to define two macros with the same
+name \TZ{M} but different arities.
+
+In either case, the scope of the association for \TZ{M} begins
+immediately after the macro definition.  It is a compile-time error if
+a macro definition of \TZ{M} occurs in the scope of another macro
+definition of \TZ{M}.
+
+Note the difference between the macro definitions \T{-define(abc,123)}
+and \T{-define(abc(),123)}.  The former is associated with no
+parameters while the latter is associated with an empty sequence of
+parameters and an application of it must therefore have an empty
+argument sequence (\S\ref{section:macroexp}).
+
+\ifOld
+In \OldErlang, a macro name \T{'Foo'} and a macro name \T{Foo} denote
+different macros.  This is to be viewed as a bug (not a feature) and
+will change in a future version so a
+\fi
+\ifStd
+A
+\fi
+macro name that is a quoted atom and a macro name that is a variable
+denote the same macro if the print name of the atom consists of the
+same sequence of characters as the variable.  For example, the macro
+names \T{'Foo'} and \T{Foo} \ifOld will then \fi denote the same
+macro.
+
+\index{macro!definition|)}
+\index{define directive@\T{define} directive|)}
+
+\subsection{Macro undefinition}
+
+\label{section:macroundef}
+\index{macro!undefinition|(}
+\index{undef directive@\T{undef} directive|(}
+
+The scope of a macro definition is terminated by a macro undefinition or the end of the
+module definition.
+\begin{rules}
+\grrule{MacroUndefinition}
+       {\TXT{-} \TXT{undef} \TXT{(} \NT{MacroName} \TXT{)} \NT{FullStop}}
+\end{rules}
+Beginning immediately following an undefinition \T{-undef(\Z{M})},
+the macro name \TZ{M} is undefined.
+It is not an error if \TZ{M} was undefined also immediately preceding the undefinition.
+\index{macro!undefinition|)}
+\index{undef directive@\T{undef} directive|)}
+
+\subsection{Macro expansion}
+
+\label{section:macroexp}
+\index{macro!expansion|(}
+
+Each macro application in a \NT{TokenSequence} is expanded, i.e., replaced with
+tokens according to the macro definition that is in force at that point.
+
+\begin{rules}
+\grrule{MacroApplication}
+       {\TXT{?} \NT{MacroName} \OR
+	\TXT{?} \NT{MacroName} \TXT{(} \OPT{MacroArguments} \TXT{)}}
+
+\grrule{MacroArguments}
+       {\NT{MacroArgument} \OR
+	\NT{MacroArguments} \TXT{,} {MacroArgument}}
+
+\grrule{MacroArgument}
+       {\NT{BalancedExpr} that is not one of \TXT{,} or \TXT{)}}
+
+\grrule{BalancedExpr}
+       {\TXT{(} \NT{BalancedExprs} \TXT{)} \OR
+        \TXT{[} \NT{BalancedExprs} \TXT{]} \OR
+        \TXT{\{} \NT{BalancedExprs} \TXT{\}} \OR
+        \TXT{begin} \NT{BalancedExprs} \TXT{end} \OR
+        \ifNew\TXT{all_true} \NT{BalancedExprs} \TXT{end} \OR
+        \TXT{some_true} \NT{BalancedExprs} \TXT{end} \OR
+        \TXT{cond} \NT{BalancedExprs} \TXT{end} \OR\fi
+        \TXT{if} \NT{BalancedExprs} \TXT{end} \OR
+        \TXT{case} \NT{BalancedExprs} \TXT{end} \OR
+        \TXT{receive} \NT{BalancedExprs} \TXT{end} \OR
+        \ifNew\TXT{try} \NT{BalancedExprs} \TXT{end} \OR\fi
+        \ifOld\TXT{query} \NT{BalancedExprs} \TXT{end} \OR\fi
+	\NT{OtherToken} \OR
+	\NT{BalancedExpr} \NT{BalancedExpr}}
+\end{rules}
+
+Macro expansion of a \NT{TokenSequence} is defined as follows.  Let us
+write $\langle\TZ{T}_1\ \TZ{T}_2\ \ldots\ \TZ{T}_k\rangle$ for the
+macro expansion of a \NT{TokenSequence} $\TZ{T}_1\ \TZ{T}_2\ \ldots\
+\TZ{T}_k$.  We write $\tau$ or $\tau'$ for an arbitrary sequence of
+tokens and $\beta_1$, \ldots, $\beta_k$ for $k$ balanced expressions,
+i.e., \NT{BalancedExpr} above.
+\begin{itemize}
+\item $\langle\text{\T{?}\ \TZ{A} $\tau$ \NT{FullStop}}\rangle = \langle\text{$\tau'$ $\tau$
+\NT{FullStop}}\rangle$\ if \TZ{A} is an atom and there is a macro definition for \TZ{A} with no
+parameters and a replacement sequence $\tau'$.
+\item $\langle\text{\T{?}\ \TZ{A} \T{(} $\beta_1$ \T{,}\ \ldots\ \T{,}\ $\beta_k$ \T{)} $\tau$ \NT{FullStop}}\rangle = \text{}$ \\
+\hfil$\langle\text{$\tau'$[$\beta_1$/$v_1$,\ldots,$\beta_1$/$v_k$] $\tau$ \NT{FullStop}}\rangle$ \\
+if \TZ{A} is an atom and there is a macro definition for \TZ{A} with $k$ parameters
+$v_1$, \ldots, $v_k$ and a replacement sequence $\tau'$.
+\item $\langle\text{\T{?}\ $\tau$ \NT{FullStop}}\rangle$\ in any other case is a compile-time error.
+\item $\langle\text{\TZ{T} $\tau$ \NT{FullStop}}\rangle = \text{\TZ{T} $\langle\text{$\tau$ \NT{FullStop}}\rangle$}$\
+where \TZ{T} is any token but \T{?}.
+\item $\langle\text{\NT{FullStop}}\rangle = \NT{FullStop}$.
+\end{itemize}
+To summarize in words, after \T{?}\ must follow a defined macro name.
+Either it is defined to have no parameters, in which case \T{?}\ and
+the atom are replaced by the expansion and macro expansion starts over from there,
+or it is defined to have a number of parameters in which case \T{?} and the atom
+must be followed by that many macro arguments.  In that case
+\T{?}, the atom and the macro arguments are replaced by the expansion in which each
+occurrence of a macro parameter has been replaced by the corresponding macro argument
+and macro expansion starts over from there.  If the first token is not \T{?}, it is
+made part of the result of the macro expansion.
+
+For example, suppose the following macro definitions are in force:
+\begin{verbatim}
+-define(foo,fum(?).
+-define(bar(X),(X))).
+\end{verbatim}
+They associate the macro name \T{foo} with no parameters and the three tokens \T{fum},
+\T{(} and \T{?}, and the macro name \T{bar} with one macro parameter \T{X} and an
+expansion consisting of \T{(}, the token sequence given as macro argument, \T{)} and \T{)} again.
+(This would be an extremely objectionable programming style.)
+Then the \NT{TokenSequence}
+\begin{verbatim}
+foo(X) -> ?foo bar(6*X).
+\end{verbatim}
+which consists of the thirteen tokens \T{foo}, \T{(}, \T{X}, \T{)}, \T{->},
+\T{?}, \T{foo}, \T{bar}, \T{(}, \T{6}, \T{*}, \T{X} and \T{)},
+followed by a full stop, is macro expanded to
+\begin{verbatim}
+foo(X) -> fum((6*X)).
+\end{verbatim}
+in the following steps:
+\begin{enumerate}
+\item $\langle\text{\T{foo ( X ) -> ? foo bar ( 6 * X )} \NT{FullStop}}\rangle$ \\
+The first five tokens (including the atom \T{foo} even though there happens to be a macro
+with that name) are unaffected by macro expansion.
+\item \T{foo ( X ) ->} $\langle\text{\T{? foo bar ( 6 * X )} \NT{FullStop}}\rangle$ \\
+The next two tokens are the separator \T{?}\ and the atom \T{foo}.  There is a macro definition
+of \T{foo} with no parameters and expansion consisting of the tokens \T{fum},
+\T{(} and \T{?}; thus \T{?}\ and \T{foo} are replaced by \T{fum}, \T{(} and \T{?}
+and macro expansion starts over from there.
+\item \T{foo ( X ) ->} $\langle\text{\T{fum ( ? bar ( 6 * X )} \NT{FullStop}}\rangle$ \\
+The next two tokens are unaffected by macro expansion.
+\item \T{foo ( X ) -> fum (} $\langle\text{\T{? bar ( 6 * X )} \NT{FullStop}}\rangle$ \\
+The next two tokens are \T{?} and \T{bar} and there is a macro definition of \T{bar} with
+one macro parameter. The macro argument consists of the tokens \T{6}, \T{*} and \T{X}.
+The tokens \T{?}, \T{bar}, \T{(}, \T{6}, \T{*}, \T{X} and \T{)} are then replaced with the
+expansion \T{(}, \T{6}, \T{*}, \T{X}, \T{)}, \T{)} and macro expansion starts over from there.
+\item \T{foo ( X ) -> fum (} $\langle\text{\T{( 6 * X ) )} \NT{FullStop}}\rangle$ \\
+The remaining six tokens are unaffected by macro expansion.
+\item \T{foo ( X ) -> fum ( ( 6 * X ) )} \NT{FullStop} \\
+Macro expansion is complete.
+\end{enumerate}
+
+Note that directives are not macro expanded (and their arguments are not evaluated).
+For example, it is not
+possible to write
+\begin{verbatim}
+-define(SRCDIR(FN),"/usr/local/src/myproj/" FN ".erl").
+
+-include(?SRCDIR("bliss")).
+\end{verbatim}
+because the argument of \T{include} must be an \NT{IncludeFileName}, i.e., a \NT{One\-String\-Literal}.
+\index{macro!expansion|)}
+
+\subsection{Initial set of macro definitions}
+
+\label{section:initial-macros}
+\index{macro!initial set|(}
+
+Initially the following three macros
+\ifOld are \fi
+\ifNew must be \fi
+defined, each one associated with no parameters:
+\begin{itemize}
+\item \T{?MODULE} is expanded to a single token: an atom literal that
+is the name of the module being compiled.
+\item \T{?FILE} is expanded to a single token which is a string
+literal that is a full path to the file that is being compiled.
+\item \T{?LINE} is expanded to a single token which is an integer
+literal that is the number of the line on which the \T{LINE} token
+appears.  If \T{LINE} occurs within a macro then \T{LINE} is expanded
+to the number of the line in which that macro is expanded.  Undefining
+or redefining the \T{LINE} macro has no effect. (Note that \T{LINE}
+does not have a fixed token sequence and has to be handled as a
+special case in the macro expansion.)
+\ifOld
+\item \T{?MACHINE} is expanded to a single token: an atom literal that
+is the name of the abstract \Erlang\ machine on which the compiler is
+running. The known abstract \Erlang\ machines are:
+\begin{itemize}
+\item \T{'JAM'}
+\item \T{'BEAM'}
+\item \T{'VEE'}
+\end{itemize}
+% Atoms for new abstract machines should be registered with Ericsson Software Technology AB.
+\fi
+\iffalse
+\item \T{?VERSION} is expanded to an integer token. An implementation supporting
+\NewErlang\ should expand \T{?VERSION} to \T{500}.  An implementation supporting
+\OldErlang\ should expand \T{?VERSION} to \T{470}.
+% Hellre lista???
+\fi
+% ?DATE ???
+\end{itemize}
+\ifNew
+An implementation may provide additional predefined macros, which
+should be documented.
+\fi
+\index{macro!initial set|)}
+
+\section{File inclusion}
+
+\label{section:include}
+\index{include directive@\T{include} directive|(}
+\index{include_lib directive@\T{include_lib} directive|(}
+\index{file!inclusion of|(}
+
+The \T{include} and \T{include_lib} directives splice in the contents
+of a file.
+
+\begin{rules}
+\grrule{IncludeDirective}
+       {\TXT{-} \TXT{include} \TXT{(} \NT{IncludeFileName} \TXT{)} \NT{FullStop}}
+
+\grrule{IncludeLibDirective}
+       {\TXT{-} \TXT{include_lib} \TXT{(} \NT{IncludeFileName} \TXT{)} \NT{FullStop}}
+
+\grrule{IncludeFileName}
+       {\NT{OneStringLiteral}}
+\end{rules}
+
+The difference between the \T{include} and \T{include_lib} directives
+lies in which paths are searched when the given filename is not
+absolute.  For \T{-include(\Z{F})}, file \TZ{F} is searched in each
+directory for which an include path was given to the compiler (option
+\T{\{i,\Z{Dir}\}}), in order (as if using \T{file:path_open/3} \cite[p.~230]{otp-dev-ref}).
+Also for \T{-include_lib(\Z{F})}, these paths are tried first.
+However, if the file is not found, then if \TZ{F} can be split into a
+string \TZ{L} that does not contain the character `\T{/}' and one
+string \TZ{N} that begins with `\T{/}', \TZ{L} is looked up as a
+library (i.e., as if it was given as argument to \T{code:lib_dir/1}
+\cite[p.~164]{otp-dev-ref}).  If that yields a path \TZ{P} to a
+library directory then the path which is the concatenation of
+\TZ{P} and \TZ{N} is used.
+
+It is a compile-time error if no readable file is found.
+
+The contents of the file is subject to lexical processing
+(\S\ref{chapter:lexical}).  It is an error if lexical processing of
+the contents of the included file does not yield a
+\NT{TerminatedTokens}, i.e., a sequence of \NT{TokenSequence}.
+
+The resulting sequence of \NT{TokenSequence} is processed exactly as
+described in this section.  While processing the included file, the
+\T{FILE} and \T{LINE} macros (\S\ref{section:initial-macros}) refer to
+the path of the included file and line numbers in it, respectively.
+The sequence of \NT{TokenSequence} that is the result of the
+preprocessing of the included file becomes part of the output of the
+preprocessing of the including sequence of \NT{TokenSequence} at the
+location of the \T{include} or \T{include_lib} directive.
+\index{include directive@\T{include} directive|)}
+\index{include_lib directive@\T{include_lib} directive|)}
+\index{file!inclusion of|)}
+
+\section{Conditional compilation}
+
+\label{section:condcomp}
+\index{conditional compilation|(}
+\index{ifdef directive@\T{ifdef} directive|(}
+\index{ifndef directive@\T{ifndef} directive|(}
+\index{else directive@\T{else} directive|(}
+\index{endif directive@\T{endif} directive|(}
+
+There are four directives related to conditional compilation and two additional
+directives for which syntax is reserved.
+
+\begin{rules}
+\grrule{IfdefDirective}
+       {\TXT{-} \TXT{ifdef} \TXT{(} \NT{MacroName} \TXT{)} \NT{FullStop}}
+\grrule{IfndefDirective}
+       {\TXT{-} \TXT{ifndef} \TXT{(} \NT{MacroName} \TXT{)} \NT{FullStop}}
+\grrule{ElseDirective}
+       {\TXT{-} \TXT{else} \NT{FullStop}}
+\grrule{EndifDirective}
+       {\TXT{-} \TXT{endif} \NT{FullStop}}
+\end{rules}
+
+It is a compile-time error if the sequence of \NT{TokenSequence} given
+to the preprocessing step does not contain matching triples or pairs
+of
+\begin{itemize}
+\item \NT{IfdefDirective}, \NT{ElseDirective} and \NT{EndifDirective};
+\item \NT{IfndefDirective}, \NT{ElseDirective} and \NT{EndifDirective};
+\item \NT{IfdefDirective} and \NT{EndifDirective};
+\item \NT{IfndefDirective} and \NT{EndifDirective}.
+\end{itemize}
+This must hold for a whole module definition as well as individually for each
+included file (\S\ref{section:include}).
+
+\index{skipping mode|(}
+\index{processing mode|(}
+If the compiler is in processing mode and
+encounters an \T{-ifdef(\Z{M})} directive [or \T{-ifndef(\Z{M})} directive],
+the compiler tests whether there is a
+macro definition for \TZ{M}.  If this is [not] the case, then the compiler continues in
+processing mode until it encounters the matching \T{else} or \T{endif} directive.  (Note that this
+may involve handling any number of enclosed nested triples or pairs of the kinds above.)
+If an \T{else} directive was encountered, the compiler continues in skipping [processing] mode until the
+matching \T{endif} directive is encountered.  In either case, after the \T{endif} directive,
+the compiler continues in processing mode.
+
+If the compiler is in skipping mode and encounters an \T{-ifdef(\Z{M})}
+or \T{-ifndef(\Z{M})} directive, it continues in skipping mode until
+it encounters the matching \T{else} or \T{endif} directive.  (Again,
+this may involve handling any number of enclosed nested triples or
+pairs of the kinds above.)  If an \T{else} directive was encountered,
+the compiler continues in skipping mode until the matching \T{endif}
+directive is encountered.  In either case, after the \T{endif}
+directive, the compiler continues in skipping mode.  Thus, it is
+obligatory for the compiler to keep track of the directives for
+conditional compilation also when in skipping mode.  For example, the
+compiler must report a compile-time error for a module containing the
+following directives:
+\begin{verbatim}
+-define(foo,42).
+-ifdef(foo).
+-else.
+-else
+-endif.
+\end{verbatim}
+
+The compiler may implement this mechanism in any suitable way, but the
+following machinery serves as an example and may clarify the
+description above.  Let the compiler have a state consisting of a
+register \T{Processing} and a stack.  \T{Processing} is
+either \T{true} or \T{false}.  Each stack item is a pair where the
+left half is either \T{if} or \T{else} and the right half is either
+\T{true} or \T{false}. Initially \T{Processing} is \T{true} and the
+stack is empty.  Here is what happens when the compiler encounters a
+\NT{TokenSequence}:
+\begin{itemize}
+\item If the \NT{TokenSequence} is \T{-ifdef(\Z{M})} or \T{-ifndef(\Z{M})}, then
+a pair of \T{if} and the value of \T{Processing} is pushed onto the stack.
+If \T{Processing} is \T{true} and either
+the \NT{TokenSequence} is \T{-ifdef(\Z{M})} and \TZ{M} has no macro definition,
+or the \NT{TokenSequence} is \T{-ifndef(\Z{M})} and \TZ{M} has a macro definition,
+then \T{Processing} is changed to \T{false}.
+\item If the \NT{TokenSequence} is \T{-else} then it is a compile-time error if
+the stack is empty or the left half of the top pair is not \T{if}.  The left half
+of the top pair is changed to \T{else} and the contents of \T{Processing} is set
+to the logical conjunction of the right half of the top pair and
+the negation of \T{Processing}.
+\item If the \NT{TokenSequence} is \T{-endif} then it is a compile-time error if
+the stack is empty.  \T{Processing} is set to the right half of the top stack pair
+and that pair is popped off the stack.
+\item If the \NT{TokenSequence} is anything else, then if \T{Processing} is \T{true},
+it is processed as described in \S\ref{section:preprocessing}, otherwise it is
+ignored.
+\end{itemize}
+\index{skipping mode|)}
+\index{processing mode|)}
+
+The directives \T{if}\index{if@\T{if}!(reserved) directive}
+and \T{elif}\index{elif (reserved) directive@\T{elif} (reserved) directive}
+(with any number of arguments) are
+reserved for future extension of conditional compilation.
+\index{conditional compilation|)}
+\index{ifdef directive@\T{ifdef} directive|)}
+\index{ifndef directive@\T{ifndef} directive|)}
+\index{else directive@\T{else} directive|)}
+\index{endif directive@\T{endif} directive|)}
+\index{module!preprocessing of|)}
+
+\section{Parsing}
+
+\label{section:parsing}
+\index{module!parsing|(}
+
+The sequence of \NT{TokenSequence} is parsed as a
+\NT{ModuleDeclaration} (\S\ref{section:module-declarations}).
+\index{parse tree!result of parsing|(}
+The result is a list of parse trees
+(one for each top-level form), which are
+represented as \Erlang\ terms (\S\ref{chapter:parse-trees}).
+\index{parse tree!result of parsing|)}
+\index{module!parsing|)}
+
+\section{Parse transforms}
+
+\label{section:parse-transform}
+\index{parse transform|(}
+\index{parse tree!in parse transform|(}
+
+A parse transform is a function mapping lists of parse trees to lists of
+parse trees.  Each parse transform is implemented by a separate module
+with an exported function named
+\T{parse_transform/1}\index{parse_transform/1 function@\T{parse_transform/1} function}.
+Suppose that the compiler has been instructed (through compiler options)
+to use the $k$
+parse transforms implemented by modules $\TZ{M}_1$, \ldots, $\TZ{M}_k$.
+(The order is relevant and is the same as the order in which the compiler
+options appear.)
+
+Let $\TZ{L}_0$ be the list of parse trees resulting from parsing the
+preprocessed sequence
+of \NT{TokenSequence}, represented as \Erlang\ terms (\S\ref{chapter:parse-trees}).
+For each $i$, $1\leq i\leq k$, let $\TZ{L}_i$ be the result of computing
+\begin{alltt}
+\(\Z{M}\sb{i}\):parse_transform(\(\Z{L}\sb{i-1}\))
+\end{alltt}
+if that computation completes normally.  The result must be a list of parse
+trees for a \NT{ModuleDeclaration} (just as $\TZ{L}_0$ is).
+If for some $\TZ{M}_i$, the computation completes abruptly or the result of the
+computation is not a list of parse trees for a \NT{ModuleDeclaration}, then
+it is a compile-time error.
+Otherwise, $\TZ{L}_k$ is used in the code
+generation step (\S\ref{section:code-generation}).
+\index{parse transform|)}
+\index{parse tree!in parse transform|)}
+
+\section{Code generation}
+
+\label{section:code-generation}
+\index{module!code generation|(}
+
+\index{parse tree!input to code generation|(}
+\index{binary!representation of compiled module|(}
+The code generation step takes a list of parse trees represented as \Erlang\ terms
+(\S\ref{chapter:parse-trees}) and produces a binary that contains a loadable
+representation of the module.
+\index{parse tree!input to code generation|)}
+That binary can either be loaded immediately
+(\S\ref{section:loading}) or be written to a file for later loading.
+The actual format of the binary is implementation-defined.
+\index{binary!representation of compiled module|)}
+\index{module!code generation|)}
+
+\iffalse
+% MID stuff
+\section{Loading a module}
+
+\label{section:loading}
+
+A binary is either available immediately, for example, directly from code generation
+(\S\ref{section:loading}) or read from a file.
+
+Loading the binary results in a \emph{module term}, as 
+described in \S\ref{section:module-terms}.  It is also possible to update
+the mapping of module names to module terms on the node onto which the binary is loaded,
+as described in \S\ref{section:module-names}.
+\fi

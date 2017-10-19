@@ -1,0 +1,354 @@
+%
+% %CopyrightBegin%
+%
+% Copyright Ericsson AB 2017. All Rights Reserved.
+%
+% Licensed under the Apache License, Version 2.0 (the "License");
+% you may not use this file except in compliance with the License.
+% You may obtain a copy of the License at
+%
+%     http://www.apache.org/licenses/LICENSE-2.0
+%
+% Unless required by applicable law or agreed to in writing, software
+% distributed under the License is distributed on an "AS IS" BASIS,
+% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+% See the License for the specific language governing permissions and
+% limitations under the License.
+%
+% %CopyrightEnd%
+%
+
+\chapter{Parse trees}
+
+\label{chapter:parse-trees}
+\index{parse tree!standard representation|(}
+
+In this appendix we define the standard representation of parse trees
+for \Erlang\ programs as \Erlang\ terms.  A
+\T{parse_transform/1}\index{parse_transform/1
+function@\T{parse_transform/1} function}
+(\S\ref{section:parse-transform}) takes a list of such terms as input
+and is expected to return a list of such terms.  We define the
+representation in a top-down way by first examining the forms that
+make up a module declaration and then going through their lexical
+constituents, etc.
+
+The representation admits representation of many parse trees that
+would be rejected by the grammar of \Erlang.  For example, it allows
+representation of a module declaration in which forms are not in a
+permitted order.
+
+\index{Rep@\Rep|(}
+We define the representation semi-formally through a function \Rep\
+that maps \Erlang\ formulas or sequences of formulas to \Erlang\
+terms.
+
+\index{L@\LINE|(}
+When we write \LINE, we mean an \Erlang\ integer that may be interpreted by
+software tools as a line number when reporting errors, etc.
+\index{L@\LINE|)}
+
+\section{Module declarations and forms}
+
+A module declaration consists of a sequence of forms that are either
+function declarations or attributes
+(\S\ref{section:module-declarations}).
+\begin{itemize}
+\item If \TZ{D} is a module declaration consisting of the forms
+$\TZ{F}_1$, \ldots, $\TZ{F}_k$, then
+\[\Rep(\TZ{D}) = \text{\T{[$\Rep(\Z{F}_1)$,\tdots,$\Rep(\Z{F}_k)$]}}.\]
+\item If \TZ{F} is an attribute \T{-module(\Z{Mod})}, then
+\[\Rep(\TZ{F}) = \text{\T{\{attribute,\LINE,module,\Z{Mod}\}}}.\]
+\item If \TZ{F} is an attribute \T{-export([$\Z{Fun}_1$/$\Z{A}_1$,\tdots,$\Z{Fun}_k$/$\Z{A}_k$])}, then
+\[\Rep(\TZ{F}) = \text{\T{\{attribute,\LINE,export,[\{$\Z{Fun}_1$,$\Z{A}_1$\},\tdots,\{$\Z{Fun}_k$,$\Z{A}_k$\}]\}}}.\]
+\item If \TZ{F} is an attribute \T{-import(\Z{Mod},[$\Z{Fun}_1$/$\Z{A}_1$,\tdots,$\Z{Fun}_k$/$\Z{A}_k$])},
+then
+\begin{align*}
+\Rep(\TZ{F}) =
+\text{\T{\{attribute,\LINE,import,\{\Z{Mod},[}}&\text{\T{\{$\Z{Fun}_1$,$\Z{A}_1$\},\tdots,}} \\
+                                               &\text{\T{\{$\Z{Fun}_k$,$\Z{A}_k$\}]\}\}}.}
+\end{align*}
+\item If \TZ{F} is an attribute \T{-compile([$\Z{T}_1$,\tdots,$\Z{T}_k$])}, then
+\[\Rep(\TZ{F}) = \text{\T{\{attribute,\LINE,compile,[$\Z{T}_1$,\tdots,$\Z{T}_k$]\}}}.\]
+\item If \TZ{F} is an attribute \T{-file(\Z{File},\Z{Line})}, then
+\[\Rep(\TZ{F}) = \text{\T{\{attribute,\LINE,file,\{$\Rep(\Z{File})$,$\Rep(\Z{Line})$\}\}}}.\]
+\item If \TZ{F} is a record declaration \T{-record(\Z{Name},\{$\Z{V}_1$,\tdots,$\Z{V}_k$\})}, then
+\begin{align*}
+\Rep(\TZ{F}) =
+\text{\T{\{attribute,\LINE,record,\{\Z{Name},[}}&\text{\T{$\Rep(\Z{V}_1)$,\tdots,}} \\
+                                                &\text{\T{$\Rep(\Z{V}_k)$]\}\}}.}
+\end{align*}
+\item If \TZ{F} is a wild attribute \T{-\Z{A}(\Z{T})}, then
+\[\Rep(\TZ{F}) = \text{\T{\{attribute,\LINE,\Z{A},\Z{T}\}}}.\]
+\item If \TZ{F} is a function declaration \T{\Z{Name}($\Z{Ps}_1$) $[\text{\T{when $\Z{Gs}_1$}}]$ -> $\Z{B}_1$ ; \tdots ; \Z{Name}($\Z{Ps}_k$) $[\text{\T{when $\Z{Gs}_k$}}]$ -> $\Z{B}_k$ end},
+where $k\geq1$ and each $\Z{Ps}_i$, $\Z{Gs}_i$ and $\Z{B}_i$, $1\leq i\leq k$,
+is a pattern sequence, a guard and a body, respectively (and $\Z{Gs}_i$ is \T{true} if
+omitted), and each $\Z{Ps}_i$, $1\leq i\leq k$, has the same length \Z{Arity}, then
+\begin{align*}
+\Rep(\TZ{F}) =
+\text{\T{\{}}&\text{\T{function,\LINE,\Z{Name},\Z{Arity},}} \\
+             &\text{\T{[\{clause,\LINE,$\Rep(\Z{Ps}_1)$,$\Rep(\Z{Gs}_1)$,$\Rep(\Z{B}_1)$\},\tdots,}} \\
+             &\text{\T{~\{clause,\LINE,$\Rep(\Z{Ps}_k)$,$\Rep(\Z{Gs}_k)$,$\Rep(\Z{B}_k)$\}]\}}.}
+\end{align*}
+\end{itemize}
+In addition to the representations of forms, the list that represents
+a module declaration may contain tuples \T{\{error,\Z{E}\}}, denoting
+syntactically incorrect forms, and \T{\{eof,\LINE\}}, denoting an end
+of stream encountered before a complete form had been parsed.
+
+Each field declaration in a record declaration is with or without an
+explicit default initializer expression
+(\S\ref{section:record-declarations}).
+\begin{itemize}
+\item If \TZ{V} is \TZ{A}, then
+\[\Rep(\TZ{V}) = \text{\T{\{record_field,\LINE,$\Rep(\Z{A})$\}}}.\]
+\item If \TZ{V} is \T{\Z{A} = \Z{E}}, then
+\[\Rep(\TZ{V}) = \text{\T{\{record_field,\LINE,$\Rep(\Z{A})$,$\Rep(\Z{E})$\}}}.\]
+\end{itemize}
+
+\section{Atomic literals}
+
+\label{section:atomic-literal-rep}
+
+There are five kinds of atomic literals, which are represented in the
+same way in patterns, expressions and guard expressions:
+\begin{itemize}
+\item If \TZ{L} is an integer literal, then
+\[\Rep(\TZ{L}) = \text{\T{\{integer,\LINE,\Z{L}\}}}.\]
+\item If \TZ{L} is a float literal, then
+\[\Rep(\TZ{L}) = \text{\T{\{float,\LINE,\Z{L}\}}}.\]
+\item If \TZ{L} is a character literal, then
+\ifStd
+\[\Rep(\TZ{L}) = \text{\T{\{char,\LINE,\Z{L}\}}}.\]
+\else
+\[\Rep(\TZ{L}) = \text{\T{\{integer,\LINE,\Z{L}\}}}.\]
+\fi
+\item If \TZ{L} is a string literal consisting of the characters
+$\TZ{C}_1$, \ldots, $\TZ{C}_k$, then
+\[\Rep(\TZ{L}) = \text{\T{\{string,\LINE,[$\Z{C}_1$,\tdots,$\Z{C}_k$]\}}}.\]
+\item If \TZ{L} is an atom literal, then
+\[\Rep(\TZ{L}) = \text{\T{\{atom,\LINE,\Z{L}\}}}.\]
+\end{itemize}
+
+\section{Patterns}
+
+For a sequence \TZ{Ps} of patterns $\TZ{P}_1$, \ldots, $\TZ{P}_k$,
+\[\Rep(\TZ{Ps}) = \text{\T{[$\Rep(\Z{P}_1)$,\tdots,$\Rep(\Z{P}_k)$]}}.\]
+
+\noindent Individual patterns are represented as follows:
+\begin{itemize}
+\item If \TZ{P} is a compound pattern \T{$\Z{P}_1$ = $\Z{P}_2$}, then
+\[\Rep(\TZ{P}) = \text{\T{\{match,\LINE,$\Rep(\Z{P}_1)$,$\Rep(\Z{P}_2)$\}}}.\]
+\item If \TZ{P} is an atomic literal \TZ{L}, then
+\[\Rep(\TZ{P}) = \Rep(\TZ{L}),\]
+cf.\ \S\ref{section:atomic-literal-rep}.
+\item If \TZ{P} is a variable pattern \TZ{V}, then
+\[\Rep(\TZ{P}) = \text{\T{\{var,\LINE,\TZ{A}\}}},\]
+where \TZ{A} is an atom with a printname that constitutes the same characters as \TZ{V}.
+\item If \TZ{P} is a universal pattern \T{_}, then
+\[\Rep(\TZ{P}) = \text{\T{\{var,\LINE,'_'\}}}.\]
+\item If \TZ{P} is a tuple pattern \T{\{$\Z{P}_1$,\tdots,$\Z{P}_k$\}}, then
+\[\Rep(\TZ{P}) = \text{\T{\{tuple,\LINE,[$\Rep(\Z{P}_1)$,\tdots,$\Rep(\Z{P}_k)$]\}}}.\]
+\item If \TZ{P} is a nil pattern \T{[]}, then
+\[\Rep(\TZ{P}) = \text{\T{\{nil,\LINE\}}}.\]
+\item If \TZ{P} is a cons pattern \T{[$\Z{P}_h$|$\Z{P}_t$]}, then
+\[\Rep(\TZ{P}) = \text{\T{\{cons,\LINE,$\Rep(\Z{P}_h)$,$\Rep(\Z{P}_t)$\}}}.\]
+\item If \TZ{P} is a record pattern \T{\char`\#\TZ{Name}\{$\Z{Field}_1$=$\Z{P}_1$,\tdots,$\Z{Field}_k$=$\Z{P}_k$\}}, then
+\begin{align*}
+\Rep(\TZ{P}) =
+\text{\T{\{}}&\text{\T{record,\LINE,\Z{Name},}} \\
+             &\text{\T{[\{record_field,\LINE,$\Rep(\Z{Field}_1)$,$\Rep(\Z{P}_1)$\},\tdots,}} \\
+             &\text{\T{~\{record_field,\LINE,$\Rep(\Z{Field}_k)$,$\Rep(\Z{P}_k)$\}]\}}.}
+\end{align*}
+\end{itemize}
+
+\section{Expressions}
+
+\label{section:expressions-rep}
+
+A body \TZ{B} is a sequence of expressions \T{$\Z{E}_1$, \ldots, $\Z{E}_k$},
+where $k\geq 1$, and
+\[\Rep(\TZ{B}) = \text{\T{[$\Rep(\Z{E}_1)$,\tdots,$\Rep(\Z{E}_k)$]}}.\]
+
+%For a sequence \TZ{Es} of expressions $\TZ{E}_1$, \ldots, $\TZ{E}_k$,
+%\[\Rep(\TZ{Es}) = \text{\T{[$\Rep(\Z{E}_1)$,\tdots,$\Rep(\Z{E}_k)$]}}.\]
+
+\noindent An expression \TZ{E} is one of the following alternatives:
+\begin{itemize}
+\item If \TZ{E} is \T{catch $\Z{E}_0$}, then
+\[\Rep(\TZ{E}) = \text{\T{\{'catch',\LINE,$\Rep(\Z{E}_0)$\}}}.\]
+\item If \TZ{E} is \T{\Z{P} = $\Z{E}_0$}, then
+\[\Rep(\TZ{E}) = \text{\T{\{match,\LINE,$\Rep(\Z{P})$,$\Rep(\Z{E}_0)$\}}}.\]
+%\item If \TZ{E} is \T{$\Z{E}_1$ !\ $\Z{E}_2$}, then
+%\[\Rep(\TZ{E}) = \text{\T{\{op,\LINE,'!',$\Rep(\Z{E}_1)$,$\Rep(\Z{E}_2)$\}}}.\]
+\item If \TZ{E} is \T{$\Z{E}_1$ \Z{Op} $\Z{E}_2$}, where \TZ{Op} is \T{!}, \T{or}, \T{and},
+a \NT{RelationalOp}, an \NT{EqualityOp}, a \NT{ListConcOp}, an \NT{AdditionOp},
+a \NT{ShiftOp} or a \NT{MultiplicationOp}, then
+\[\Rep(\TZ{E}) = \text{\T{\{op,\LINE,\Z{Op},$\Rep(\Z{E}_1)$,$\Rep(\Z{E}_2)$\}}}.\]
+\item If \TZ{E} is \T{\Z{Op} $\Z{E}_0$}, where \TZ{Op} is a \NT{PrefixOp}, then
+\[\Rep(\TZ{E}) = \text{\T{\{op,\LINE,\Z{Op},$\Rep(\Z{E}_0)$\}}}.\]
+\item If \TZ{E} is \T{\char`\#\Z{Name}.\Z{Field}}, then
+\[\Rep(\TZ{E}) = \text{\T{\{record_index,\LINE,\Z{Name},$\Rep(\Z{Field})$\}}}.\]
+\item If \TZ{E} is \T{$\Z{E}_0$\char`\#\Z{Name}.\Z{Field}}, then
+\[\Rep(\TZ{E}) = \text{\T{\{record_field,\LINE,$\Rep(\Z{E}_0)$,\Z{Name},$\Rep(\Z{Field})$\}}}.\]
+\item If \TZ{E} is \T{\char`\#\Z{Name}\{$\Z{Field}_1$=$\Z{E}_1$,\tdots,$\Z{Field}_k$=$\Z{E}_k$\}}, then
+\begin{align*}
+\Rep(\TZ{E}) =
+\text{\T{\{}}&\text{\T{record,\LINE,\Z{Name},}} \\
+             &\text{\T{[\{record_field,\LINE,$\Rep(\Z{Field}_1)$,$\Rep(\Z{E}_1)$\},\tdots,}} \\
+             &\text{\T{~\{record_field,\LINE,$\Rep(\Z{Field}_k)$,$\Rep(\Z{E}_k)$\}]\}}.}
+\end{align*}
+\item If \TZ{E} is \T{$\Z{E}_0$\char`\#\Z{Name}\{$\Z{Field}_1$=$\Z{E}_1$,\tdots,$\Z{Field}_k$=$\Z{E}_k$\}}, then
+\begin{align*}
+\Rep(\TZ{E}) =
+\text{\T{\{}}&\text{\T{record,\LINE,$\Rep(\Z{E}_0)$,\Z{Name},}} \\
+             &\text{\T{[\{record_field,\LINE,$\Rep(\Z{Field}_1)$,$\Rep(\Z{E}_1)$\},\tdots,}} \\
+             &\text{\T{~\{record_field,\LINE,$\Rep(\Z{Field}_k)$,$\Rep(\Z{E}_k)$\}]\}}.}
+\end{align*}
+\item If \TZ{E} is \T{$\Z{E}_0$($\Z{E}_1$,\tdots,$\Z{E}_k$)} (the case where
+$\Z{E}_0$ is an atom is not distinguished), then
+\[\Rep(\TZ{E}) = \text{\T{\{call,\LINE,$\Rep(\Z{E}_0)$,[$\Rep(\Z{E}_1)$,\tdots,$\Rep(\Z{E}_k)$]\}}}.\]
+\item If \TZ{E} is \T{$\TZ{E}_m$:$\Z{E}_0$($\Z{E}_1$,\tdots,$\Z{E}_k$)}, then
+\begin{align*}
+\Rep(\TZ{E}) =
+\text{\T{\{call,\LINE,\{remote,\LINE,$\Rep(\Z{E}_m)$,$\Rep(\Z{E}_0)$\},[}}&\text{\T{$\Rep(\Z{E}_1)$,\tdots,}} \\
+                                                                          &\text{\T{$\Rep(\Z{E}_k)$]\}}.}
+\end{align*}
+\item If \TZ{E} is a variable \TZ{V}, then
+\[\Rep(\TZ{E}) = \text{\T{\{var,\LINE,\TZ{A}\}}},\]
+where \TZ{A} is an atom with a printname that constitutes the same characters as \TZ{V}.
+\item If \TZ{P} is an atomic literal \TZ{L}, then
+\[\Rep(\TZ{P}) = \Rep(\TZ{L}),\]
+cf.\ \S\ref{section:atomic-literal-rep}.
+\item If \TZ{E} is a tuple skeleton \T{\{$\Z{E}_1$,\tdots,$\Z{E}_k$\}}, then
+\[\Rep(\TZ{E}) = \text{\T{\{tuple,\LINE,[$\Rep(\Z{E}_1)$,\tdots,$\Rep(\Z{E}_k)$]\}}}.\]
+\item If \TZ{E} is \T{[]}, then
+\[\Rep(\TZ{E}) = \text{\T{\{nil,\LINE\}}}.\]
+\item If \TZ{E} is a cons skeleton \T{[$\Z{E}_h$|$\Z{E}_t$]}, then
+\[\Rep(\TZ{E}) = \text{\T{\{cons,\LINE,$\Rep(\Z{E}_h)$,$\Rep(\Z{E}_t)$\}}}.\]
+\item If \TZ{E} is a list comprehension \T{[$\Z{E}_0$ || $\Z{W}_1$, \tdots, $\Z{W}_k$]},
+where each $\TZ{W}_i$, $1\leq i\leq k$, is a generator or a filter, then
+\[\Rep(\TZ{E}) = \text{\T{\{lc,\LINE,$\Rep(\Z{E}_0)$,[$\Rep(\Z{W}_1)$,\tdots,$\Rep(\Z{W}_k)$]\}}}.\]
+\item If \TZ{E} is \T{begin \TZ{B} end}, where \TZ{B} is a body, then
+\[\Rep(\TZ{E}) = \text{\T{\{block,\LINE,$\Rep(\Z{B})$\}}}.\]
+\ifStd
+\item If \TZ{E} is \T{cond $\Z{E}_1$ -> $\Z{B}_1$ ; \tdots ; $\Z{E}_k$ -> $\Z{B}_k$ end},
+where $k\geq1$ and each $\Z{E}_i$ and $\Z{B}_i$, $1\leq i\leq k$, is an expression
+and a body, respectively, then
+\begin{align*}
+\Rep(\TZ{E}) =
+\text{\T{\{'cond',\LINE,[}}&\text{\T{\{c_clause,\LINE,$\Rep(\Z{E}_1)$,$\Rep(\Z{B}_1)$\},\tdots,}} \\
+                           &\text{\T{\{c_clause,\LINE,$\Rep(\Z{E}_k)$,$\Rep(\Z{B}_k)$\}]\}}.}
+\end{align*}
+\fi
+\item If \TZ{E} is \T{if $\Z{Gs}_1$ -> $\Z{B}_1$ ; \tdots ; $\Z{Gs}_k$ -> $\Z{B}_k$ end},
+where $k\geq1$ and each $\Z{Gs}_i$ and $\Z{B}_i$, $1\leq i\leq k$, is a guard and a body,
+respectively, then
+\begin{align*}
+\Rep(\TZ{E}) =
+\text{\T{\{'if',\LINE,[}}&\text{\T{\{clause,\LINE,[],$\Rep(\Z{Gs}_1)$,$\Rep(\Z{B}_1)$\},\tdots,}} \\
+                         &\text{\T{\{clause,\LINE,[],$\Rep(\Z{Gs}_k)$,$\Rep(\Z{B}_k)$\}]\}}.}
+\end{align*}
+\item If \TZ{E} is \T{case $\Z{E}_0$ of $\Z{P}_1$ $[\text{\T{when $\Z{Gs}_1$}}]$ -> $\Z{B}_1$ ; \tdots ; $\Z{P}_k$ $[\text{\T{when $\Z{Gs}_k$}}]$ -> \\ $\Z{B}_k$ end},
+where $\TZ{E}'$ is an expression, $k\geq1$ and each $\Z{P}_i$, $\Z{Gs}_i$ and $\Z{B}_i$, $1\leq i\leq k$,
+is a pattern, a guard and a body, respectively (and $\Z{Gs}_i$ is \T{true} if
+omitted), then
+\begin{align*}
+\Rep(\TZ{E}) =
+\text{\T{\{}}&\text{\T{'case',\LINE,$\Rep(\Z{E}_0)$,}} \\
+             &\text{\T{[\{clause,\LINE,[$\Rep(\Z{P}_1)$],$\Rep(\Z{Gs}_1)$,$\Rep(\Z{B}_1)$\},\tdots,}} \\
+             &\text{\T{~\{clause,\LINE,[$\Rep(\Z{P}_k)$],$\Rep(\Z{Gs}_k)$,$\Rep(\Z{B}_k)$\}]\}}.}
+\end{align*}
+\item If \TZ{E} is \T{receive $\Z{P}_1$ $[\text{\T{when $\Z{Gs}_1$}}]$ -> $\Z{B}_1$ ; \tdots ; $\Z{P}_k$ $[\text{\T{when $\Z{Gs}_k$}}]$ -> $\Z{B}_k$ end},
+where $k\geq1$ and each $\Z{P}_i$, $\Z{Gs}_i$ and $\Z{B}_i$, $1\leq i\leq k$,
+is a pattern, a guard and a body, respectively (and $\Z{Gs}_i$ is \T{true} if
+omitted), then
+\begin{align*}
+\Rep(\TZ{E}) =
+\text{\T{\{}}&\text{\T{'receive',\LINE,}} \\
+             &\text{\T{[\{clause,\LINE,[$\Rep(\Z{P}_1)$],$\Rep(\Z{Gs}_1)$,$\Rep(\Z{B}_1)$\},\tdots,}} \\
+             &\text{\T{~\{clause,\LINE,[$\Rep(\Z{P}_k)$],$\Rep(\Z{Gs}_k)$,$\Rep(\Z{B}_k)$\}]\}}.}
+\end{align*}
+\item If \TZ{E} is \T{receive $\Z{P}_1$ $[\text{\T{when $\Z{Gs}_1$}}]$ -> $\Z{B}_1$ ; \tdots ; $\Z{P}_k$ $[\text{\T{when $\Z{Gs}_k$}}]$ -> $\Z{B}_k$ after $\TZ{E}'$ -> $\Z{B}_{k+1}$ end},
+where $k\geq1$, each $\Z{P}_i$, $\Z{Gs}_i$ and $\Z{B}_i$, $1\leq i\leq k$,
+is a pattern, a guard and a body, respectively (and $\Z{Gs}_i$ is \T{true} if
+omitted), $\TZ{E}'$ is an expression and $\TZ{B}_{k+1}$ is a body, then
+\begin{align*}
+\Rep(\TZ{E}) =
+\text{\T{\{}}&\text{\T{'receive',\LINE,}} \\
+             &\text{\T{[\{clause,\LINE,[$\Rep(\Z{P}_1)$],$\Rep(\Z{Gs}_1)$,$\Rep(\Z{B}_1)$\},\tdots,}} \\
+             &\text{\T{~\{clause,\LINE,[$\Rep(\Z{P}_k)$],$\Rep(\Z{Gs}_k)$,$\Rep(\Z{B}_k)$\}],}} \\
+             &\text{\T{$\Rep(\Z{E}_0)$,$\Rep(\Z{B}_{k+1})$\}}.}
+\end{align*}
+\ifStd
+\item If \TZ{E} is \T{try $\Z{B}$ catch $\Z{P}_1$ $[\text{\T{when $\Z{Gs}_1$}}]$ -> $\Z{B}_1$ ; \tdots ; $\Z{P}_k$ $[\text{\T{when $\Z{Gs}_k$}}]$ -> $\Z{B}_k$ end},
+where \TZ{B} is a body, $k\geq1$ and each $\Z{P}_i$, $\Z{Gs}_i$ and $\Z{B}_i$, $1\leq i\leq k$,
+is a pattern, a guard and a body, respectively (and $\Z{Gs}_i$ is \T{true} if
+omitted), then
+\begin{align*}
+\Rep(\TZ{E}) =
+\text{\T{\{}}&\text{\T{'try',\LINE,$\Rep(\Z{B})$,}} \\
+             &\text{\T{[\{clause,\LINE,[$\Rep(\Z{P}_1)$],$\Rep(\Z{Gs}_1)$,$\Rep(\Z{B}_1)$\},\tdots,}} \\
+             &\text{\T{~\{clause,\LINE,[$\Rep(\Z{P}_k)$],$\Rep(\Z{Gs}_k)$,$\Rep(\Z{B}_k)$\}]\}}.}
+\end{align*}
+\item If \TZ{E} is \T{try $\Z{B}$ end},
+where \TZ{B} is a body, then
+\[\Rep(\TZ{E}) = \text{\T{\{'try',\LINE,$\Rep(\Z{B})$,[]\}}}.\]
+\fi
+\item If \TZ{E} is \T{fun \Z{Name}/\Z{Arity}}, then
+\[\Rep(\TZ{E}) = \text{\T{\{'fun',\LINE,\{function,\Z{Name},\Z{Arity}\}\}}}.\]
+\item If \TZ{E} is \T{fun $\Z{P}_1$ $[\text{\T{when $\Z{Gs}_1$}}]$ -> $\Z{B}_1$ ; \tdots ; $\Z{P}_k$ $[\text{\T{when $\Z{Gs}_k$}}]$ -> $\Z{B}_k$ end},
+where $k\geq1$ and each $\Z{P}_i$, $\Z{Gs}_i$ and $\Z{B}_i$, $1\leq i\leq k$,
+is a pattern, a guard and a body, respectively (and $\Z{Gs}_i$ is \T{true} if
+omitted), then
+\begin{align*}
+\Rep(\TZ{E}) =
+\text{\T{\{'fun',\LINE,\{}}&\text{\T{clauses,}} \\
+                           &\text{\T{[\{clause,\LINE,[$\Rep(\Z{P}_1)$],$\Rep(\Z{Gs}_1)$,$\Rep(\Z{B}_1)$\}]\},}} \\
+                           &\text{\T{\tdots,}} \\
+                           &\text{\T{~\{clause,\LINE,[$\Rep(\Z{P}_k)$],$\Rep(\Z{Gs}_k)$,$\Rep(\Z{B}_k)$\}]\}\}}.}
+\end{align*}
+\ifOld
+\item If \TZ{E} is \T{query [$\Z{E}_0$ || $\Z{W}_1$,\tdots,$\Z{W}_k$] end},
+where each $\TZ{W}_i$, $1\leq i\leq k$, is a generator or a filter, then
+\[\Rep(\TZ{E}) = \text{\T{\{'query',\LINE,\{lc,\LINE,$\Rep(\Z{E}_0)$,[$\Rep(\Z{W}_1)$,\tdots,$\Rep(\Z{W}_k)$]\}\}}}.\]
+\item If \TZ{E} is \T{$\Z{E}_0$.\Z{Field}}, a Mnesia record access
+inside a \T{query}, then
+\[\Rep(\TZ{E}) = \text{\T{\{record_field,\LINE,$\Rep(\Z{E}_0)$,$\Rep(\Z{Field})$\}}}.\]
+\fi
+\item If \TZ{E} is \T{( $\TZ{E}'$ )}, then
+\[\Rep(\TZ{E}) = \Rep(\TZ{E}'),\]
+i.e., parenthesized expressions cannot be distinguished from their bodies.
+\end{itemize}
+When \TZ{W} is a generator or a filter (in the body of a list comprehension), then:
+\begin{itemize}
+\item If \TZ{W} is a generator \T{\Z{P} <- \Z{E}}, where \TZ{P} is a pattern and \TZ{E}
+is an expression, then
+\[\Rep(\TZ{W}) = \text{\T{\{generate,\LINE,$\Rep(\Z{P})$,$\Rep(\Z{E})$\}}}.\]
+\item If \TZ{W} is a filter \TZ{E}, which is an expression, then
+\[\Rep(\TZ{W}) = \Rep(\TZ{E}).\]
+\end{itemize}
+
+\section{Guards}
+
+A guard \TZ{Gs} is a nonempty sequence of guard tests $\TZ{G}_1$, \ldots, $\TZ{G}_k$, and
+\[\Rep(\TZ{Gs}) = \text{\T{[$\Rep(\Z{G}_1)$,\tdots,$\Rep(\Z{G}_k)$]}}.\]
+
+A guard test \TZ{G} is either \T{true}, an application of a BIF to a sequence of guard
+expressions (syntactically this includes guard record tests), or a binary operator
+applied to two guard expressions.
+\begin{itemize}
+\item If \TZ{G} is \T{true}, then
+\[\Rep(\TZ{G}) = \text{\T{\{atom,\LINE,true\}}}.\]
+\item If \TZ{G} is an application \T{\Z{A}($\Z{E}_1$,\tdots,$\Z{E}_k$)}, where \TZ{A}
+is an atom and $\TZ{E}_1$, \ldots, $\TZ{E}_k$ are guard expressions, then
+\[\Rep(\TZ{G}) = \text{\T{\{call,\LINE,\{atom,\LINE,\Z{A}\},[$\Rep(\Z{E}_1)$,\tdots,$\Rep(\Z{E}_k)$]\}}}.\]
+\item If \TZ{G} is an operator expression \T{$\Z{E}_1$ \Z{Op} $\Z{E}_2$}, where \TZ{Op}
+is a \NT{RelationalOp} or an \NT{EqualityOp}, and $\TZ{E}_1$, $\TZ{E}_2$ are guard
+expressions, then
+\[\Rep(\TZ{G}) = \text{\T{\{op,\LINE,\Z{Op},$\Rep(\Z{E}_1)$,$\Rep(\Z{E}_2)$\}}}.\]
+\end{itemize}
+All guard expressions are expressions and are represented in the same way as
+the corresponding expressions, cf.\ \S\ref{section:expressions-rep}.
+\index{Rep@\Rep|)}
+\index{parse tree!standard representation|)}

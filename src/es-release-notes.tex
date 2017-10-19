@@ -1,0 +1,234 @@
+%
+% %CopyrightBegin%
+%
+% Copyright Ericsson AB 2017. All Rights Reserved.
+%
+% Licensed under the Apache License, Version 2.0 (the "License");
+% you may not use this file except in compliance with the License.
+% You may obtain a copy of the License at
+%
+%     http://www.apache.org/licenses/LICENSE-2.0
+%
+% Unless required by applicable law or agreed to in writing, software
+% distributed under the License is distributed on an "AS IS" BASIS,
+% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+% See the License for the specific language governing permissions and
+% limitations under the License.
+%
+% %CopyrightEnd%
+%
+
+\chapter*{``Release notes'' for \Draft{0.7}}
+
+This draft has the following important differences from \Draft{0.6}:
+
+\begin{itemize}
+\item Cleaned up meaning of \Erlang.
+\item Removed \StdErlang\ lexical rules from lexical summary. (Used
+Std test in ALL \Std\ rules)
+\item Switch expression of case fixed.
+\item LineTerminator is only LF in \OldErlang.  Warn about using
+whitespace after \TXT{\$}.
+\item Fix recognizer BIFs in \OldErlang\ to be only guard
+recognizers.
+\item Re-did macro definition and application syntax.  Hopefully
+correct.
+\item All numeric literals (Integer, Decimal, ExplicitRadix and Float)
+are now unsigned in the lexical structure.
+\item Made the logical operators have the same priorities as the
+additive and multiplicative operators, as they should.
+\item Atomic literals now defined in the expression chapter as this is
+where values are explained.
+\end{itemize}
+
+\chapter*{``Release notes'' for \Draft{0.6}}
+
+This draft has the following important differences from \Draft{0.5}:
+
+\begin{itemize}
+\item There is now an index (laboriously compiled).
+\item There is a neat summary of all \Erlang\ expressions in \S\ref{chapter:summary-exprs}.
+\item Function application is now described.
+\item Records are now described.
+\item Ports are now fully (?) described.
+\item Dynamic code loading is now fully (?) described.
+\item The external term format is now described.
+\item The portable (?) hash function is now described.
+\item Parse trees are now described.
+\item Added \T{try \Z{E} end} to be almost equivalent with
+\T{catch \Z{E}}.
+\item The description of atoms has changed (\S\ref{section:atoms}).
+\item All BIFs of \OldErlang\ are described (\S\ref{chapter:bifs}), except two:
+\T{set_node/2} and \T{set_node/3}.
+\item Exact equality and arithmetic equality (formerly called coerced equality)
+are now well-defined, I think (\S\ref{section:equality}).
+\item The section about Unicode escapes \ifStd (\S\ref{section:unicode-escapes}) \fi
+is now written.
+\item Lowered minimum \I{maxint} to $2^{59}-1$ (it was $2^{63}-1$)
+so that on a 64-bit machine
+an implementation without bignums can store all numbers as scalars with four
+bits for a tag etc.
+%\item The exit cause \T{badarith} has disappeared and been replaced by \T{badarg}.
+\item Operators \T{//} and \T{mod} have been added (computing the same as
+\T{div} and \T{rem} except that they round towards negative infinity rather
+than zero).
+\item Extent of function calls and last call optimization has been defined
+(\S\ref{section:extent-function-calls}).
+\item Dropped type and rule declarations completely from the specification.
+\item Scheduling and waiting in \T{receive} expressions is described more precisely.
+\end{itemize}
+
+I am considering:
+\begin{itemize}
+\item Moving \S\ref{section:coding-pattern-matching} to an appendix.
+\end{itemize}
+
+Note:
+\begin{itemize}
+\item In the version for \StdErlang, I have assumed that the proposal
+about new BIFs will be accepted, hence there are quite a lot of
+references to such BIFs.  However, they are not described yet, hence
+there are also quite a lot of unresolved cross-references in the
+\StdErlang\ version.  If the BIF proposal is not accepted, then
+I will change to use the current BIFs also in that version, of course.
+\end{itemize}
+
+The following is what remains:
+\begin{itemize}
+\item Checking release notes for R4.
+\item The BIFs \T{set_node/2} (\S\ref{section:setnode2}) and
+\T{set_node/3} (\S\ref{section:setnode3}).
+\item Adding appendix about EPMD and \Erlang\ to \Erlang\ node communication.
+\item If remaining proposals are accepted, incorporating them (the new BIFs is a hog,
+the rest is fairly easy).
+\item Checking that monitoring of nodes is described properly.
+\end{itemize}
+
+PLEASE, DRAFT READERS: THERE ARE PLACES IN THE TEXT WHERE I REQUEST
+INFORMATION, ESPECIALLY ABOUT VARIOUS PARAMETERS OF ERLANG 4.7.  IF
+YOU KNOW THESE THINGS, EMAIL ME!
+
+\chapter*{``Release notes'' for \Draft{0.5}}
+
+This draft has the following important differences from \Draft{0.4}:
+
+\begin{itemize}
+\item It has been added to the introduction how the specification
+relates to the \Erlang\ language and the implementations \OldErlang\
+and \NewErlang.
+\item Some notions have been added to the glossary: expression,
+operator, macro and term.
+\item Macro \T{?VERSION} added.  Comments?
+\item The description of equality tests is not quite accurate, will rewrite.
+\item The evaluation order has been updated to be strictly left-to-right.
+\item The section about guards (\S\ref{section:guards}) has been rewritten on
+considerably simpler form.
+\item The directionality when relating input and output environments has been made more clear.
+\item It should now be even clearer that clauses are tried left to right and that
+in \T{receive} expressions, all clauses are tried for a term in the message queue before
+the next term is tried.
+\item The terminology for abrupt completion has been made more uniform.
+\item New chapter (\S\ref{chapter:arithmetics}) about arithmetics (LIA-1 based).
+\item New (but not yet complete) chapter (\S\ref{chapter:more-about-ports}) about ports.
+\item The format for BIF descriptions has evolved and many BIFs described.
+\item The section about scheduling (\S\ref{section:scheduling}) has been improved.
+\item New (short) sections about lifetime of terms (\S\ref{section:life-time}) and about
+memory management (\S\ref{section:memory-management}).
+\end{itemize}
+
+Some things that are planned to be improved (and thus do not need to
+be commented upon in the \Draft{0.5} if you agree):
+\begin{itemize}
+\item I will try to reduce the number of forward references further.
+\end{itemize}
+
+Known unclear issues:
+\begin{itemize}
+\item How should shadowing of BIFs work for those that are guard BIFs?
+\end{itemize}
+
+I have not gone through all comments from Torbj\"{o}rn Keisu.  They
+should be incorporated in release 0.5.1.
+
+\chapter*{``Release notes'' for \Draft{0.4}}
+
+This draft has the following important differences from \Draft{0.3.1}:
+
+\begin{itemize}
+\item `\TXT{.}'\ and `\TXT{?}' are now listed as separators.
+\item Full stops are detected properly (before white space and comments have been thrown
+away).
+\item The structure of a module is now described as consisting of
+\begin{itemize}
+\item First a module declaration \T{-module(\Z{ModuleName})}.
+\item Then any \emph{header forms}, i.e., \T{export}, \T{import} and \T{compile}
+attributes, together with \T{type} and \T{rule} declarations.
+\item Then the \emph{program forms}, i.e., function declarations mixed with
+\T{file} and wild attributes, record declarations and macro definitions.
+\end{itemize}
+\item The compilation of \Erlang\ programs is now described in detail in
+\S\ref{chapter:compilation}.
+\item A \emph{list} is now either \T{[]} or a cons in which the right part is a list.
+\item The description of coercion has been improved (\S\ref{section:coercion}).
+\end{itemize}
+
+I have taken (most of) the written comments on 0.3 and/or 0.3.1 by
+HÂkan and Per Mildner into account.
+
+Some things that are planned to be improved (and thus do not need to
+be commented upon in the \Draft{0.4} if you agree):
+\begin{itemize}
+\item Express better the directionality when relating input and output environments
+of expressions.
+\item Express arithmetics in terms of LIA-1.
+\item Change the writing so that becomes clear that clauses (in \T{case} etc) are
+tried left to right.
+\item Make the writing for \T{receive} expressions \emph{even} clearer concerning
+the fact that for each message, each clause is tried before the next message is
+considered.
+\item Use a more consistent terminology for abrupt completion and its \\ causes.
+\item The BIF Chapter (\S\ref{chapter:bifs}) is both incomplete and requiring changes.
+\item Assuming that the revised proposal about evaluation order is accepted,
+the evaluation order will be changed to strict left-to-right everywere.
+\end{itemize}
+
+\chapter*{``Release notes'' for \Draft{0.3.1}}
+
+This draft has the following important differences from \Draft{0.3}:
+
+\begin{itemize}
+\item Various typos have been fixed (in particular the ones in \S\ref{section:match-expr}
+and \S\ref{section:send-expr}
+about match and send expressions and in \S\ref{section:moduleinfo1} about \T{module_info/1}
+for \T{imports}).
+\item The operator \T{and} is no longer also listed as a keyword
+(\S\ref{section:keywords}).
+\item The proposed new escape sequence \verb|\s| (for space) is described
+(\S\ref{section:escapes}).
+\item The blurb about process communcation has been removed from the
+introduction of binaries (\S\ref{section:binaries}).
+\item Records are now in the term order (between tuples and lists)
+described in \S\ref{section:term-order}.
+\item The \T{unregistered_name} error handler has been removed
+(\S\ref{section:send-expr}), on request from Klacke and Tony.
+\item The description of the list difference operator \T{--} has been
+fixed so now it may be correct (\S\ref{section:list-subtraction}).
+\item The description of \T{receive} expressions has been somewhat adjusted
+to accord better with reality and with the intentions (\S\ref{section:receive-expr}).
+\item The descriptions of how the clauses in \T{if}, \T{case}, \T{receive}, \T{try}
+and \T{fun}
+expressions are checked have been improved to increase clarity
+(\S\ref{section:if-expr}, \S\ref{section:case-expr}, \S\ref{section:receive-expr},
+\ifStd \S\ref{section:try-expr}, \fi \S\ref{section:fun-exprs}).
+\item The description of \T{receive} expressions has been significantly
+improved and may be correct (\S\ref{section:fun-exprs}).
+\item The missing Section~\ref{section:guards} about guards is no longer missing.
+\item \S\ref{chapter:processes} has been almost completely rewritten and
+uses a new concept of \emph{signals} that comprises messages and exit signals,
+as well as link/unlink requests, etc.  (This is actually how it is implemented
+in the `5.0' system and the presentation becomes more precise.)
+\item The priority \T{high} has been added (\S\ref{chapter:processes}).
+\end{itemize}
+
+I have taken the written comments on 0.3 by Klacke and Tony into account.
+The comments by Per Mildner remain (I forgot to bring them to Stockholm).

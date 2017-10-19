@@ -1,0 +1,573 @@
+%
+% %CopyrightBegin%
+%
+% Copyright Ericsson AB 2017. All Rights Reserved.
+%
+% Licensed under the Apache License, Version 2.0 (the "License");
+% you may not use this file except in compliance with the License.
+% You may obtain a copy of the License at
+%
+%     http://www.apache.org/licenses/LICENSE-2.0
+%
+% Unless required by applicable law or agreed to in writing, software
+% distributed under the License is distributed on an "AS IS" BASIS,
+% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+% See the License for the specific language governing permissions and
+% limitations under the License.
+%
+% %CopyrightEnd%
+%
+
+\chapter{Programs and modules}
+
+\label{chapter:programs-modules}
+
+\index{module!declaration|(}
+An \Erlang\ \emph{module declaration} consists of a collection of
+\emph{forms}.  Forms are function declarations together with some
+attributes\iftypedecl, type declarations\fi\ and record declarations
+for the module.  It is the smallest unit of code that can be
+separately compiled and loaded.  An \Erlang\ compiler thus has access
+to all the code of a module at compile-time.  Therefore it can
+determine at compile-time, for example, the names of all functions
+being declared in the module.
+\index{module!declaration|)}
+
+\index{program|(}
+An \Erlang\ \emph{program} typically consists of a number of modules,
+out of which some may be standard \Erlang\ modules or parts of library
+applications \cite{otp-dev-ref}.
+\index{program|)}
+
+\section{Module declarations}
+
+\label{section:module-declarations}
+\index{module!declaration|(}
+
+A module declaration may begin with one or more file
+attributes\index{file attribute@\T{file} attribute}, as
+described in \S\ref{section:file-attrib}.
+
+\index{module attribute@\T{module} attribute|(}
+\index{module!name|(}
+After those must follow a module attribute
+\T{-module(\Z{Name})}, in which the argument \TZ{Name} must be an atom.  The
+module attribute states the name of the module.
+\index{module attribute@\T{module} attribute|)}
+\index{module!name|)}
+
+The module attribute is followed by a \emph{header part}\index{module!header
+part of declaration}, consisting of a
+(possibly empty) sequence of
+header forms, which are additional attributes and declarations of the module.
+
+Finally there is a \emph{code part}\index{module!code
+part of declaration}, consisting of a (possibly empty) sequence of
+\emph{program forms}: function
+declarations, possibly interspersed with such attributes and declarations that
+need not be in the header part.
+
+\begin{rules}
+\grrule{ModuleDeclaration}
+       {\OPT{FileAttributes} \NT{ModuleAttribute} \OPT{HeaderForms} \OPT{ProgramForms}}
+
+\grrule{FileAttributes}
+       {\NT{FileAttribute} \OR
+        \NT{FileAttributes} \NT{FileAttribute}}
+
+\grrule{ModuleAttribute}
+       {\TXT{-} \TXT{module} \TXT{(} \NT{ModuleName} \TXT{)} \NT{FullStop}}
+
+\grrule{ModuleName}
+       {\NT{AtomLiteral}}
+\end{rules}
+\ifOld
+There is a restriction in the file compiler that a file named
+\T{\Z{Mod}.erl}\index{.erl file name extension@\T{.erl} file name extension}
+must contain the full source code of an \Erlang\ module named \TZ{Mod}.
+(This file may however
+include other files containing header forms, cf.\
+\S\ref{section:header-forms}.)
+This restriction may be lifted
+or altered in a future version of \Erlang.
+\fi
+\ifNew
+The compiler of a \StdErlang\ implementation may require that a file named
+\T{\Z{Mod}.erl}\index{.erl file name extension@\T{.erl} file name extension}
+must contain the full source code of an \Erlang\ module named \TZ{Mod}.
+\fi
+
+\section{The header part}
+
+\label{section:header-forms}
+\index{module!header part of declaration}
+
+\index{header!attribute|(}
+\index{anywhere attribute|(}
+The header part is a sequence of header forms, which are \emph{header
+attributes} or \emph{anywhere attributes}.  The former may only appear
+in the header part while the latter may also appear in the code part.
+\iffalse
+% [980514] Junk, I think:
+, type
+declarations (cf.\ \S\ref{section:type-declarations}) and record declarations (cf.\
+\S\ref{section:record-declarations}), and they all begin with a dash.
+There are also attributes that may appear anywhere in a module after
+the header forms.
+\fi
+
+\begin{rules}
+\grrule{HeaderForms}
+       {\NT{HeaderForm} \OR
+        \NT{HeaderForms} \NT{HeaderForm}}
+
+\grrule{HeaderForm}
+       {\NT{HeaderAttribute} \OR
+        \NT{AnywhereAttribute}}
+
+\grrule{HeaderAttribute}
+       {\NT{ExportAttribute} \OR
+        \NT{ImportAttribute} \OR
+        \NT{CompileAttribute} \OR
+        \NT{WildAttribute}}
+
+\grrule{AnywhereAttribute}
+       {\NT{FileAttribute} \OR
+        \NT{MacroDefinition} \OR
+        \NT{RecordDeclaration}\iftypedecl \OR
+        \NT{TypeDeclaration} \OR
+        \NT{RuleDeclaration}\fi}
+\end{rules}
+\index{header!attribute|)}
+\index{anywhere attribute|)}
+
+\iffalse Rule declarations are defined in Chapter~\ref{chapter:rules}.\fi
+
+Macro definitions are defined in \S\ref{section:macros}.
+
+The remaining attributes (both header attributes and others)
+are described in the following sections.
+
+\subsection{Export attributes}
+
+\label{section:export}
+\index{export attribute@\T{export} attribute|(}
+\index{function!exported|(}
+\index{module!exported functions of|(}
+
+An export attribute is syntactically like an application of
+a (hypothetical) function \T{export/1} to a list of
+\emph{function names}, preceded by a dash.  Each function name
+consists of a function symbol and an arity numeral, separated by
+\T{/}.
+
+\begin{rules}
+\grrule{ExportAttribute}
+       {\TXT{-} \TXT{export} \TXT{(} \NT{FunctionNameList} \TXT{)} \NT{FullStop}}
+
+\grrule{FunctionNameList}
+       {\TXT{[} \OPT{FunctionNames} \TXT{]}}
+
+\grrule{FunctionNames}
+       {\NT{FunctionName} \OR
+        \NT{FunctionNames} \TXT{,} \NT{FunctionName}}
+
+\grrule{FunctionName}
+       {\NT{FunctionSymbol} \TXT{/} \NT{Arity}}
+       
+\grrule{FunctionSymbol}
+       {\NT{AtomLiteral}}
+
+\grrule{Arity}
+       {\NT{IntegerLiteral}}
+\end{rules}
+
+There may be more than one export attribute among the header forms.
+The order between functions names in an export attribute is
+irrelevant.  The same function name may appear more than once in an
+export attribute and in several export attributes.
+
+If there is an export attribute in module \TZ{M} that lists the
+function \T{\Z{F}/\Z{A}}, then the function with symbol \TZ{F} and
+arity \TZ{A} in module \TZ{M} can be applied using a remote
+application (\S\ref{section:function-application}).
+
+Note that if there is \emph{not} an export attribute in module
+\TZ{M} that lists the function \T{\Z{F}/\Z{A}}, then the function cannot
+be applied through a remote application even in the code for module \TZ{M}.
+
+It is a compile-time error if there is an export attribute listing a function
+\T{\Z{F}/\Z{A}} but no declaration of a function \T{\Z{F}/\Z{A}}.
+\index{export attribute@\T{export} attribute|)}
+\index{function!exported|)}
+\index{module!exported functions of|)}
+
+\subsection{Import attributes}
+
+\label{section:import-attribute}
+\index{import attribute@\T{import} attribute|(}
+\index{function!imported|(}
+\index{module!imported functions of|(}
+
+An import attribute is syntactically like an application of a
+(hypothetical) function \T{import/1} to a module name and a list of
+function names (cf.\ \S\ref{section:export}), preceded by a dash.
+
+\begin{rules}
+\grrule{ImportAttribute}
+       {\TXT{-} \TXT{import} \TXT{(} \NT{ModuleName} \TXT{,} \NT{FunctionNameList} \TXT{)} \NT{FullStop}}
+\end{rules}
+Import attributes have the following role.  If there is an import
+attribute in module \TZ{M} that lists the function \T{\Z{F}/\Z{A}} of
+module $\TZ{M}'$, then a seemingly local function application
+\T{\Z{F}(\(\Z{E}_{1}\),\tdots,\(\Z{E}_{\TZm{A}}\))} in module \TZ{M}
+is syntactic sugar for a remote function application
+\T{$\Z{M}'$:\Z{F}(\(\Z{E}_{1}\),\tdots,\(\Z{E}_{\TZm{A}}\))}
+(unless there is a BIF named \T{\Z{F}/\Z{A}}, cf.\
+\S\ref{section:application-exprs}).
+
+There may be more than one import attribute among the header forms.
+The order between import attributes and between functions names in an
+import attribute is irrelevant.  The same function name may appear
+more than once in an import attribute and in several import attributes
+for the same module.
+
+It is a compile-time error if in the same module there are import attributes
+listing the same function name but different modules.
+
+If in some module there is both an import attribute listing a function
+\T{\Z{F}/\Z{A}} and a function declaration for \T{\Z{F}/\Z{A}}, then
+all applications of the form
+\T{\Z{F}(\(\Z{E}_{1}\),\tdots,\(\Z{E}_{\TZm{A}}\))} in the module will
+refer to the imported function.  However, if there is an export
+attribute listing \T{\Z{F}/\Z{A}}, it refers to the function being
+declared.  For example, consider the following module:
+
+\begin{verbatim}
+-module(expimp).
+
+-import(lists,[sort/1]).
+
+-export([sort/1]).
+
+sort(X) -> sort(X).
+\end{verbatim}
+
+The declaration of the function \T{sort/1} may appear to be recursive
+but it is not: the application \T{sort(X)} to the right of `\T{->}'
+calls the imported function.  However, the export attribute refers to
+the function being declared in module \T{expimp}.  (Here the function
+being declared simply returns the result of the imported function but
+if the module is later replaced by a new version, the function
+\T{sort/1} may be defined differently.)
+\index{import attribute@\T{import} attribute|)}
+\index{function!imported|)}
+\index{module!imported functions of|)}
+
+\subsection{Compile attributes}
+
+\label{section:compile-attrib}
+\index{compile attribute@\T{compile} attribute|(}
+\index{module!compiler options for|(}
+
+A compile attribute is syntactically like an application of a (hypothetical) unary
+function \T{compile} to a list of terms.
+
+\begin{rules}
+\grrule{CompileAttribute}
+       {\TXT{-} \TXT{compile} \TXT{(} \TXT{[} \OPT{Terms} \TXT{]} \TXT{)} \NT{FullStop}}
+\end{rules}
+The terms in the list will be appended at the end of the list of
+options given to the \T{compile:file/2} function.  The terms must
+therefore be acceptable as options for the \Erlang\ compiler being
+used, or compilation will fail.
+
+The compiler options are implementation-defined.
+% or should they be???
+\index{compile attribute@\T{compile} attribute|)}
+\index{module!compiler options for|)}
+
+\subsection{File attributes}
+
+\label{section:file-attrib}
+\index{file attribute@\T{file} attribute|(}
+
+%Stinks.
+
+A file attribute is syntactically like an application of a
+(hypothetical) function \T{file/2} to a string literal (presumably a
+file name although it is not an error if no such file exists) and a
+line numeral, preceded by a dash.
+
+\begin{rules}
+\grrule{FileAttribute}
+       {\TXT{-} \TXT{file} \TXT{(} \NT{StringLiteral} \TXT{,}
+       \NT{LineNumeral} \TXT{)} \NT{FullStop}}
+
+\grrule{LineNumeral}
+       {\NT{IntegerLiteral}}
+\end{rules}
+The purpose of a file attribute \T{-file(\Z{F},\Z{L})} is to inform
+the compiler that the code being compiled originated from line \TZ{L}
+in the file \TZ{F} so that error messages can refer to the proper
+place in the original file.
+\index{file attribute@\T{file} attribute|)}
+
+\iftypedecl
+\subsection{Type declarations}
+
+\label{section:type-declarations}
+
+The \T{type} and \T{deftype} attributes are reserved for a possible future
+extension.
+
+\begin{rules}
+\iftypedecl
+\grrule{TypeDeclaration}
+       {\TXT{-} \TXT{type} \TXT{(} \OPT{Tokens} \TXT{)} \NT{FullStop} \OR
+        \TXT{-} \TXT{deftype} \TXT{(} \OPT{Tokens} \TXT{)} \NT{FullStop}}
+\fi
+\end{rules}
+\fi
+
+\subsection{Wild attributes}
+
+\index{wild attribute|(}
+
+A wild attribute is syntactically like an application of a unary
+function other than \T{export/1}, \T{import/1}, \T{file/2},
+\T{compile/1}, \T{type/1}, \T{deftype/1} and \T{record/1} to a term.
+
+\begin{rules}
+\grrule{WildAttribute}
+       {\TXT{-} \NT{AtomLiteral} \TXT{(} \NT{Term} \TXT{)}
+       \NT{FullStop}}
+\end{rules}
+
+\index{module_info/1@\T{module_info/1}!function|(}
+The compiler gathers all wild attributes for a module \TZ{M} and at
+runtime, a BIF call \T{\Z{M}:module_info(attributes)} returns a list
+of them (cf.\ \S\ref{section:moduleinfo1}).
+\index{module_info/1@\T{module_info/1}!function|)}
+\index{wild attribute|)}
+
+\section{Program forms}
+
+\label{section:program-forms}
+\index{program!form|(}
+\index{function!declaration|(}
+
+The program forms are \emph{function declarations} and such attributes
+that may appear anywhere in a module declaration. (For unambiguity of
+the grammar, it is required that the \NT{ProgramForms} begins with a
+\NT{FunctionDeclaration} but there is no significant difference
+between an \NT{AnywhereAttribute} that appears as part of the
+\NT{HeaderForms} and one that appears as part of the
+\NT{ProgramForms}.)
+
+\begin{rules}
+\grrule{ProgramForms}
+       {\NT{FunctionDeclaration} \OR
+        \NT{ProgramForms} \NT{FunctionDeclaration} \OR
+        \NT{ProgramForms} \NT{AnywhereAttribute}}
+
+\grrule{FunctionDeclaration}
+       {\NT{FunctionClauses} \NT{FullStop}}
+
+\grrule{FunctionClauses}
+       {\NT{FunctionClause} \OR
+        \NT{FunctionClauses} \TXT{;} \NT{FunctionClause}}
+
+\grrule{FunctionClause}
+       {\NT{FunctionSymbol} \NT{FunClause}}
+
+\ifappendix\else
+\grrule{FunClause}
+       {\TXT{(} \OPT{Patterns} \TXT{)} \OPT{ClauseGuard} \NT{ClauseBody}}
+\fi
+\end{rules}
+(The rule for \NT{FunClause} is repeated from \S\ref{section:fun-exprs} for
+convenience.)
+
+\index{function!clause|(}
+\index{function!name|(}
+\index{function!arity|(}
+Each function declaration consists of one or more \emph{function
+clauses}, separated by semicolons.  Every clause of a function
+declaration must begin with the same \NT{AtomLiteral} and the sequence
+of arguments following it must have the same length in every clause.
+The \NT{AtomLiteral} is the function symbol and together with the
+length of the argument sequences, which is the arity of the function,
+it forms the \emph{function name}.
+\index{function!name|)}
+\index{function!arity|)}
+A function declaration for a function named \T{\Z{F}/\Z{A}} is thus on
+the form
+\begin{alltt}
+\Z{F}(\(\Z{P}\sb{1,1}\),\tdots,\(\Z{P}\sb{1,\TZm{A}}\)) \([\mbox{\T{when \(\Z{G}\sb{1}\)}}]\) -> \(\Z{B}\sb{1}\) ;
+\(\vdots\) ;
+\Z{F}(\(\Z{P}\sb{k,1}\),\tdots,\(\Z{P}\sb{k,\TZm{A}}\)) \([\mbox{\T{when \(\Z{G}\sb{k}\)}}]\) -> \(\Z{B}\sb{k}\).
+\end{alltt}
+where the guard part of each function clause is optional.
+\index{function!clause|)}
+
+It is a compile-time error if in a module there is more than one
+declaration for a function name.
+
+Application of functions is defined in \S\ref{section:application-exprs}.
+\index{program!form|)}
+\index{function!declaration|)}
+
+\section{Record declarations}
+
+\label{section:record-declarations}
+\index{record!declaration|(}
+\index{record@\T{record}!attribute|(}
+
+\begin{rules}
+\grrule{RecordDeclaration}
+       {\TXT{-} \TXT{record} \TXT{(} \NT{RecordType} \TXT{,} \NT{RecordDeclTuple} \TXT{)} \NT{FullStop}}
+
+\grrule{RecordDeclTuple}
+       {\TXT{\char`\{} \OPT{RecordFieldDecls} \TXT{\char`\}}}
+
+\grrule{RecordFieldDecls}
+       {\NT{RecordFieldDecl} \OR
+        \NT{RecordFieldDecls} \TXT{,}\ \NT{RecordFieldDecl}}
+
+\grrule{RecordFieldDecl}
+       {\NT{RecordFieldName} \OPT{RecordFieldValue}}
+\end{rules}
+(The rules for \NT{RecordType} and \NT{RecordFieldName} appear
+in \S\ref{section:pattern-matching} while
+the rules for \NT{RecordFieldValue} appear
+in \S\ref{section:record-exprs}.)
+
+In a record declaration
+\begin{alltt}
+-record(\Z{R},\{\(\Z{F}\sb{1}[\mbox{\T{=\(\Z{E}\sb{1}\)}}],\tdots,\Z{F}\sb{n}[\mbox{\T{=\(\Z{E}\sb{n}\)}}]\)\})
+\end{alltt}
+the field names $\TZ{F}_1$, \ldots, $\TZ{F}_n$ must all be distinct
+and the (optional) default initializer expressions $\TZ{E}_1$, \ldots,
+$\TZ{E}_n$ will be evaluated in an empty environment and must have an
+empty output environment.  It should be a compile-time error if a
+default initializer expression contains a free variable.
+
+The scope of the record declaration begins immediately after its
+lexical occurrence and ends at the end of the module declaration.  In
+a module there must be at most one record declaration for each record
+type.  It is possible for two modules that are part of the same
+application to have incoherent record declarations. This could lead to
+severe problems. Similar problems may appear, unless caution is taken,
+when loading a new version of a module if its record declarations have
+changed (because there may be existing records created according to
+the old record declarations).
+
+The record declaration establishes \TZ{R} as the name of a record type
+having $n$ fields named $\TZ{F}_1$, \ldots, $\TZ{F}_n$.  The optional
+default initializer expression $\TZ{E}_i$ is used when a record is
+created (\S\ref{section:record-creation}) and no value is specified
+for the field named $\TZ{F}_i$.  (If no default initializer expression
+is given either, then the atom \T{undefined} is used.)  For example, a
+record declaration
+\begin{verbatim}
+-record(music,{title,artist,medium=cd,number})
+\end{verbatim}
+declares \T{music} to be a record type and that each record term of type
+\T{music} has four
+fields named \T{title}, \T{artist}, \T{medium} and \T{number}.  An expression
+\begin{verbatim}
+#music{}
+\end{verbatim}
+creates a record in which these fields have the values
+\T{undefined}, \T{undefined}, \T{cd} and \T{undefined}, respectively, while
+an expression
+\begin{verbatim}
+#music{title="The Dark Side of the Moon",
+       artist="Pink Floyd",
+       medium=lp}
+\end{verbatim}
+creates a record in which the fields have the values
+\T{"The Dark side of the Moon"}, \T{"Pink Floyd"}, \T{lp} and \T{undefined}, respectively
+(the default initializer expression \T{cd} for \T{medium} was overridden).
+\index{record!declaration|)}
+\index{record@\T{record}!attribute|)}
+\index{module!declaration|)}
+
+\section{The module information functions}
+
+When compiling a module, the compiler automatically adds declarations
+for two functions \T{module_info/0} and \T{module_info/1} in it.
+
+\subsection{The function \T{module\char'137info/0}}
+
+\label{section:moduleinfo0}
+\index{module_info/0@\T{module_info/0}!function|(}
+
+In any module \TZ{M}, the compiler automatically adds a declaration of a function
+\T{module_info/0}, such that an application \T{\Z{M}:module_info()}
+returns an association list (cf.\
+\S\ref{section:assocationlists}).  This association list is such
+that for every key \TZ{K} that the function \T{module_info/1} accepts,
+except \T{module}, the list contains a 2-tuple
+\T{\{\Z{K},\Z{M}:module_info(\Z{K})\}} and no other 2-tuples.
+\index{module_info/0@\T{module_info/0}!function|)}
+
+\subsection{The function \T{module\char'137info/1}}
+
+\label{section:moduleinfo1}
+\index{module_info/1@\T{module_info/1}!function|(}
+
+In any module \TZ{M}, the compiler adds a declaration for an exported function
+\T{module_info/1} such that for certain terms, the function returns a value.
+It must hold that:
+\begin{itemize}
+\item \index{module!name}
+\T{\Z{M}:module_info(module)} returns \TZ{M} (i.e., the name of the module as an atom).
+\item \index{module!exported functions of|(}
+\T{\Z{M}:module_info(exports)} returns a list of 2-tuples such that
+for every function name \T{\Z{F}/\Z{A}} that appears in an export
+attribute, the list contains a 2-tuple \T{\{\Z{F},\Z{A}\}}.  That is, the first element
+of each 2-tuple is an atom and the second element is an integer.  There are no
+other 2-tuples in the list and the order between the 2-tuples is undefined.
+\index{module!exported functions of|)}
+\item \index{module!imported functions of|(}
+\T{\Z{M}:module_info(imports)} returns a list of 2-tuples such that
+for every function name \T{\Z{F}/\Z{A}} that appears in an import attribute for
+a module $\TZ{M}'$, the list contains a 2-tuple \T{\{\{\Z{F},\Z{A}\},$\TZ{M}'$\}}.
+That is, the first element of each 2-tuple is itself a 2-tuple of an atom and an integer,
+and the second element of each pair is an atom.
+There are no
+other 2-tuples in the list and the order between the 2-tuples is undefined.
+\index{module!imported functions of|)}
+\item \index{module!attributes of|(}
+\T{\Z{M}:module_info(attributes)} returns an association list such that
+for every wild or \T{compile} attribute \T{-\Z{K}(\Z{T})} of module \TZ{M}, the list
+contains a 2-tuple \T{\{\Z{K},\Z{T}\}}.  That is, the first element of each
+2-tuple is an atom and the second element is an arbitrary term.
+There are no other 2-tuples in the list and the order between the 2-tuples is undefined.
+\index{module!attributes of|)}
+\item \index{module!information about compilation|(}
+\T{\Z{M}:module_info(compile)} returns an association list with information
+about the compilation of module \TZ{M}.  The association list must at least
+map the atom \T{time} to the time when compilation of module \TZ{M} began
+(represented as a six-tuple of integers: year, month, day, hours, minutes and seconds,
+like the elements in the result of the BIF \T{date/0} [\S\ref{section:date0}]
+followed by the elements
+in the result of the BIF \T{time/0} [\S\ref{section:time0}])
+% UPPDATERA OM BIF-PROPOSAL GÅR IGENOM!!!
+% GMT?
+and the atom \T{options} to the list of options that were given to the
+compiler (including those provided through \T{compile} directives
+[\S\ref{section:compile-attrib}]).
+\ifNew
+An implementation may include additional 2-tuples provided that it is documented
+what they are.
+\fi
+\index{module!information about compilation|)}
+\end{itemize}
+An implementation may let \T{\Z{M}:module_info/1} accept
+additional atoms as argument (in which case the association list
+returned by \T{\Z{M}:module_info/0} should be extended accordingly,
+cf.\ \S\ref{section:moduleinfo0}).
+\index{module_info/1@\T{module_info/1}!function|)}

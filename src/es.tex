@@ -1,0 +1,452 @@
+%
+% %CopyrightBegin%
+%
+% Copyright Ericsson AB 2017. All Rights Reserved.
+%
+% Licensed under the Apache License, Version 2.0 (the "License");
+% you may not use this file except in compliance with the License.
+% You may obtain a copy of the License at
+%
+%     http://www.apache.org/licenses/LICENSE-2.0
+%
+% Unless required by applicable law or agreed to in writing, software
+% distributed under the License is distributed on an "AS IS" BASIS,
+% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+% See the License for the specific language governing permissions and
+% limitations under the License.
+%
+% %CopyrightEnd%
+%
+
+% Choose one of the following
+%\newcommand{\STYLE}{0} % For \OldErlang
+%\newcommand{\STYLE}{1} % For \StdErlang
+
+%Choose draft until we're almost there.
+\newif\ifdraft
+\drafttrue
+%\draftfalse
+
+% Choose \Difftrue to generate a chapter with differences.
+\newif\ifDiff
+%\Difftrue
+\Difffalse
+
+%Choose according to LaTeX implementation.  LaTeX2e strongly recommended.
+\newif\ifsecondedition
+\secondeditiontrue
+%\secondeditionfalse
+
+\ifsecondedition
+\documentclass[11pt,a4paper]{book}
+\else
+\documentstyle[11pt,a4,twoside,grammar,alltt,swedish\ifdraft,draftstamp,drafthead\fi]{report}
+\fi
+
+%\includeonly{}
+
+\edef\tdots{{}\dots{}} % Must do this before amstex gobbles it up.
+
+\ifsecondedition
+\usepackage[latin1]{inputenc} % Understand Latin-1 characters.
+\usepackage{varioref} % Clever cross-references.
+\usepackage{alltt} % Verbatim-like.
+\usepackage{verbatim} % Better verbatim environment and \verb.
+\usepackage{pifont} % Dingbats.
+\usepackage{latexsym} % Extra math symbols.
+\usepackage{amsmath} % Alignment, etc. [amstex on Bingo]
+%\usepackage{amstext}
+%usepackage[swedish,english]{babel} % Multiple languages.
+% Not yet available!
+%\usepackage{pict2e} % Better pictures.
+\usepackage{grammar} % Grammar rules.
+\ifdraft
+\usepackage{draftstamp} % Print ``Draft'' shaded on pages.
+\usepackage{drafthead} % Print ``Draft'' etc as page header.
+\fi
+%\usepackage{calc}
+\usepackage{ifthen}
+\usepackage{makeidx}
+\fi
+
+\ifdraft
+\newcommand{\draftvsn}{0.7}
+\newcommand{\Draft}[1]{\textsc{Draft}~#1}
+\renewcommand{\draftheadnote}{\Draft{\draftvsn}}
+\fi
+
+\newif\ifOld \if1\STYLE\Oldfalse\else\Oldtrue\fi
+\newif\ifStd \if0\STYLE\Stdfalse\else\Stdtrue\fi
+\newif\ifNew \if0\STYLE\Newfalse\else\Newtrue\fi
+
+\ifsecondedition\else
+\newcommand\textsc[1]{{\sc #1}}
+\fi
+
+% Define names for various types of Erlang.
+% First generic name and name with version
+\newcommand{\Erlang}{\textsc{Erlang}}
+\newcommand{\ErlVsn}[1]{\Erlang~#1}
+
+% Current old Erlang version
+\newcommand{\OldVsn}{4.7.3}
+\newcommand{\OldErlang}{\ErlVsn{\OldVsn}}
+
+% Standard Erlang
+\newcommand{\Std}{\textsc{Standard}}
+\newcommand{\StdErlang}{\Std~\Erlang}
+
+% Current version of Standard Erlang
+\newcommand{\NewVsn}{5.0}
+\newcommand{\NewErlang}{\ErlVsn{\NewVsn}}
+
+\ifStd
+\newcommand{\CrtClause}{CrtClause}
+\newcommand{\CrtClauses}{CrtClauses}
+\else
+\newcommand{\CrtClause}{CrClause}
+\newcommand{\CrtClauses}{CrClauses}
+\fi
+
+\ifStd
+\title{Specification of the \\
+       \StdErlang \\
+       programming language \ifdraft \\[\bigskipamount]
+       \Draft{\draftvsn}\fi}
+\else
+\title{\ErlVsn{4.7.3} \\ Reference Manual \ifdraft \\[\bigskipamount]
+       \Draft{\draftvsn}\fi}
+\fi
+
+\author{Jonas Barklund \\ (barklund@hotmail.com) \and
+	Robert Virding \\ (rv@cslab.ericsson.se)}
+
+\newif\iftypedecl \typedeclfalse
+\newif\ifstruct \structfalse
+
+% Sometimes we want something one way in the text grammar but
+% in another way in the appendix grammar.
+
+\newif\ifappendix \appendixfalse
+
+\newcounter{example}[chapter]
+\renewcommand{\theexample}{\thechapter.\arabic{example}}
+\newenvironment{example}{\refstepcounter{example}%
+  \subsubsection*{Example \theexample}}{}
+
+\ifsecondedition
+\iffalse
+\newcommand{\I}[1]{\relax\ifmmode\mathit{#1}\else\textit{#1}\fi}
+\newcommand{\B}[1]{\relax\ifmmode\mathbf{#1}\else\textbf{#1}\fi}
+\newcommand{\R}[1]{\relax\ifmmode\mathrm{#1}\else\textrm{#1}\fi}
+\newcommand{\T}[1]{\relax\ifmmode\mathtt{#1}\else\texttt{#1}\fi}
+\newcommand{\U}[1]{\relax\ifmmode\mathup{#1}\else\textup{#1}\fi}
+\newcommand{\Z}[1]{\relax\ifmmode\mathsl{#1}\else\textsl{#1}\fi}
+\newcommand\Tm[1]{\mathtt{#1}}
+\else
+\let\I=\textit
+\let\B=\textbf
+\let\R=\textrm
+\let\T=\texttt
+\let\U=\textup
+\let\Z=\textsl
+\fi
+\newcommand\Zm[1]{\Z{\scriptsize#1}}
+\newcommand\TZm[1]{\TZ{\scriptsize#1}}
+\else
+\newcommand{\I}[1]{{\it#1}}
+\newcommand{\B}[1]{{\bf#1}}
+\newcommand{\R}[1]{{\rm#1}}
+\newcommand{\T}[1]{{\tt#1}}
+\newcommand{\U}[1]{{\ddt#1}}
+\newcommand{\Z}[1]{{\sl#1}}
+\newcommand\Zm[1]{\mbox{\scriptsize\sl{#1}}}
+\newcommand\TZm[1]{\mbox{\scriptsize\tt{\sl{#1}}}}
+\newcommand{\emph}[1]{{\em#1\/}}
+\fi
+
+\newcommand{\TZ}[1]{\T{\Z{#1}}}
+
+\iffalse
+\newcommand{\decnum}{\B{dec}}
+\newcommand{\inttype}{\B{int}}
+\newcommand{\expr}[1]{\B{expr}[#1]}
+\newcommand{\SemDec}[1]{[\![#1]\!]_{\decnum}}
+\newcommand{\SemInt}[1]{[\![#1]\!]_{\inttype}}
+\fi
+
+\newcommand{\OTP}{OTP}
+
+\newcommand{\etc}{etc.}
+
+\newenvironment{textdisplay}{\begin{trivlist}\item}{\end{trivlist}}
+
+%\newenvironment{suggestion}{\begin{dinglist}{224}\item}{\end{dinglist}}
+
+%\newcommand{\THINK}{\par\begin{suggestion}THINK ABOUT IT BEFORE READING FURTHER!\end{suggestion}}
+
+%\newif\iffemale \femaletrue
+%\newcommand{\his}{\relax\iffemale her\global\femalefalse\else his\global\femaletrue\fi}
+
+\newcommand{\domain}[1]{\R{dom}(#1)}
+
+\ifsecondedition
+\catcode`\_=13
+{\catcode`\#=8 \gdef_{\relax\ifmmode#\else\texttt{\char`\_}\fi}}
+
+\catcode`\^=13
+{\catcode`\#=7 \gdef^{\relax\ifmmode#\else\texttt{\char`\^}\fi}}
+\else
+\catcode`\_=13
+{\catcode`\#=8 \gdef_{\relax\ifmmode#\else{\tt\char`\_}\fi}}
+
+\catcode`\^=13
+{\catcode`\#=7 \gdef^{\relax\ifmmode#\else{\tt\char`\^}\fi}}
+\fi
+
+\def\{{\relax\ifmmode\lbrace\else\texttt{\char`\{}\fi}
+\def\}{\relax\ifmmode\rbrace\else\texttt{\char`\}}\fi}
+
+\def\tilde{\symbol{`\~}}
+
+% From the LaTeX companion.
+% Mentry is similar to the description environment but does not let
+% labels run into the text.
+
+\newcommand{\entrylabel}[1]{\mbox{\textbf{#1:}}\hfil}
+\newenvironment{entry}
+  {\begin{list}{}%
+         {\renewcommand{\makelabel}{\entrylabel}%
+          \setlength{\labelwidth}{35pt}%
+%          \setlength{\leftmargin}{\labelwidth+\labelsep}%
+          \setlength{\leftmargin}{\labelwidth}%
+          \addtolength{\leftmargin}{\labelsep}%
+         }%
+  }%
+  {\end{list}}
+
+\newlength{\Mylen}
+\newcommand{\Lentrylabel}[1]{%
+  \settowidth{\Mylen}{\textbf{#1}}%
+  \ifthenelse{\lengthtest{\Mylen > \labelwidth}}%
+      {\parbox[b]{\labelwidth}%        term > labelwidth
+         {\makebox[0pt][l]{\textbf{#1}}\\\mbox{}}}%
+      {\textbf{#1}}%                  term < labelwidth
+  \hfil\relax}
+\newenvironment{Lentry}
+   {\renewcommand{\entrylabel}{\Lentrylabel}%
+    \begin{entry}}
+   {\end{entry}}
+
+% Customize itemize!
+
+%\renewcommand{\labelitemi}{\ding{70}}
+%\renewcommand{\labelitemii}{\ding{84}}
+\renewcommand{\labelitemii}{$\ast$}
+
+\iffalse
+% Now handled by the inputenc package.
+\catcode`\‰=\active\def‰{\AA}          % shift-option A
+\catcode`\Ÿ=\active\defŸ{\"{A}}        % option u, then A
+\catcode`\÷=\active\def÷{\"{O}}        % option u, then O
+\catcode`\Â=\active\defÂ{\aa}          % option a
+\catcode`\”=\active\def”{\"{a}}        % option u, then a
+\catcode`\–=\active\def–{\"{o}}        % option u, then o
+\catcode`\È=\active\defÈ{\'{e}}
+\fi
+
+\newcommand{\INTS}{\mathcal{Z}}
+\newcommand{\REALS}{\mathcal{R}}
+\newcommand{\BOOLEANS}{\mathcal{B}}
+
+\newcommand{\arccosh}{\mathop{\rm arccosh}\nolimits}
+\newcommand{\arcsinh}{\mathop{\rm arcsinh}\nolimits}
+\newcommand{\arctanh}{\mathop{\rm arctanh}\nolimits}
+
+% An exit.
+
+\newcommand{\badarith}{badarg}
+\newcommand{\badindex}{badindex}
+
+% Writing the results of evaluation
+
+\newcommand{\yields}[2]{$\T{#1}\RETURNS\T{#2}$}
+
+%!!!temporary
+%\gdef\rightsquigarrow{\diamond}
+
+\newcommand{\RETURNS}{\relax\ifmmode\Rightarrow\else$\Rightarrow$\fi}
+\newcommand{\EXITSWITH}{\relax\ifmmode\leadsto\else$\leadsto$\fi}
+
+\newcommand{\Er}{\Re^{-1}}
+
+% For the representation of Erlang programs.
+\newcommand{\Rep}{\R{\I{Rep}}}
+\newcommand{\LINE}{\R{\B{L}}}
+
+% These are used in the descriptions of expressions
+% I want them to produce a bold italicized display heading.
+% Use paragraph for this!
+
+\makeatletter
+\renewcommand{\paragraph}{\@startsection
+   {paragraph}                       % the name
+   {2}                               % the level
+   {0mm}                             % the indent
+   {-\baselineskip}                  % the beforeskip
+   {0.5\baselineskip}                % the afterskip
+   {\normalfont\normalsize\itshape\bfseries}} % the style
+\makeatother
+
+\newcommand{\SYNTAX}{\paragraph*{Syntax}}
+\newcommand{\EVALUATION}{\paragraph*{Evaluation}}
+\newcommand{\ENVIRONMENTS}{\paragraph*{Output environment}}
+\newcommand{\NOTE}{\paragraph*{Note}}
+\newcommand{\TYPE}{\paragraph*{Type}}
+\newcommand{\EXITS}{\paragraph*{Exits}}
+\newcommand{\EXAMPLES}{\paragraph*{Examples}}
+
+%% Move part title and the dotted lines in contents to leave
+%% enough space for full part number
+
+\makeatletter
+\renewcommand*\l@section{\@dottedtocline{1}{1.5em}{3em}}
+\renewcommand*\l@subsection{\@dottedtocline{2}{4.5em}{4em}}
+\renewcommand*\l@subsubsection{\@dottedtocline{3}{8.5em}{5em}}
+\renewcommand*\l@paragraph{\@dottedtocline{4}{13.5em}{6em}}
+\renewcommand*\l@subparagraph{\@dottedtocline{5}{19.5em}{7em}}
+\makeatother
+
+% Conversion from integer to float (LIA-1)
+
+%\newcommand{\IntToFloat}[1]{\mathit{cvt}_{I\rightarrow F}(#1)}
+
+% Make the bibliography appear in the table of contents.
+
+\makeatletter
+\renewenvironment{thebibliography}[1]
+     {\chapter*{\bibname
+        \@mkboth{\MakeUppercase\bibname}{\MakeUppercase\bibname}}%
+      \addcontentsline{toc}{chapter}{\numberline{}\bibname}% Added by Jonas.
+      \list{\@biblabel{\@arabic\c@enumiv}}%
+           {\settowidth\labelwidth{\@biblabel{#1}}%
+            \leftmargin\labelwidth
+            \advance\leftmargin\labelsep
+            \@openbib@code
+            \usecounter{enumiv}%
+            \let\p@enumiv\@empty
+            \renewcommand\theenumiv{\@arabic\c@enumiv}}%
+      \sloppy
+      \clubpenalty4000
+      \@clubpenalty \clubpenalty
+      \widowpenalty4000%
+      \sfcode`\.\@m}
+     {\def\@noitemerr
+       {\@latex@warning{Empty `thebibliography' environment}}%
+      \endlist}
+\makeatother
+
+\makeindex
+
+\begin{document}
+
+\frontmatter
+
+\begin{titlepage}
+
+\maketitle
+
+\end{titlepage}
+
+%\thispagestyle{empty}\mbox{}\clearpage
+
+%\pagenumbering{roman}
+
+\tableofcontents
+
+\ifdraft
+\include{es-release-notes}
+\include{es-todo}
+\fi
+
+%\cleardoublepage
+
+%\pagenumbering{arabic}
+
+\mainmatter
+
+\include{es-introduction}
+
+\include{es-notation}
+
+\grammarindextrue
+
+\include{es-lexical-structure}
+
+\include{es-types-terms}
+
+\include{es-arithmetics}
+
+\include{es-expressions-evaluation}
+
+\include{es-preprocessing}
+
+\include{es-programs-modules}
+
+\grammarindexfalse
+
+\include{es-code-maintenance}
+
+\include{es-processes}
+
+\include{es-nodes}
+
+\include{es-ports}
+
+\include{es-bifs}
+
+\ifOld
+\include{es-libraries}
+\fi
+
+\bibliographystyle{plain}
+
+\bibliography{es}
+
+\appendix
+
+\appendixtrue
+
+%\part{Appendices}
+
+\include{es-operators}
+
+\ifStd
+\include{es-differences}
+
+\include{es-limits}
+\fi
+
+\include{es-parse-trees}
+
+\include{es-hashing}
+
+\include{es-external-format}
+
+\ifStd
+\include{es-epmd}
+\fi
+
+\grammarindextrue
+
+\include{es-grammar}
+
+\grammarindexfalse
+
+\include{es-see} % index cross-references
+
+\backmatter
+
+\printindex
+
+\end{document}

@@ -1,0 +1,1201 @@
+%
+% %CopyrightBegin%
+%
+% Copyright Ericsson AB 2017. All Rights Reserved.
+%
+% Licensed under the Apache License, Version 2.0 (the "License");
+% you may not use this file except in compliance with the License.
+% You may obtain a copy of the License at
+%
+%     http://www.apache.org/licenses/LICENSE-2.0
+%
+% Unless required by applicable law or agreed to in writing, software
+% distributed under the License is distributed on an "AS IS" BASIS,
+% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+% See the License for the specific language governing permissions and
+% limitations under the License.
+%
+% %CopyrightEnd%
+%
+
+\chapter{Notation and glossary}
+
+\emph{In this chapter we define the notation used in the remainder of
+the specificaition, including that used for grammars.  Notation that
+is mostly local to a single chapter is described in that chapter.
+There is also a glossary that explains various terms that are used in
+the specification (some of them specific to \Erlang, some of them
+not).}
+
+\ifStd
+\section{Should and must}
+
+\index{should|(}
+\index{must|(}
+When this specification states that an implementation \emph{should} do
+in a certain way it expresses a preference that an implementation
+ought to follow unless there is a good reason for not doing so.  (For
+example, an implementation optimizing heavily for performance may
+choose not to satisfy some ``should'' directives.)
+
+When the specification simply states what how something is to be done,
+whether the word ``must'' is used or not, an implementation must
+appear to do as stated.  By this we means that an implementation may
+deviate from what is literally stated, if it is not possible to
+observe the deviation.  (Evaluation order is an example of something
+that can sometimes be violated without any possibility of
+observation.)
+\index{must|)}
+\index{should|)}
+\fi
+
+\section{Symbols}
+
+We use typewriter style for \Erlang\ tokens, e.g., `\T{foo(X) -> bar(X)}'.
+The symbol `\T{X}' is thus an \Erlang\ variable.
+
+We use slanted typewriter style for metavariables\index{variable!meta-}, e.g.,
+for the `\TZ{T}' in `\T{throw(\Z{T})}'.  A metavariable always consists of
+letters but may have an index as
+in `$\TZ{E}_2$' or `$\TZ{v}_1$'. A metavariable stands for some unspecified sequence
+of \Erlang\ tokens.  The letter (and case of the letter) chosen for the main symbol of the
+metavariable is an indication of the token sequences over which the metavariable usually ranges
+(but the actual range is always given explicitly in the text).
+\begin{itemize}
+\item An `\TZ{E}' indicates an arbitrary \Erlang\ expression.
+\item A `\TZ{T}', `\TZ{t}', `\TZ{v}' or `\TZ{w}' indicates an \Erlang\ term.  (The two latter
+symbols are typically used for terms obtained as the value of some expression, rather
+than a term occurring as part of the program text.)
+%\item An `\TZ{U}' indicates an \Erlang\ inner guard expression (cf.~\S\ref{section:inner-guardexpr}).
+\item A `\TZ{V}' indicates an \Erlang\ variable.
+\item An `\TZ{A}' indicates an \Erlang\ atom.
+\item A `\TZ{B}' indicates an \Erlang\ Boolean atom or an \Erlang\ binary.
+\item An `\TZ{O}' indicates an \Erlang\ operator.
+\item An `\TZ{I}' indicates an \Erlang\ integer numeral.
+\item An `\TZ{F}' indicates an \Erlang\ floating point numeral.
+\item A `\TZ{P}' indicates an arbitrary \Erlang\ pattern in some contexts
+and an \Erlang\ PID in others.
+\item An `\TZ{R}' indicates an \Erlang\ port or an \Erlang\ ref.
+\item An `\TZ{M}' indicates an \Erlang\ module (i.e., a binary that is the representation
+of a module).
+\end{itemize}
+
+We use italic letters in non-\Erlang\ expressions to stand for numbers or \Erlang\
+terms.
+
+\section{Sets}
+
+\index{set notation|(}
+In set expressions, $x\cup y$\index{  union@$\cup$} and $x\cap y$\index{  intersection@$\cap$}
+mean the union and intersection of the sets $x$ and $y$, respectively.
+$\overline{x}$\index{  complement@$\overline{\cdot}$}
+means the complement
+of a set $x$. $x\supseteq y$\index{  supset@$\supseteq$} means that $x$ contains
+every element of $y$.
+\index{set notation|)}
+
+\section{Mappings}
+
+\label{section:mappings}
+\index{mapping|(}
+
+A \emph{mapping} is a set of pairs such that each pair has a distinct
+left half.  We write such a pair of $v$ and $t$ as $v\mapsto t$.  A
+mapping $\epsilon$ can be \emph{applied}
+to a value $v$, which is
+written $\epsilon(v)$.  If there is a pair $v\mapsto t$ in $\epsilon$,
+then the application denotes $t$.  Otherwise the denotation is
+undefined.
+
+We define the \emph{domain}
+of a mapping $\epsilon$ to be the set of
+values occurring in the left half of a pair in $\epsilon$ and
+denote it by $\domain{\epsilon}$.
+
+The \emph{restriction} of a mapping $\epsilon$ to a set of
+values $d$ means the mapping which is the largest subset of $\epsilon$
+such that its domain is contained in $d$ and is written $\epsilon|d$.
+
+We say that that a mapping $\epsilon'$ \emph{extends} a mapping
+$\epsilon$ if $\domain{\epsilon'}\supseteq\domain{\epsilon}$ and for every
+value $v$ in $\domain{\epsilon}$, $\epsilon'(v)=\epsilon(v)$.  That is,
+$\epsilon$ is a subset of $\epsilon'$.  Note that the extension can be
+trivial --- $\epsilon$ extends $\epsilon$.
+
+If $\epsilon'$ extends $\epsilon$ then the \emph{difference} between
+$\epsilon'$ and $\epsilon$ is the mapping consisting of the pairs
+that occur in $\epsilon'$ but not in $\epsilon$ and is denoted by
+$\epsilon'\setminus\epsilon$.  In other words, $\epsilon'\setminus\epsilon =
+\epsilon'|\overline{\domain{\epsilon}}$.
+
+With the usual set notation we may denote a finite mapping
+$\epsilon$ with domain $\{\TZ{v}_1,\ldots,\TZ{v}_n\}$ by
+$\{\TZ{v}_1\mapsto\epsilon(\TZ{v}_1),\ldots,\TZ{v}_n\mapsto\epsilon(\TZ{v}_n)\}$.
+(All mappings that will be discussed in this specification are finite.)
+
+\index{  extension@$\oplus$|(}
+Let $\epsilon$ and $\delta$ be mappings.  The result of \emph{extending}
+$\epsilon$ with $\delta$ is a mapping that contains all pairs of $\delta$
+and those pairs of $\epsilon$ having left halves not in the domain of $\delta$
+and we denote it by $\epsilon\oplus\delta$.
+In other words, $\epsilon\oplus\delta = \epsilon|\overline{\domain{\delta}}\cup\delta$.
+\index{  extension@$\oplus$|)}
+
+We say that an mapping is \emph{defined} for some value if the value is
+in the domain of that mapping.
+
+An \emph{empty} mapping has an empty set as its domain.
+\index{mapping|)}
+
+Most of this terminology is introduced for describing
+environments\index{environment!is a mapping} in the evaluation of
+expressions (\S\ref{chapter:expressions-evaluation}).
+
+\section{Tables}
+
+\label{section:tables}
+\index{table|(}
+A \emph{table} is an object with a state representing a mapping
+between \Erlang\ terms.  We use the table metaphor because it is
+suggestive to use a terminology of adding and removing rows.
+
+A table consists of a finite number of rows where each row contains a
+\emph{key}\index{key!of a table row} and a
+\emph{value}\index{value!of a table row}, both of which are typically
+\Erlang\ terms.
+The keys of all rows in a table are distinct.  An empty table has no
+rows.  If $t$ is a table having a row with key \TZ{k}, then we may
+write $t(\TZ{k})$ for the value of that row.
+
+Suppose that a table at a particular time contains $n$ rows having the
+keys $\TZ{k}_1$, \ldots, $\TZ{k}_n$ and values $\TZ{v}_1$, \ldots, $\TZ{v}_n$.
+\index{list!association|(}
+An association list (\S\ref{section:assocationlists}) representing the
+contents of the table contains $n$ 2-tuples
+\T{\{$\Z{k}_i$,$\Z{v}_i$\}}, $1\leq i\leq n$, in some order.
+\index{list!association|)}
+A list representing the keys of the table contains $n$ terms $\Z{k}_i$,
+$1\leq i\leq n$, in some order.
+\index{table|)}
+
+\iffalse
+% replaced by tables
+\section{Dictionaries}
+
+\label{section:dictionaries}
+\index{dictionary|(}
+
+\iftrue
+A dictionary is a set of pairs of terms, each pair with two
+parts known as the \emph{key}\index{key!in a dictionary} and the
+\emph{value}\index{value!in a dictionary},
+such that the there are no two pairs with the same key.
+% and there is no
+%pair with the value \T{undefined}.
+If $d$ is a dictionary, we denote the set of all keys in the dictionary
+with $\mathit{keys}(d)$\index{keys@$\mathit{keys}$}.
+
+A list \TZ{lst} \emph{represents}\index{dictionary!list representing a} a dictionary $d$ if
+the following
+three conditions are satisfied:
+\begin{itemize}
+\item If $d$ contains a key-value pair $\TZ{k}/\TZ{t}$, then \TZ{lst}
+contains an element \T{\{\Z{k},\Z{t}\}}.
+\item If \TZ{lst} contains an element \T{\{\Z{k},\Z{t}\}}, then
+$d$ contains a key-value pair $\TZ{k}/\TZ{t}$.
+\item There are no duplicates in \TZ{lst}
+\end{itemize}
+Note that the order of elements in \TZ{lst} is not significant.
+\else
+A dictionary is a function from some domain of \emph{keys} to some
+domain of \emph{values}.  We assume the following functions operating
+on dictionaries:
+\begin{itemize}
+\item $\mathit{has\_key}(d,k)$ is \B{true} if the dictionary $d$ contains
+a value for the key $k$.
+\item $\mathit{value\_of}(d,k)$ is the value associated with the key $k$
+in the dictionary $d$ if such a value exists, otherwise it is undefined.
+\item $\mathit{without}(d,k)$ is a dictionary which is exactly like $d$
+except that it contains no value for the key $k$.
+\item $\mathit{update}(d,k,v)$ is a dictionary which is exactly like $d$
+except that it contains the value $v$ for the key $k$.
+\end{itemize}
+We also assume that the constant $\mathit{empty\_dictionary}$ denotes an
+empty dictionary.
+\fi
+\index{dictionary|)}
+\fi
+
+\section{Types}
+
+\label{section:type-notation}
+\index{type!notation|(}
+
+When describing BIFs (\S\ref{chapter:bifs}) we include information
+about their types.  This information imposes constraints on which
+should be the types of the evaluated arguments and what the type of
+the result can be.  The \emph{signature} of a BIF is written in
+accordance with that used for the experimental type checker for
+\Erlang\
+\cite{erltc,subtyping}.
+The type expressions listed in Table~\ref{table:types}
+are used in this description:
+\begin{table}
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\hline
+Type expression & Type \\
+\hline
+\NT{AtomicLiteral} & the denoted term \\
+\T{atom()} & atom \\
+\T{bool()} & Boolean \\
+\T{char()} & character \\
+\T{int()} & integer \\
+\T{float()} & float \\
+\T{num()} & integer or float \\
+\T{ref()} & ref \\
+\T{bin()} & binary \\
+\T{pid()} & PID \\
+\T{port()} & port \\
+\T{function()} & function \\
+\T{tuple()} & tuple \\
+\T{\{$\Z{T}_1$,\tdots,$\Z{T}_k$\}} & $k$-tuple with elements of types
+$\Z{T}_1$, \ldots, $\Z{T}_k$ \\
+\T{[\Z{T}]} & list with elements of type \TZ{T} \\
+\T{string()} & string \\
+\T{term()} & any \Erlang\ term \\
+\hline
+\end{tabular}
+\caption{Types in \Erlang.}
+\label{table:types}
+\end{center}
+\end{table}
+The type of a function \T{\Z{F}/\Z{n}} is expressed on the form
+\begin{alltt}
+\Z{F}(\(\Z{T}_{1,1}\),\tdots,\(\Z{T}_{1,\TZm{n}}\)) -> \Z{T}_1 ;
+\Z{F}(\(\Z{T}_{2,1}\),\tdots,\(\Z{T}_{2,\TZm{n}}\)) -> \Z{T}_2 ;
+\ldots
+\Z{F}(\(\Z{T}_{k,1}\),\tdots,\(\Z{T}_{k,\TZm{n}}\)) -> \Z{T}_k
+\end{alltt}
+and says that
+\begin{itemize}
+\item If \T{\Z{F}/\Z{n}} is applied to
+\TZ{n} arguments that are of the types $\TZ{T}_{1,1}$, \ldots,
+$\TZ{T}_{1,\TZm{n}}$, then the result is of type $\TZ{T}_1$.
+\item Otherwise, if \ldots
+\item Otherwise, if \T{\Z{F}/\Z{n}} is applied to
+\TZ{n} arguments that are of the types $\TZ{T}_{k,1}$, \ldots,
+$\TZ{T}_{k,\TZm{n}}$, then the result is of type $\TZ{T}_k$.
+\end{itemize}
+This should cover all valid combinations of argument types for \T{\Z{F}/\Z{n}}.
+\index{type!notation|)}
+
+\section{Grammar}
+
+\subsection{Grammar notation}
+
+\index{grammar!notation|(}
+
+The purpose of a grammar is to define sets of well-formed sequences of
+terminals, called \emph{syntactic categories}\index{grammar!syntactic
+category}.  Some examples of syntactic categories in this
+specification are \NT{AtomicLiteral} and \NT{Expr}, which consist of
+the atomic literals and the expressions of \Erlang, respectively.
+
+The \emph{terminals}\index{grammar!terminal} can be, e.g., individual
+characters of some alphabet, or elements of some other set of tokens.
+The set of tokens\index{token} may be infinite but it must be possible
+to partition them into a finite number of categories.  The grammar
+will only be concerned with the category to which a token belongs.
+
+We use a standard grammar
+formalism as explained, e.g., by Aho\index{Aho, Alfred V.}
+\& Ullman\index{Ullman, Jeffrey D.} \cite{aho+ullman:foundations}
+(although we use a somewhat different syntax than in their
+exposition).  A grammar consists of a set of
+\emph{productions}\index{grammar!production|(}.  Each production consists of
+a \emph{head}, which is a syntactic category, and a
+\emph{body}, which is a finite (and possibly
+empty) sequence of terminals and syntactic categories.
+
+A production is written as in
+\begin{rules}
+\grrule{RecordField}
+       {\NT{AtomLiteral} \TXT{=} \NT{Expr}}
+\end{rules}
+where \NT{RecordField} is the head and \NT{AtomLiteral} \TXT{=}
+\NT{Expr} is the body consisting of a syntactic category
+\NT{AtomLiteral}, a terminal \TXT{=} and a syntactic category
+\NT{Expr}.
+
+We use two shorthands for productions.  First, we may write a production
+having one head but $k$ bodies, where $k>1$, with each body on a separate line.
+This is shorthand for $k$ productions, all with the same head.  For example,
+we write the single production
+\begin{rules}
+\grrule{CompareExpr}
+       {\NT{ListConcExpr} \NT{RelationalOp} \NT{ListConcExpr} \OR
+        \NT{ListConcExpr} \NT{EqualityOp} \NT{ListConcExpr} \OR
+        \NT{ListConcExpr}}
+\end{rules}
+instead of the three productions
+\begin{rules}
+\grrule{CompareExpr}
+       {\NT{ListConcExpr} \NT{RelationalOp} \NT{ListConcExpr}}
+
+\grrule{CompareExpr}
+       {\NT{ListConcExpr} \NT{EqualityOp} \NT{ListConcExpr}}
+
+\grrule{CompareExpr}
+       {\NT{ListConcExpr}}
+\end{rules}
+
+\index{opt@\I{opt} (subscript)|(}
+Second, we may attach a subscript \I{opt} (for `optional')
+to a body element (as a matter of fact
+we only do so for elements that are syntactic categories).  A production having
+such an annotation in the body is shorthand for two productions, one where the body
+element is present (but without the subscript) and one where it is not.
+For example, the production
+\begin{rules}
+\grrule{TupleSkeleton}
+       {\TXT{\char`\{} \OPT{Exprs} \TXT{\char`\}}}
+\end{rules}
+is short for the two productions
+\begin{rules}
+\grrule{TupleSkeleton}
+       {\TXT{\char`\{} \NT{Exprs} \TXT{\char`\}}}
+
+\grrule{TupleSkeleton}
+       {\TXT{\char`\{} \TXT{\char`\}}}
+\end{rules}
+If more than one body element of a production has an \I{opt}
+subscript, then this expansion can be repeated and will produce $2^k$ productions,
+where $k$ is the number of subscripted elements.
+For example, the production
+\begin{rules}
+\grrule{ModuleDeclaration}
+       {\NT{ModuleAttribute} \OPT{HeaderForms} \OPT{ProgramForms}}
+\end{rules}
+is short for the two productions
+\begin{rules}
+\grrule{ModuleDeclaration}
+       {\NT{ModuleAttribute} \NT{HeaderForms} \OPT{ProgramForms}}
+\grrule{ModuleDeclaration}
+       {\NT{ModuleAttribute} \OPT{ProgramForms}}
+\end{rules}
+which are short for the four productions
+\begin{rules}
+\grrule{ModuleDeclaration}
+       {\NT{ModuleAttribute} \NT{HeaderForms} \NT{ProgramForms}}
+
+\grrule{ModuleDeclaration}
+       {\NT{ModuleAttribute} \NT{HeaderForms}}
+
+\grrule{ModuleDeclaration}
+       {\NT{ModuleAttribute} \NT{ProgramForms}}
+
+\grrule{ModuleDeclaration}
+       {\NT{ModuleAttribute}}
+\end{rules}
+\index{opt@\I{opt} (subscript)|)}
+In \S\ref{section:integer-literals} an additional ad-hoc shorthand is used
+where a single production
+\begin{rules}
+\grruleoneofthefirst{Digit[k]}{$\NT{Digit}[k]$}{$k$}
+       {\TXT{0 1 2 3 4 5 6 7 8 9 Aa Bb Cc Dd Ee Ff}}
+\end{rules}
+is used to summarize sixteen productions on the form
+\begin{rules}
+\grrule{Digit2}
+       {\TXT{0} \OR
+        \TXT{1}}
+\vdotsrule
+\grrule{Digit16}
+       {\TXT{0} \OR
+        \TXT{1} \OR
+        $\vdots$ \OR
+        \TXT{E} \OR
+        \TXT{e} \OR
+        \TXT{F} \OR
+        \TXT{f}}
+\end{rules}
+\index{grammar!production|)}
+\index{grammar!notation|)}
+
+\subsection{The lexical grammar}
+
+\label{section:lexical-grammar}
+\index{grammar!lexical}
+
+The productions in in \S\ref{chapter:lexical} can be viewed as
+constituting a grammar on their own.  That grammar has individual
+\ifStd Unicode characters (\S\ref{section:unicode}) \else ASCII characters \fi
+as terminals.  It defines two syntactic categories \NT{Token}
+(\S\ref{section:input-elements}) and \NT{FullStop}
+(\S\ref{section:full-stop}) from which the terminals of the main
+grammar (\S\ref{section:main-grammar}) are drawn.
+
+The subgrammar for \NT{Token} actually consists of regular expressions
+and can therefore be coded in a system such as the \T{lex} utility
+program, which translates the grammar to a finite automaton that can
+be implemented very efficiently.
+
+The lexical grammar is summarized in \S\ref{section:lex-gram-summary}.
+
+\subsection{The main grammar}
+
+\label{section:main-grammar}
+\index{grammar!main}
+
+In the main grammar presented in \S\ref{chapter:expressions-evaluation} and
+\S\ref{chapter:programs-modules},
+the terminals are the syntactic categories of the lexical grammar
+and anything in typewriter style (all of which belong to
+\NT{Token} as described in \S\ref{chapter:lexical}).
+
+That grammar is almost, but not quite, a LALR(1)
+grammar\index{grammar!not LALR(1)}.  The problem is that match
+expressions (\S\ref{section:match-expr}) and generators
+(\S\ref{section:list-comprehensions}) begin with a pattern, which is
+typically indistinguishable from an expression using a lookahead of
+only one token.  One way to make the grammar a LALR(1) grammar is to
+change the productions
+\begin{rules}
+\grrule{MatchExpr}
+       {\NT{Pattern} \TXT{=} \NT{SendExpr} \OR
+        $\vdots$}
+\grrule{Generator}
+       {\NT{Pattern} \TXT{<-} \NT{Expr}}
+\end{rules}
+to
+\begin{rules}
+\grrule{MatchExpr}
+       {\NT{ApplicationExpr} \TXT{=} \NT{SendExpr} \OR
+        $\vdots$}
+\grrule{Generator}
+       {\NT{ApplicationExpr} \TXT{<-} \NT{Expr}}
+\end{rules}
+% ??? Should really be primaryexpr but it could be a record.
+% [980514] What the heck did I mean with the above comment?
+and add \NT{UniversalPattern} as a \NT{PrimaryExpr}.
+
+Then it must be verified after parsing that the left-hand operand of \TXT{=} and
+\TXT{<-} are indeed patterns and that no \NT{UniversalPattern} appears in an
+expression.
+
+(Note that this problem would not have appeared if the syntax of
+match expressions and generators
+had included a keyword before the pattern.)
+
+The main grammar is summarized in \S\ref{section:main-gram-summary}.
+
+\section{Glossary}
+
+The purpose of this section is to explain some terms that are used
+throughout the specification and either do not have a natural point of
+definition or that need to be used before their point of definition.
+In the latter case, this glossary is intended to give a summarical
+explanation that will be sufficient until the full description is
+reached.  Most concepts explained here are thus described in more
+detail elsewhere.  When a word in an explanation is in bold face, it
+is explained separately.
+
+\begin{Lentry}
+\item[Abrupt completion]
+\index{completion!abrupt|(}
+The evaluation of an expression completes abruptly either because a
+problem has been encountered that makes it impossible or meaningless
+to continue evaluation (cf.\ \B{exit}), or because it has been
+requested to \B{throw} a value.  Abrupt completion always has an
+associated reason\index{reason (for abrupt completion)} which is an
+\Erlang\ term.  Abrupt completion can be trapped if it occurs in the
+body of a
+\ifStd\T{try} expression (\S\ref{section:try-expr}) \else
+\T{catch} expression (\S\ref{section:catch}) \fi
+and the reason can then be accessed.  Abrupt completion for
+expressions is described in more detail in \S\ref{section:completion}.
+
+A process may also complete abruptly, e.g., because the evaluation of
+its original function application completes abruptly or it receives an
+untrapped exit signal.  Abrupt completion for processes is described
+in more detail in \S\ref{section:process-completion}.
+\index{completion!abrupt|)}
+
+\item[Application]
+\index{function!application|(}
+\index{application!in OTP sense|(}
+We use this word with two overloaded meanings.  We can mean a function
+application,
+i.e., the application \T{\Z{F}($\Z{E}_1$,\tdots,$\Z{E}_k$)}
+of an \Erlang\ function \TZ{F} to a sequence of \B{arguments} $\TZ{E}_1$, \ldots,
+$\TZ{E}_k$, or we can
+mean an application in the sense of \B{OTP}, i.e., a collection of
+related modules.
+\index{function!application|)}
+\index{application!in OTP sense|)}
+
+\item[Argument]
+\index{argument!of a function application|(}
+A function \B{application} expression has two main parts: a function to be
+applied and a sequence of \emph{arguments}, or actual parameters, of the function
+application.  The arguments are evaluated before the function call begins, so
+the called function can only observe the values of the arguments.
+\index{argument!of a function application|)}
+
+\item[Arity]
+\index{function!arity|(}
+The \emph{arity} of a function is the number of arguments to which
+it expects should be applied.  Each function has a specific arity (so the
+clauses defining it must expect the same number of arguments) but there may be
+functions having the same \B{function symbol} but different arities.
+\index{function!arity|)}
+
+\item[ASCII]
+\index{ASCII|(}
+ASCII is the popular acronym for the 7-bit code for representation of
+characters properly called ANSI X3.4 \cite{ascii}.
+\index{ASCII|)}
+
+\item[BIF]
+\index{BIF|(}
+A BIF is a built-in function of \Erlang.
+\ifStd
+This implies that the if the function is provided in an \Erlang\
+implementation conforming to this specification, it must have the
+described semantics concerning result, effects, exits and order of
+growth of time and space.
+\fi
+
+Being built-in does not imply any particular form of implementation: a
+BIF could be implemented, for example, through a virtual machine
+instruction, a procedure in another language, or an \Erlang\ function.
+A BIF must not be redefined during the lifetime of a node so the
+\Erlang\ compiler and loader are permitted to use all information in
+the description of the BIF to make execution efficient.
+
+Some BIFs have unqualified names (e.g., \T{length/1}) while others
+must be referred to using a qualified name (e.g., \T{lists:map/2})
+unless they have been explicitly imported
+(\S\ref{section:import-attribute}).
+
+The operators of \Erlang\ (\S\ref{section:operators}) are not BIFs,
+but with the exception of match expressions\index{match expression}
+(with the \T{=} operator), binary operator expressions behave exactly
+like applications of binary functions.
+
+\Erlang\ constructs such as \T{if} expressions, \T{catch} expressions, etc.,
+are not even functions and thus not BIFs.
+
+The BIFs of \Erlang\ are described in detail in \S\ref{chapter:bifs}.
+\index{BIF|)}
+
+\item[Big-endian]
+\label{page:big-endian}
+\index{big-endian|(}
+When a sequence of \B{bytes} $\TZ{b}_1$, \ldots, $\TZ{b}_k$ is interpreted as a
+\emph{big-endian} numeral, the significance decreases monotonically.
+If the numeral has base 256 and is interpreted as unsigned, its value is
+\[256(256(\ldots 256\TZ{b}_1+\TZ{b}_2\ldots)+\TZ{b}_{k-1})+\TZ{b}_k = \sum_{i=1}^k 256^{k-i}\TZ{b}_i,\]
+and we denote this by
+$\I{BigEndianValue}(\langle\TZ{b}_1, \ldots, \TZ{b}_k\rangle)$\index{BigEndianValue@\I{BigEndianValue}}.
+
+For example, the four bytes
+\T{22 188 72 209} when interpreted as a big-endian numeral represent
+381,438,161 because $256^3\cdot22+256^2\cdot188+256^1\cdot72+256^0\cdot209 =
+16777216\cdot22+65536\cdot188+256\cdot72+1\cdot209 = 369098752+12320768+18432+209 =
+381438161$.
+%  (Cf.\ \B{little-endian}.)
+
+If the numeral is interpreted as signed, then its value is
+\[(\I{BigEndianValue}(\langle\TZ{b}_1, \ldots, \TZ{b}_k)+2^{8k-1}\rangle) \bmod 2^{8k} - 2^{8k-1}\]
+and we denote this by
+$\I{BigEndianSignedValue}(\langle\TZ{b}_1, \ldots, \TZ{b}_k\rangle)$\index{BigEndianSignedValue@\I{BigEndianSignedValue}}.
+\index{big-endian|)}
+
+\item[Bignum]
+\index{integer!bignum|(}
+A bignum is an \Erlang\ integer that is not a fixnum.
+\ifStd Typically, an implementation would represent bignums
+\else Bignums are represented \fi
+in such a way that integers with very large magnitudes can be
+represented.  However, arithmetic operations on bignums, even
+comparatively small ones, should be expected to be much more expensive
+than the corresponding operations on \B{fixnums}.
+\S\ref{section:binaries}.
+\index{integer!bignum|)}
+
+\item[Binary]
+\index{binary|(}
+When used as a noun, a binary is an \Erlang\ term that represents a
+finite sequence of \B{bytes}.  Binaries are described in more detail
+in \S\ref{section:binaries}.
+\index{binary|)}
+
+\item[Body]
+\index{body|(}
+A body (syntactic category \NT{Body}) is a nonempty sequence of
+expressions.  Evaluating a body means to evaluate the constituent
+expressions in order.  The value of the body is the value of the last
+expression.
+\index{body|)}
+
+\item[Byte]
+\index{byte|(}
+A byte is an integer in the range $[0,255]$.
+\index{byte|)}
+
+\item[Call]
+\index{function!call|(}
+To \emph{call} a \B{function} (e.g., a \B{BIF}) means to evaluate an
+application of the function.  However, we often mean only the part of
+the evaluation that follows argument evaluation.
+\index{function!call|)}
+
+\item[Clause]
+\index{clause|(}
+In expressions where there is a choice between several alternatives,
+each alternative is specified through a clause.  Every clause has a
+\B{body} that will be evaluated if the clause is chosen. What the
+other parts are depends on the surrounding expression.  In function
+declarations and in \T{fun}, \T{case}, \T{receive} and \T{try}
+expressions, each clause has a \B{pattern} and a corresponding
+\B{guard}.  In \T{if} expressions, the clauses have only a \B{guard}.
+\ifStd
+In \T{cond} expressions, each clause has an arbitrary Boolean
+expression.
+\fi
+\index{clause|)}
+
+\item[Compile time]
+\index{compile-time!definition of|(}
+When we write that something is carried out at compile time or that a
+compile time error should be raised, we mean that it should happen as
+part of the process of transforming an \Erlang\ module definition into
+a loadable binary.
+
+However, one must also consider compilers that are applied to source
+code that has already been loaded, e.g., in order to be used in an
+interpreter.  In that case, enough processing must have taken place as
+the source code was loaded so that all errors that should be detected
+at compile-time according to this specification were detected at load
+time.
+
+Compilation of \Erlang\ modules is described in more detail in
+\S\ref{chapter:compilation}.
+\index{compile-time!definition of|)}
+
+\item[Context]
+\index{context!input|(}
+\index{context!output|(}
+A context is a set of variables.  Each expression that occurs as part
+of an \Erlang\ program (i.e., a module declaration) has an \emph{input
+context}, which is the set of variables that will have bindings at
+\B{run time}, i.e., when the expression is evaluated.  (In other
+words: the input context is the domain of the \B{environment} in which
+the expression will be evaluated.)  It also has an \emph{output
+context}, which is the input context extended with any variables for
+which the expression will provide bindings.  Input and output contexts
+are described in more detail in \S\ref{section:REB}.
+\index{context!input|)}
+\index{context!output|)}
+
+\item[Effect]
+\index{effect|(}
+Evaluation of an \Erlang\ expression by an \Erlang\ process
+may produce an \emph{effect}, regardless of
+whether it completes
+normally or abruptly.  An effect is one of:
+\begin{itemize}
+\item changing the state of a \B{process}\index{process!changing state of};
+\item changing the state of a \B{port}\index{port!changing state of};
+\item changing the state of a \B{node}\index{node!changing state of}.
+\end{itemize}
+Typical effects are sending a \B{message} (which adds to the message queue of some process)
+or receiving a message (which removes from the message queue of the own process).
+
+Effects that are observable externally are those that change the state
+of a port, and in some cases those that change the state of a node.  A
+typical example of such an effect is sending a message to a port in
+order to produce output.
+\index{effect|)}
+
+\item[Environment]
+\index{environment|(}
+An expression is evaluated in an environment, which is a mapping from
+variables to terms.  Environments are described in more detail in
+\S\ref{section:REB}.
+\index{environment|)}
+
+\item[\Erlang]
+\index{Erlang@\Erlang|(}
+In this specification, the unqualified name \Erlang\ refers to
+\ifStd\StdErlang\else\OldErlang\fi.
+\ifStd\StdErlang\else\OldErlang\fi\ may be written explicitly when
+referring to different behaviour of different versions.
+\index{Erlang@\Erlang|)}
+
+\item[Error]
+\index{compile-time!error|(}
+A \B{compile-time} error is a violation of a syntactic or semantic
+rule that governs \Erlang\ programs and that can be verified in the
+process of compiling an \Erlang\ module (\S\ref{chapter:compilation}).
+If a compile-time error occurred while compiling a module, the result
+of loading or using it is undefined.
+\index{compile-time!error|)}
+
+\index{run-time!error|(}
+A \B{run-time} error is a violation of a required condition in the
+semantic rules that govern \Erlang\ programs and that is verified
+during evaluation.  If the description states that the evaluation
+should \B{exit} with some reason, then this behaviour is required.
+(The exit reason is then a term describing the error.)  If a stated
+precondition is violated and the description does not state an exit
+reason, then computation may proceed but the result and effects are
+undefined.
+
+If a process completes abruptly due to an error that was encountered
+while evaluating its function application, the \B{exit signal}
+provides information about the error.
+\index{run-time!error|)}
+
+\item[Exit]
+\index{exit!reason|(}
+When we say that the evaluation of an expression \emph{exits with
+reason \TZ{T}}, this is short for saying that the evaluation of the
+expression completes abruptly with an associated reason
+\T{\char`\{'EXIT',\Z{T}\char`\}}.
+
+An exit indicates that an exceptional situation such as a \B{run-time}
+\B{error} has occurred.
+\index{exit!reason|)}
+
+\item[Exit signal]
+\index{exit!signal|(}
+An exit signal is an \Erlang\ term communicated from one process to
+another, typically to inform the latter that the former process has
+completed (or to simulate that this has happened). Exit signals are
+described in more detail in
+\S\ref{section:exit-signals}.
+\index{exit!signal|)}
+
+\item[Expression]
+\index{expression|(}
+An \Erlang\ \emph{expression} is a well-formed sequence of tokens
+(syntactic category \NT{Expr}) that can be evaluated.  Either the
+evaluation completes normally (cf.\ \B{normal completion}), in which
+case the result is the value of the expression, or it completes
+abruptly, in which case there is an associated reason for the
+\B{abrupt completion}.
+\index{expression|)}
+
+\item[Fixnum]
+\index{integer!fixnum|(}
+A fixnum is an \Erlang\ integer in a range that can be represented
+efficiently on the platform hosting the implementation.  Arithmetic
+operations on fixnums should be expected to be fast.  The largest and
+smallest fixnums are given by the implementation parameters
+\I{maxfixnum} and \I{minfixnum}.
+\S\ref{section:binaries}
+\index{integer!fixnum|)}
+
+\item[Float]
+\index{float|(}
+\emph{Float} is a synonym for floating-point number.
+Floats are described in more detail in \S\ref{section:float-type}.
+\index{float|)}
+
+\item[Free variable]
+\index{variable!free|(}
+A \emph{free variable} in a \B{context} (cf.~\S\ref{section:REB})
+is a variable that does not belong to that context.
+\index{variable!free|)}
+
+\item[Function]
+\index{function|(}
+In \Erlang\ a \emph{function} may compute a function in the
+mathematical sense but does not necessarily do so.  This is because it
+may have \B{effects}, such as sending or receiving messages or
+modifying the state of the process
+(\S\ref{section:process-state-dynamic}), the node
+(\S\ref{section:node-state-dynamic}) or some port
+(\S\ref{section:port-state-dynamic}), and it may also depend on these
+states and what is received.
+
+All \Erlang\ functions (including the \B{BIFs}) are
+\emph{strict}\index{function!strict},
+i.e., in a function \B{application} all \B{arguments} are fully
+evaluated before any part of the function body is evaluated.
+\index{function|)}
+
+\item[Function symbol]
+\index{function!symbol|(}
+\index{function!name|(}
+A named function is declared through a \NT{FunctionDeclaration},
+in which case its name consists of a function symbol
+that is an atom and an \B{arity} which is a nonnegative integer.
+\index{function!name|)}
+\index{function!symbol|)}
+
+\item[Garbage collection]
+\index{memory management|(}
+Garbage collection is the activity of automatically reclaiming memory
+that can no longer be referenced. In \Erlang\ this is done fully
+automatically.  It is commonly believed that such automatic memory
+management reduces the number of severe programming errors and thus
+shortens development time and product quality, possibly at a modest
+expense of execution time.  (One of the differences between the newer
+language Java \cite{javaspec} over the older language C \cite{iso-c}
+is that Java provides garbage collection.)
+\index{memory management|)}
+
+\item[Guard]
+\index{guard|(}
+A \emph{guard} (syntactic category \NT{Guard}) is a sequence of guard
+tests (syntactic category \NT{GuardTest}), which are Boolean-valued
+expressions.  They are used in \B{clauses} (such as those of function
+declarations and \T{receive} expressions).  When a clause is
+considered for selection, all guard tests of the guard must evaluate
+to \T{true}.  (In contexts where the guard is optional, an omitted
+guard is equivalent to the trivially true guard \T{true}.)
+
+The guard tests and their constituent guard expressions (syntactic
+category \NT{GuardExpr}) have been chosen so that they are independent
+of the state (i.e., their result depends exclusively on their
+arguments), have no side effect and (with a few exceptions) take
+$O(1)$ time (with respect to the size of their arguments).
+\index{guard|)}
+
+\item[Implementation]
+\ifStd
+\index{Erlang@\Erlang!implementation of \Std|(}
+An \emph{implementation} of \StdErlang\ is a system that satisfies
+this description.  It may provide additional functionality, provided
+that such functionality is documented.  When we write that something
+is implementation-defined, no portable \StdErlang\ program can depend
+on the choice made in a particular implementation.
+\index{Erlang@\Erlang!implementation of \Std|)}
+\else
+Although we referred to \OldErlang\ as an \Erlang\ implementation,
+there are actually implementations on various platforms that may
+differ slightly, for example, due to different operating systems.
+When we write that something is implementation-defined, no portable
+\OldErlang\ program can depend on the choice made for a particular
+platform.
+\fi
+
+\item[Latin-1]
+\index{Latin-1|(}
+\index{ISO/IEC 8859-1|(}
+Latin-1 is the popular name for the 8-bit code for representation of
+characters properly called ISO/IEC 8859-1 \cite{latin-1}.
+\index{ISO/IEC 8859-1|)}
+\index{Latin-1|)}
+
+\item[List]
+\index{list|(}
+A list is a sequence of terms that either is empty, or consists of a
+first element (the head) and a remaining list (the tail).  Lists are
+described in more detail in
+\S\ref{section:lists}.
+\index{list|)}
+
+\item[Literal]
+\index{literal|(}
+A literal is an expression for which the value is considered obvious
+so no evaluation is necessary.  Numerals are obvious examples of
+literals, other examples from \Erlang\ are string literals and atom
+literals (\S\ref{chapter:types-terms})
+
+All \Erlang\ literals are \B{terms} but there are \B{terms} for which
+there are no literals, e.g., \B{PIDs} and \B{refs}.
+\index{literal|)}
+
+\item[Little-endian]
+\label{page:little-endian}
+\index{little-endian|(}
+When a sequence of \B{bytes} $\TZ{b}_1$, \ldots, $\TZ{b}_k$ is interpreted as a
+\emph{little-endian} numeral, the significance increases monotonically.
+If the numeral has base 256 and is interpreted as unsigned, its value
+is
+\[\TZ{b}_1+256(\TZ{b}_2+256(\ldots\TZ{b}_{k-1}+256\TZ{b}_k\ldots)) = \sum_{i=1}^k 256^{i-1}\TZ{b}_i\]
+and we denote this by
+$\I{LittleEndianValue}(\langle\TZ{b}_1, \ldots, \TZ{b}_k\rangle)$\index{LittleEndianValue@\I{LittleEndianValue}}.
+
+For example, the four bytes
+\T{22 188 72 209} when interpreted as a little-endian numeral represent
+3,511,204,886 because $256^0\cdot22+256^1\cdot188+256^2\cdot72+256^3\cdot209 =
+1\cdot22+256\cdot188+65536\cdot72+16777216\cdot209 = 22+48128+4718592+3506438144 =
+3511204886$.
+%  (Cf.\ \B{big-endian}.)
+\index{little-endian|)}
+
+\item[Macro]
+\index{macro|(}
+A \emph{macro} is a token abstraction and each macro application is
+replaced as part of the \B{preprocessing} by a sequence of
+tokens. Macros are described in more detail in \S\ref{section:macros}.
+\index{macro|)}
+
+\item[Message]
+\index{message|(}
+A message is an \Erlang\ term communicated from one process to
+another.  Each message is queued at the receiving process, which can
+subsequently read a message by evaluating a \T{receive} expression
+(\S\ref{section:receive-expr}).  Messages are described in more detail
+in \S\ref{section:messages}.
+\index{message|)}
+
+\item[Module]
+\index{module|(}
+A module is a named unit of executable \Erlang\ code.  Its external
+interface is a mapping from (exported) function names to functions.  A
+module is loaded onto a \B{node}.  Modules are described in more
+detail in \S\ref{chapter:programs-modules}.  Dynamic replacement of
+modules is described in \S\ref{chapter:module-dynamics}.
+\index{module|)}
+
+\item[Node]
+\index{node|(}
+A node hosts \Erlang\ \B{processes} and \B{ports}.  There could be
+more than one node on a computer and a node could run on a
+multiprocessor computer.  All processes on a node share certain
+resources. Nodes are described in more detail in
+\S\ref{chapter:nodes}.
+\index{node|)}
+
+\item[Normal completion]
+\index{completion!normal|(}
+When the evaluation of an expression completes normally, a result has
+been computed that is the value of the expression.
+\index{completion!normal|)}
+
+\item[Obsolete]
+\index{obsolete|(}
+When it is stated that something is \emph{obsolete} then we mean that
+it is an old construction which should no longer be used.  Usually it
+has only been kept for backwards compatibility.
+\index{obsolete|)}
+
+\item[Operator]
+\index{operator!binary|(}
+A \emph{binary operator} is a symbol that is written between two
+expressions, called its \emph{operands}\index{operand (of operator)}.
+For every \Erlang\ binary operator (\S\ref{section:operators}) except
+\T{=}, such an operator expression is evaluated exactly like an
+application of a binary function.
+\index{operator!binary|)}
+
+\index{operator!prefix|(}
+A \emph{prefix operator} is a symbol that is written before an
+expression, called its \emph{operand}\index{operand (of operator)}.
+For every \Erlang\ prefix operator (\S\ref{section:operators}), such
+an operator expression is evaluated exactly like an application of a
+unary function.
+\index{operator!prefix|)}
+
+\item[OTP]
+\index{OTP|(}
+OTP stands for Open Telecom Platform \cite{otp-dev-ref} and is a
+programming environment for telecom applications developed at Ericsson
+Telecom AB.  The \Erlang\ language is a core component of OTP.
+\index{OTP|)}
+
+\item[Pattern]
+\index{pattern|(}
+A pattern expresses the structure of a term and its syntax (syntactic
+category \NT{Pattern}) resembles that of a term.  It can be matched
+(\S\ref{section:pattern-matching}) against a term in an input
+\B{context}, which will either fail or succeed with an output context
+that contains bindings for any \B{variables} in the pattern that were
+not in the input context.  A \emph{universal pattern} (syntactic
+category \NT{UniversalPattern}) is a wild card, i.e., it will match
+any term.
+\index{pattern|)}
+
+\item[PID]
+\index{PID|(}
+A PID stands for a Process IDentifier and is an \Erlang\ term that
+uniquely identifies a \B{process} that exists or has existed.  PIDs
+are (ideally, cf.\ \S\ref{section:pids}) never `reused' so spawning a
+new process always yields a new PID.  PIDs are described in more
+detail in \S\ref{section:pids}.
+\index{PID|)}
+
+\item[Port]
+\index{port|(}
+A port is an \Erlang\ term that uniquely identifies an external
+resource.  Communication with a port has been designed to be similar
+to communication with a \B{process}. Ports are described in more
+detail in \S\ref{chapter:more-about-ports}.
+\index{port|)}
+
+\item[Preprocessing]
+\index{module!preprocessing of|(}
+A \B{module} declaration is preprocessed as part of compilation (cf.\
+\B{compile time}).  This involves macro expansion, elimination of the
+record abstraction and conditional compilation.  Preprocessing is
+described in more detail in \S\ref{section:preprocessing}.
+\index{module!preprocessing of|)}
+
+\item[Process]
+\index{process|(}
+A process is an entity that carries out the evaluation of an
+`original' function application and can send and receive signals
+(\S\ref{section:signals}), e.g., \B{messages} and
+\B{exit signals}.  Processes are described in more detail in
+\S\ref{chapter:processes}.
+\index{process|)}
+
+\item[Ref]
+\index{ref|(}
+A \emph{ref} is an \Erlang\ term.  The interesting property of refs is
+that each call of the BIF \T{make_ref/0} (\S\ref{section:makeref0}) is
+guaranteed to return a universally unique ref and that there is no
+other way to obtain a ref (e.g., there are no ref literals).  Refs are
+discussed in more detail in \S\ref{section:refs}.  (``Ref'' is
+obviously short for ``reference'', but we write simply ``ref'' here as
+``reference'' has a rather different meaning in some programming
+languages.)
+%(In \emph{Concurrent Programming in ERLANG, Second Edition}
+%\cite{erlbook}, refs are called \emph{references}.)
+\index{ref|)}
+
+\item[Run time]
+\index{run-time!definition of|(}
+When we write that something is carried out at run time, we mean that
+it should happen at the time an expression is being evaluated, etc.
+For example, testing the type of \B{arguments} to \B{BIFs} is carried
+out at run time in \Erlang\ (i.e., the types of the values of the
+arguments are tested).
+\index{run-time!definition of|)}
+
+\ifStd
+\item[Should]
+\index{should!an implementation|(}
+When it is stated that an implementation \emph{should} do something,
+it means that it is strongly recommended that the implementation does
+as specified.
+\index{should!an implementation|)}
+\fi
+
+\item[Skeleton]
+\index{skeleton|(}
+A skeleton is an \Erlang\ expression that reveals the structure of a
+data structure but for which the individual parts are given by
+arbitrary expressions.
+
+A skeleton is a \B{literal} if, and only if, all its subexpressions
+are \B{literals}.
+\index{skeleton|)}
+
+\ifstruct
+\item[Struct]
+\index{struct|(}
+An \Erlang\ struct is a mapping from a finite set of atoms $\TZ{A}_1$,
+\ldots, $\TZ{A}_k$, called the \emph{domain} of the struct, to terms
+$\TZ{t}_1$, \ldots, $\TZ{t}_k$.  A view of structs that is closer
+to a natural form of implementation is that they consist of $k$
+\emph{fields} named by the atoms, each of which contains an \Erlang\ term.
+\index{struct|)}
+\fi
+
+\item[Syntactic sugar]
+\index{syntactic sugar|(}
+When we write that an expression \TZ{E} is \emph{syntactic sugar} for
+some expression $\TZ{E}'$, it means that evaluation of \TZ{E} should
+behave exactly like evaluation of $\TZ{E}'$.  The compiler could
+implement \TZ{E} by replacing it with $\TZ{E}'$ or some expression
+equivalent to $\TZ{E}'$.
+\index{syntactic sugar|)}
+
+\item[Term]
+\index{term|(}
+An \Erlang\ term is an \Erlang\ expression for which it is obvious
+without any evaluation what value it denotes.  \Erlang\ terms are
+described in more detail in \S\ref{chapter:types-terms}.
+
+In mathematics, a term is usually a syntactic entity.  That is, it can
+be written using some formal language.  This is not the case for all
+\Erlang\ terms.
+
+All \Erlang\ terms except refs, ports, pids, functions and binaries
+have \B{literals}\index{literal!term denoted by} denoting them.  All
+occurrences of a literal denote the same term.
+\index{term|)}
+
+\item[Throw]
+\index{throw|(}
+When we say that the evaluation of an expression \emph{throws \TZ{T}},
+this is short for saying that the evaluation of the expression
+completes abruptly with an associated reason
+\T{\char`\{'THROW',\Z{T}\char`\}}.
+
+This is always caused by evaluation of an application \T{throw(\Z{T})}
+(\S\ref{section:throw1}) and indicates a programmer-controlled
+nonlocal exit.
+\index{throw|)}
+
+\item[Token]
+\index{grammar!token|(}
+When we discuss the main grammar of \Erlang\
+(\S\ref{section:main-grammar}), tokens are its terminals; the tokens
+themselves are defined by the lexical grammar
+(\S\ref{section:lexical-grammar}).
+\index{grammar!token|)}
+
+\item[Tuple]
+\index{tuple|(}
+An \Erlang\ $k$-tuple (where $k\geq0$) is a mapping from the integers
+$1$, \ldots, $k$ to terms $\TZ{t}_1$, \ldots, $\TZ{t}_k$.  A view
+of $k$-tuples that is closer to
+\ifStd a natural form of \else the \fi
+implementation is that they consist of $k$ enumerated \emph{fields},
+each of which contains an \Erlang\ term.
+\index{tuple|)}
+
+\item[Type]
+\index{type|(}
+The terms of \Erlang\ are partitioned into a collection of
+\emph{types} and many operations are only meaningful for terms of a
+certain type.  \Erlang\ is a \emph{dynamically typed} language, which
+means that the type of a term is always obvious but that the type of
+any other kind of expressions, e.g., a variable, is not stated
+explicitly and generally cannot be inferred at compile time.
+
+The types and terms of \Erlang\ are described in more detail in
+\S\ref{chapter:types-terms}.
+
+In the descriptions of the \B{BIFs} of \Erlang, we
+describe what are the expected types of their arguments and what
+is the type of their result.  The notation used for these types is described in
+\S\ref{section:type-notation}.
+\index{type|)}
+
+\item[Unicode]
+\index{Unicode|(}
+The \emph{Unicode} standard, version 2.0, \cite{unicode} is a 16-bit
+code for representation of multilingual text.  It contains symbols for
+most scripts used in the world today.  It includes the 7-bit
+ASCII\index{ASCII} character set as its first 128 characters and the
+8-bit Latin-1\index{Latin-1} character set as its first 256
+characters.
+\index{Unicode|)}
+
+\item[Variable]
+\index{variable|(}
+A \emph{variable} (syntactic category \NT{Variable}, cf.\ \S\ref{section:variables})
+stands for a term.
+It can be part of an \B{expression} or of a \B{pattern}.
+In the evaluation of an expression, the value must be found in the
+\B{environment} (\S\ref{section:variables-eval}).
+In pattern matching (\S\ref{section:pattern-matching}),
+the value may already be in the
+environment, or a value will be added to the environment when the variable
+is first encountered.
+
+In other words, a variable will be bound locally to a certain term.
+Unlike in conventional (imperative) programming languages, there is no concept
+of updating the value of a variable.
+\index{variable|)}
+\end{Lentry}

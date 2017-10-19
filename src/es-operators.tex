@@ -1,0 +1,86 @@
+%
+% %CopyrightBegin%
+%
+% Copyright Ericsson AB 2017. All Rights Reserved.
+%
+% Licensed under the Apache License, Version 2.0 (the "License");
+% you may not use this file except in compliance with the License.
+% You may obtain a copy of the License at
+%
+%     http://www.apache.org/licenses/LICENSE-2.0
+%
+% Unless required by applicable law or agreed to in writing, software
+% distributed under the License is distributed on an "AS IS" BASIS,
+% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+% See the License for the specific language governing permissions and
+% limitations under the License.
+%
+% %CopyrightEnd%
+%
+
+\chapter{Summary of \Erlang\ expressions}
+
+\label{chapter:summary-exprs}
+
+This is a summary of the expressions of \Erlang.  Each group of
+expressions is annotated with a precedence.
+\begin{itemize}
+\item $\alpha^{+}$ means a nonempty comma-separated sequence of $\alpha$.
+\item $\alpha^{@}$ means a nonempty semicolon-separated sequence of $\alpha$.
+\item $\alpha\mid\beta$ means either $\alpha$ or $\beta$.
+\item $[\alpha]$ means $\alpha$ or nothing.
+\item $(\alpha)$ means $\alpha$.
+\item $\TZ{E}_p$ means an expression with precedence $p$ or less.
+\item \TZ{A} means an atom.
+\item \TZ{A} means an integer literal.
+\item \TZ{L} means an atomic literal.
+\item \TZ{V} means a variable.
+\item \TZ{P} means a pattern.
+\item \TZ{G} means a guard.
+\end{itemize}
+
+\begin{center}
+\begin{tabular}{@{}rlllll@{}}
+\hline
+10 & \multicolumn{2}{l}{\T{catch $\Z{E}_{12}$}} & & & \S\ref{section:catch} \\ \hline
+ 9 & \T{\Z{P} = $\Z{E}_{\ifStd10\fi\ifOld11\fi}$} & & & & \S\ref{section:match-expr} \\ \hline
+ 8 & \T{$\Z{E}_9$ = $\Z{E}_{10}$} & & & & \S\ref{section:send-expr} \\ \hline
+ 7 & \T{$\Z{E}_6$ < $\Z{E}_6$} & \T{$\Z{E}_6$ =< $\Z{E}_6$} & \T{$\Z{E}_6$ > $\Z{E}_6$} & \T{$\Z{E}_6$ >= $\Z{E}_6$} & \S\ref{section:relational} \\
+   & \T{$\Z{E}_6$ =:= $\Z{E}_6$} & \T{$\Z{E}_6$ =/= $\Z{E}_6$} & \T{$\Z{E}_6$ == $\Z{E}_6$} & \T{$\Z{E}_6$ /= $\Z{E}_6$} & \S\ref{section:relational} \\ \hline
+ 6 & \T{$\Z{E}_5$ ++ $\Z{E}_6$} & \T{$\Z{E}_5$ -- $\Z{E}_6$} & & & \S\ref{section:listconc-exprs} \\ \hline
+ 5 & \T{$\Z{E}_5$ + $\Z{E}_4$} & \T{$\Z{E}_5$ - $\Z{E}_4$} & \T{$\Z{E}_5$ bor $\Z{E}_4$} & \T{$\Z{E}_5$ bxor $\Z{E}_4$} & \S\ref{section:additive} \\
+   & \T{$\Z{E}_5$ bsl $\Z{E}_4$} & \T{$\Z{E}_5$ bsr $\Z{E}_4$} & & & \S\ref{section:shift} \\
+   & \T{$\Z{E}_9$ or $\Z{E}_8$} & \T{$\Z{E}_9$ xor $\Z{E}_8$} & & &\S\ref{section:additive} \\ \hline
+ 4 & \T{$\Z{E}_4$ * $\Z{E}_3$} & \T{$\Z{E}_4$ / $\Z{E}_3$} & & & \S\ref{section:multiplicative} \\
+   & \ifStd \T{$\Z{E}_4$ // $\Z{E}_3$} & \fi \T{$\Z{E}_4$ div $\Z{E}_3$} & \ifStd \T{$\Z{E}_4$ mod $\Z{E}_3$} & \fi \T{$\Z{E}_4$ rem $\Z{E}_3$} & \ifOld & & \fi \S\ref{section:multiplicative} \\
+   & \T{$\Z{E}_4$ band $\Z{E}_3$} & & & & \S\ref{section:multiplicative} \\
+   & \T{$\Z{E}_8$ and $\Z{E}_7$} & & & & \S\ref{section:multiplicative} \\ \hline
+ 3 & \T{+ $\Z{E}_2$} & \T{- $\Z{E}_2$} & \T{bnot $\Z{E}_2$} & \T{not $\Z{E}_2$} & \S\ref{section:unary} \\ \hline
+ 2 & \T{\char`\#\Z{A}.\Z{A}} & \multicolumn{3}{l}{\T{\char`\#\Z{A}\{$(\text{\T{\Z{A}=$\Z{E}_{12}$}})^{+}$\}}} & \S\ref{section:record-exprs} \\
+   & \T{$\Z{E}_2$\char`\#\Z{A}.\Z{A}} & \multicolumn{3}{l}{\T{$\Z{E}_2$\char`\#\Z{A}\{$(\text{\T{\Z{A}=$\Z{E}_{12}$}})^{+}$\}}} & \S\ref{section:record-exprs} \\ \hline
+ 1 & \T{\Z{A}($\Z{E}_{12}^{+}$)} & \T{$\Z{E}_0$($\Z{E}_{12}^{+}$)} & \T{$\Z{E}_0$:$\Z{E}_0$($\Z{E}_{12}^{+}$)} & & \S\ref{section:application-exprs} \\ \hline
+ 0 & \multicolumn{4}{l}{\T{\Z{V}}} & \S\ref{section:variables-eval} \\
+   & \multicolumn{4}{l}{\T{\Z{L}}} & \S\ref{section:atomic-literals} \\
+   & \multicolumn{4}{l}{\T{\{$\Z{E}_{12}^{+}$\}}} & \S\ref{section:tuple-skeletons} \\
+   & \T{[]} & \multicolumn{3}{l}{\T{[$\Z{E}_{12}^{*}$|$\Z{E}_{12}$]}} & \S\ref{section:list-skeletons} \\
+   & \multicolumn{4}{l}{\T{[$\Z{E}_{12}$||$(\text{\T{\Z{P}<-$\Z{E}_{12}$}}\mid\Z{E}_{12})^{+}$]}} & \S\ref{section:list-comprehensions} \\
+   & \multicolumn{4}{l}{\T{begin $\Z{E}_{12}^{+}$ end}} & \S\ref{section:block-exprs} \\
+\ifStd
+   & \multicolumn{4}{l}{\T{all_true $\Z{E}_{12}^{+}$ end}} & \S\ref{section:alltrue-exprs} \\
+   & \multicolumn{4}{l}{\T{some_true $\Z{E}_{12}^{+}$ end}} & \S\ref{section:sometrue-exprs} \\
+   & \multicolumn{4}{l}{\T{cond $(\text{\T{$\Z{E}_{12}$ -> $\Z{E}_{12}^{+}$}})^{@}$ end}} & \S\ref{section:cond-expr} \\
+\fi
+   & \multicolumn{4}{l}{\T{if $(\text{\T{\Z{G} -> $\Z{E}_{12}^{+}$}})^{@}$ end}} & \S\ref{section:if-expr} \\
+   & \multicolumn{4}{l}{\T{case $\Z{E}_{12}$ of $(\text{\T{\Z{P} $[\text{\T{when \Z{G}}}]$ -> $\Z{E}_{12}^{+}$}})^{@}$ end}} & \S\ref{section:case-expr} \\
+   & \multicolumn{4}{l}{\T{receive $(\text{\T{\Z{P} $[\text{\T{when \Z{G}}}]$ -> $\Z{E}_{12}^{+}$}})^{@}$ $[\text{\T{after $\Z{E}_{12}$ -> $\Z{E}_{12}^{+}$}}]$ end}} & \S\ref{section:receive-expr} \\
+\ifStd
+   & \multicolumn{4}{l}{\T{try $\Z{E}_{12}^{+}$ catch $(\text{\T{\Z{P} $[\text{\T{when \Z{G}}}]$ -> $\Z{E}_{12}^{+}$}})^{@}$ end}} & \S\ref{section:try-expr} \\
+\fi
+   & \multicolumn{4}{l}{\T{fun \Z{A}/\Z{I}}} & \S\ref{section:fun-exprs} \\
+   & \multicolumn{4}{l}{\T{fun $(\text{\T{($\Z{P}^{+}$) $[\text{\T{when \Z{G}}}]$ -> $\Z{E}_{12}^{+}$}})^{@}$ end}} & \S\ref{section:fun-exprs} \\
+\ifOld
+   & \multicolumn{4}{l}{\T{query [$\Z{E}_{12}$||$(\text{\T{\Z{P}<-$\Z{E}_{12}$}}\mid\Z{E}_{12})^{+}$] end}} & \S\ref{section:query-exprs} \\
+\fi
+   & \multicolumn{4}{l}{\T{($\Z{E}_{12}$)}} & \S\ref{section:paren-expr} \\ \hline
+\end{tabular}
+\end{center}

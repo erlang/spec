@@ -1,0 +1,3740 @@
+%
+% %CopyrightBegin%
+%
+% Copyright Ericsson AB 2017. All Rights Reserved.
+%
+% Licensed under the Apache License, Version 2.0 (the "License");
+% you may not use this file except in compliance with the License.
+% You may obtain a copy of the License at
+%
+%     http://www.apache.org/licenses/LICENSE-2.0
+%
+% Unless required by applicable law or agreed to in writing, software
+% distributed under the License is distributed on an "AS IS" BASIS,
+% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+% See the License for the specific language governing permissions and
+% limitations under the License.
+%
+% %CopyrightEnd%
+%
+
+\chapter{Expressions and Evaluation}
+
+\label{chapter:expressions-evaluation}
+
+\Erlang\ is on one hand a functional programming
+language and on the other hand a
+language with concurrency.
+
+\index{programming!functional|(}
+That \Erlang\ is a functional language means that the central syntactic
+concept is that of an \emph{expression} which is \emph{evaluated} in
+order to obtain its \emph{value}, which is the result of the evaluation.
+\index{programming!functional|)}
+
+\index{programming!concurrent|(}
+\index{process!communication|(}
+That \Erlang\ has explicit concurrency means that there is the concept
+of a \emph{process} and
+\emph{communication}\index{communication!between processes} between processes as an
+action.  A process is a dynamic entity with state that carries out the
+evaluation of an expression.  During its lifetime, it can exchange
+messages with other processes and create new processes.
+
+Communication is commanded by evaluating an expression (of the form
+\T{\Z{P} !\ \Z{E}}), which means that there are expressions for which
+evaluation has a \emph{side effect}\index{effect}.\footnote{As achieving the effect is
+often the sole reason for evaluating the expression, calling it a
+``side'' effect is sometimes misleading.}
+\index{programming!concurrent|)}
+\index{process!communication|)}
+
+The presence of (side) effects means that some expression do not have
+a unique value.  Two evaluations in the same context might produce
+different results.  Good programmers avoid confusing use of such
+possibilities.
+
+\section{Environments}
+
+\label{section:environments}
+\index{environment|(}
+A \emph{binding}\index{binding} is a pair of a variable and a term.
+An \emph{environment} is a mapping (\S\ref{section:mappings}) from
+variables to terms, i.e., a set of bindings such that no two bindings
+have the same variable in their left halves.
+\index{environment|)}
+
+\section{Binding, effect and result}
+
+\label{section:REB}
+
+\Erlang\ is different from most other programming languages ---
+including other functional programming languages --- in that
+expressions constitute the \emph{only} major syntactical category.  It
+is customary to make no distinction between expressions (evaluated for
+their result) and commands (executed for their effect) --- cf.~C
+\cite{iso-c}, Scheme \cite{scheme-r5rs}, Standard ML
+\cite{milner+tofte+harper:revised-definition}, etc.\ --- but all those
+languages have declarations as a separate category.
+
+\index{variable!binding|(}
+An \Erlang\ expression is always evaluated in an environment, which
+we refer to as the \emph{input environment}\index{environment!input}
+of the expression.  The
+expression may provide bindings for variables not in
+its input environment.  The \emph{output environment}\index{environment!output}
+of the expression
+is then the extension of the input environment with the variable bindings
+it provides.
+\index{variable!binding|)}
+
+Each occurrence of an \Erlang\ expression has a lexical location.
+It may be evaluated several times during the execution of
+a program (for example, if it is located in the body of a function) and
+the environments in which it will be evaluated may differ.  However,
+the domains of all these environments will be the same.  The
+\emph{input context}\index{context!input} of the expression is the
+set of variables that is the common domain of these input
+environments; similarly the \emph{output context}\index{context!output} is the common domain
+of the output environments.  Note that the output context of an
+expression always contains the input context; there is no shadowing
+of variables.
+
+\Erlang\ has been designed so that the domain of the output
+environment for an expression is a function of the input domain.  This
+allows the input and output context of every expression occurrence in
+an \Erlang\ program to be determined at compile-time.  An applied occurrence
+of a variable that does not belong to the input context where it occurs
+--- usually called an \emph{unbound variable}\index{variable!unbound} ---
+can therefore be detected at compile-time and a compiler must do so and give a
+compile-time error when an unbound variable is detected.
+
+In \Erlang\ an occurrence of an expression in some environment thus
+has three roles:
+\begin{itemize}
+\item It provides a (possibly trivial) extension of the environment to
+other subexpressions of the expression or body in which it occurs.
+Given the input context of the expression, it
+is possible to determine at compile time its output context.
+\item Its evaluation produces effects\index{effect}, i.e., it may cause the
+process evaluating it to send or receive messages (which could be
+either interprocess communication or I/O through ports).
+\item Its evaluation has a result, which is the value of the
+expression\index{value!of an expression},
+provided that the evaluation of the expression completes normally.
+How this value is used depends on the surrounding expression.
+\end{itemize}
+
+In this chapter we go through all \Erlang\ expressions and explain
+their syntax, their effects, their results and how they extend the
+environment at run time (which implies how they extend the context at
+compile time).
+
+\section{Variables and their scope}
+
+\label{section:scope}
+\index{variable!scope|(}
+
+\ifStd
+For each occurrence of a variable there will always be an occurrence
+of the same variable that is its \emph{binding
+occurrence}\index{variable!binding occurrence}, which can be
+determined at compile time.  If a variable occurrence is not a binding
+occurrence, then it is called an \emph{applied
+occurrence}\index{variable!applied occurrence}.
+
+If a variable is in the output context of an expression occurrence but
+not in its input context, then the variable must have a binding
+occurrence inside the expression occurrence.  As we will see, the
+binding occurrence of a variable will always be in a pattern but a
+pattern may also contain applied occurrences of variables.
+
+The scope of a variable binding consists of the maximal set of expressions in
+which applied occurrences of a variable have the same binding occurrence.
+
+The \emph{order of evaluation}\index{evaluation!order of}
+(\S\ref{section:evorder}) chosen for
+\StdErlang\ restricts the scope of a variable: the expression providing
+the value for the variable binding must have been evaluated before any
+expression in the scope of the variable is evaluated.  In order to
+discourage a programming style that heavily depends on the particular
+order of evaluation that has been established for \StdErlang, scopes
+of variable bindings have not been made as large as possible.  For the
+following kinds of compound expressions, evaluation of the immediate
+subexpressions is strictly left-to-right, but the scope of a variable
+binding having its binding occurrence in one immediate subexpression
+does not include any other immediate subexpressions, not even those to
+the right of it:
+\begin{itemize}
+\item The arguments of a function application
+(\S\ref{section:application-exprs}).
+\item The operands of a binary operator (except for the logical
+operators [\S\ref{section:logical}]). 
+\item The element expressions of a tuple skeleton
+(\S\ref{section:tuple-skeletons}).
+\item The element expressions of a list skeleton
+(\S\ref{section:list-skeletons}).
+\end{itemize}
+
+As a matter of programming style, it is recommended that programmers
+only exploit the scope of variable bindings in bodies: the scope of a
+variable binding having its binding occurrence in one immediate
+subexpression of a body includes the following immediate
+subexpressions of the body.
+\fi
+\ifOld
+For each occurrence of a variable there will always be an occurrence
+of the same variable that is its \emph{binding
+occurrence}\index{variable!binding occurrence}.  However, in general
+it cannot be determined until run time which is the binding
+occurrence.  This is due to the lack of a defined order of evaluation.
+If a variable occurrence is not a binding occurrence, then it is
+called an \emph{applied occurrence}\index{variable!applied
+occurrence}.
+
+If a variable is in the output context of an expression occurrence but
+not in its input context, then the variable must have a binding
+occurrence inside the expression occurrence.  As we will see, the
+binding occurrence of a variable will always be in a pattern but a
+pattern may also contain applied occurrences of variables.
+\fi
+\index{variable!scope|)}
+
+\section{Normal and Abrupt Completion of Evaluation}
+
+\label{section:completion}
+
+For any expression there is a \emph{normal mode} of
+evaluation\index{evaluation!normal mode of} in which the execution is
+carried out according to the rules laid out in the following sections.
+If the evaluation of an expression is carried out according to these
+rules until the computation is finished and the result available, then
+the expression is said to \emph{complete
+normally}\index{completion!normal}.
+
+The evaluation of an expression may alternatively \emph{complete
+abruptly}\index{completion!abrupt}, always with an associated
+\emph{reason}\index{reason (for abrupt completion)} which is an
+\Erlang\ term.  The abrupt completion will have one of the following
+causes:
+\begin{itemize}
+\item The BIF \T{throw/1}\index{throw/1 BIF@\T{throw/1} BIF} has been applied to a term \TZ{T}.
+The reason for the abrupt completion is then the term
+\T{\char`\{'THROW',\Z{T}\char`\}}.
+
+\item The BIF \T{exit/1}\index{exit/1 BIF@\T{exit/1} BIF} has been applied
+to a term \TZ{T}.  The reason for the abrupt completion is then the
+term \T{\char`\{'EXIT',\Z{T}\char`\}}.
+
+\item A run-time error\index{error!run-time} has occurred (for example, in
+the evaluation of a BIF application), which is then described by a
+term \TZ{T}.
+%(For each BIF it is documented which errors it may encounter and the format
+%of each term describing the error.)
+The reason for the abrupt completion is then the term \T{\char`\{'EXIT',\Z{T}\char`\}}.
+% [971105] Refine!
+When we write that \emph{evaluation exits with reason} \TZ{R}, this is
+short for writing that \emph{evaluation completes abruptly with reason}
+\T{\char`\{'EXIT',\Z{R}\char`\}}.
+\end{itemize}
+It follows that abrupt completion due to an error in a BIF is
+indistinguishable from abrupt completion due to evaluation of the BIF
+\T{exit/1}.  Indeed the BIF \T{exit/1} is intended to be used to
+signal that an error has occurred.
+
+When the evaluation of an expression has completed abruptly, the steps
+of the normal mode of evaluation of the expression are no longer
+followed and there is no output environment.  Abrupt completion is
+discussed separately for each kind of expression but in general,
+abrupt completion of a subexpression causes abrupt completion of the
+whole expression with the same reason.  The exceptions are
+\ifStd\T{try}\index{try expression@\T{try} expression} (and
+\T{catch}\index{catch expression@\T{catch} expression}) \else
+\T{catch}\index{catch expression@\T{catch} expression} \fi
+expressions, which are intended to be used for catching an abrupt
+completion and go back to normal mode of evaluation
+(\S\ref{section:catch}\ifStd, \S\ref{section:try-expr}\fi).
+
+The BIF \T{throw/1}\index{throw/1 BIF@\T{throw/1} BIF} is intended for abrupt completion as a form of non-local
+control and abrupt completion caused by its evaluation should always
+be caught.
+
+\section{Order of evaluation}
+
+\label{section:evorder}
+\index{evaluation!order of|(}
+
+\ifStd
+The order of evaluation in \StdErlang\ is defined (with one exception,
+cf.~\S\ref{section:list-comprehensions}).
+\ifDiff\footnote{The evaluation order was
+\emph{not} defined in \OldErlang, cf.~\S\ref{section:new-evaluation-order}.}\fi
+In short, one can say that subexpressions are evaluated from left to
+right.
+
+In order to simplify the presentation of the expressions of \Erlang,
+we will adopt a convention:
+\index{evaluation!left-to-right|(}
+When we say that a sequence of expressions
+$\TZ{E}_1$, $\TZ{E}_2$, \ldots, $\TZ{E}_k$, $k\geq0$, is evaluated
+\emph{left-to-right}
+in an environment $\epsilon$, we mean that:
+\begin{itemize}
+\item In the normal mode of evaluation, first $\TZ{E}_1$ is evaluated, then
+$\TZ{E}_2$, and so on, until finally $\TZ{E}_k$ is evaluated.
+\item If the evaluation of some expression $\TZ{E}_i$, where $1\leq i\leq k$, completes
+abruptly with some reason \TZ{R}, the expressions $\TZ{E}_{i+1}$, \ldots, $\TZ{E}_k$
+are not evaluated and evaluation of the whole sequence completes abruptly with reason
+\TZ{R}.
+\item For each $i$, $1\leq i\leq k$, $\epsilon$ is the input environment of
+expression $\TZ{E}_i$.
+\item For each $i$, $1\leq i\leq k$, let $\epsilon_i$ be the output environment
+of expression $\TZ{E}_i$.  It must hold that for each pair of $i$ and $j$, $1\leq i,j\leq k$
+and $i\neq j$, $(\epsilon_i\setminus\epsilon)\cap(\epsilon_j\setminus\epsilon) =
+\emptyset$,  i.e., that no variable has a binding occurrence in two distinct
+expressions.
+\item The output environment of the sequence is
+$\epsilon\cup\bigcup_{i=1}^k\epsilon_i\setminus\epsilon$ where $\epsilon_i$ is as above.
+\end{itemize}
+Note that sequence of expressions being evaluated left-to-right does
+not imply anything about how the values of these expressions are used.
+This will be described separately for each kind of expression.
+\index{evaluation!left-to-right|)}
+
+Note also that what is described here is the evaluation order as
+\emph{perceived} by the programmer.  That is, the results obtained,
+the effects observed and the reasons for abrupt completion given when
+evaluating an expression must cohere with what is described here, both
+in debugging systems and deployment systems, in interpreter-based
+systems and compiler-based systems.  However, when it is \emph{not}
+observable, expressions may be evaluated in any order or in
+parallel. A compiler thus has freedom to rearrange the order of
+evaluation as long as it cannot be observed.
+\fi %ifStd
+\ifOld
+The order in which the subexpressions of an expression are evaluated
+is not defined, with one exception:
+\begin{textdisplay}
+In a body, the expressions are evaluated strictly from left to right.
+\end{textdisplay}
+In order to simplify the presentation of the expressions of \Erlang,
+we will adopt a convention:
+\index{evaluation!in some order|(}
+When we say that a sequence of expressions
+$\TZ{E}_1$, $\TZ{E}_2$, \ldots, $\TZ{E}_k$, $k\geq0$, is evaluated
+\emph{in some order}
+in an environment $\epsilon$, we mean that:
+\begin{itemize}
+\item In the normal mode of evaluation, all expressions are evaluated in some
+order, say $\TZ{E}_{o_1}$, \ldots, $\TZ{E}_{o_k}$.
+\item If the evaluation of some expression $\TZ{E}_{o_i}$, where $1\leq i\leq k$,
+completes abruptly with some reason, the expressions
+$\TZ{E}_{o_{i+1}}$, \ldots, $\TZ{E}_{o_k}$
+are not evaluated and evaluation of the whole sequence completes abruptly with
+the same reason.
+\item $\epsilon$ is the input environment of expression $\TZ{E}_{o_1}$.
+\item For each $i$, $1< i\leq k$, the output environment of
+expression $\TZ{E}_{o_{i-1}}$. is the input environment of expression $\TZ{E}_{o_i}$.
+\item The output environment of the sequence is the output environment of
+expression $\TZ{E}_{o_k}$.
+\end{itemize}
+Note that sequence of expressions being evaluated in some order does not
+imply anything about how the values of these expressions are used.  This
+will be described separately for each kind of expression.
+\index{evaluation!in some order|)}
+
+\iffalse
+% not used
+\index{evaluation!left-to-right|(}
+When we say that a sequence of expressions
+$\TZ{E}_1$, $\TZ{E}_2$, \ldots, $\TZ{E}_k$, $k\geq0$, is evaluated
+\emph{left-to-right}, we mean the same except that it is required that for each $i$,
+$1\leq i\leq k$, $o_i=i$.
+\index{evaluation!left-to-right|)}
+\fi
+
+The uncertainty about the order of evaluation together with the
+requirement of \S\ref{section:REB} that the compiler must give a
+compile-time error for an applied occurrence of an unbound variable
+implies that the compiler must only accept a program if for any
+evaluation order, there will not be an applied occurrence of an
+unbound variable.  The effect of this is that when a sequence of
+expressions will be evaluated in some order, the compiler should
+assume for each expression that it will be the first to be evaluated,
+so its input context will be $\epsilon$.
+
+For example, in a context where \T{X} is unbound, the expression
+\T{(X=8) + X} should give a compile-time error.  If the left operand
+of \T{+} is evaluated first, then the occurrence of \T{X} in the right
+operand will have the value \T{8}.  However, if the right operand is
+evaluated first, then the occurrence of \T{X} in it will be unbound.
+
+In the same context, the expression \T{(X=8) + (X=9)} should be
+accepted by the compiler, because regardless of the order in which the
+operands are evaluated, the applied occurrence of \T{X} will be bound.
+(However, there will be a run-time error because either \T{X} will be
+bound to \T{8} and then matched against \T{9}, or it will be bound to
+\T{9} and then matched against \T{8}.)
+\fi
+\index{evaluation!order of|)}
+
+\section{Pattern matching}
+
+\label{section:pattern-matching}
+
+Pattern matching occurs as part of the evaluation of several \Erlang\
+language constructs so we describe it separately.
+
+\subsection{Patterns}
+
+\label{section:patterns}
+\index{pattern!definition of|(}
+\begin{rules}
+\grrule{Pattern}
+       {\NT{Pattern} = \NT{SimplePattern} \OR
+        \NT{SimplePattern}}
+
+\grrule{SimplePattern}
+       {\NT{AtomicLiteral} & (\S\ref{section:atomic-literals}) \OR
+        \NT{Variable} & (\S\ref{section:variables}) \OR
+        \NT{UniversalPattern} & (\S\ref{section:universal-pattern}) \OR
+        \NT{TuplePattern} \OR
+	\NT{RecordPattern} \OR
+        \NT{ListPattern}}
+
+\grrule{TuplePattern}
+       {\TXT{\char`\{} \OPT{Patterns} \TXT{\char`\}}}
+
+\grrule{ListPattern}
+       {\TXT{[} \TXT{]} \OR
+        \TXT{[} \NT{Patterns} \OPT{ListPatternTail} \TXT{]}}
+
+\grrule{ListPatternTail}
+       {\TXT{|} \NT{Pattern}}
+
+\grrule{Patterns}
+       {\NT{Pattern} \OR
+        \NT{Patterns} \TXT{,} \NT{Pattern}}
+
+\grrule{RecordPattern}
+       {\TXT{\char`\#} \NT{RecordType} \NT{RecordPatternTuple}}
+
+\grrule{RecordType}
+       {\NT{AtomLiteral}}
+
+\grrule{RecordPatternTuple}
+       {\TXT{\char`\{} \OPT{RecordFieldPatterns} \TXT{\char`\}}}
+
+\grrule{RecordFieldPatterns}
+       {\NT{RecordFieldPattern} \OR
+        \NT{RecordFieldPatterns} \TXT{,}\ \NT{RecordFieldPattern}}
+
+\grrule{RecordFieldPattern}
+       {\NT{RecordFieldName} \TXT{=} \NT{Pattern}}
+
+\grrule{RecordFieldName}
+       {\NT{AtomLiteral}}
+\end{rules}
+(Strictly speaking ``cons pattern'' would be a more appropriate name
+for what we call a list pattern.)
+
+We say that two patterns are equal (and thus exchangeable) if they
+match exactly the same terms resulting in exactly the same bindings.
+
+Part of the idea with pattern matching is to verify that a term has a
+certain (nested) structure with respect to lists or tuples.  It is
+then obvious that:
+\begin{itemize}
+\item \T{[$\Z{P}_1$]} equals \T{[$\Z{P}_1$|[]]}.
+\item \T{[$\Z{P}_1$,$\Z{P}_2$,\tdots,$\Z{P}_k$]}, where $k>1$, equals
+\T{[$\Z{P}_1$|[$\Z{P}_2$,\tdots,$\Z{P}_k$]]}.
+\item \T{[$\Z{P}_1$,$\Z{P}_2$,\tdots,$\Z{P}_k$|$\Z{P}_{k+1}$]}, where $k>1$, equals
+\T{[$\Z{P}_1$|[$\Z{P}_2$,\tdots,$\Z{P}_k$|\allowbreak$\Z{P}_{k+1}$]]}.
+\end{itemize}
+We can therefore describe pattern matching as if each \NT{ListPattern} is either \TXT{[]}
+or \TXT{[} \NT{Pattern} \TXT{|} \NT{Pattern} \TXT{]}.
+
+In the scope of a record declaration
+(\S\ref{section:record-declarations}) that establishes \TZ{R} as a
+record type with $n$ fields, a record pattern
+\T{\char`\#\Z{R}\{$\Z{F}_1$=$\Z{P}_1$,\tdots,$\Z{F}_k$=$\Z{P}_k$\}},
+where $\TZ{F}_1$, \ldots, $\TZ{F}_k$ are distinct names of fields in
+\TZ{R}, is syntactic sugar for a tuple pattern
+\T{\{\Z{R},$\Z{Q}_2$,\tdots,$\Z{Q}_{n+1}$\}}
+where for each $i$, $2\leq i\leq n+1$,
+\begin{itemize}
+\item If there is an integer $j$, $1\leq j\leq k$, such that
+$\mathit{record\_field}_{\TZm{R}}(\TZ{F}_j)=i$, then
+$\TZ{Q}_i$ is $\TZ{P}_j$.
+\item Otherwise, $\TZ{Q}_i$ is \T{_}.
+\end{itemize}
+It is a compile-time error if a record pattern is not in the scope of
+an appropriate record declaration.  As record patterns are syntactic
+sugar, we can describe pattern matching as if they did not exist.
+
+A pattern on the form \T{$\Z{P}_1$ = $\Z{P}_2$} allows matching a term
+against more than one pattern.  The most useful special case is
+perhaps for matching a pattern against a compound term while at the
+same time binding a variable to the whole term.  For example, the
+pattern \T{Lst = [Hd|Tl]} matches a cons and binds the variables
+\T{Hd} and \T{Tl} to the head and the tail of the cons but also binds
+the variable \T{Lst} to the whole cons.
+\index{pattern!definition of|)}
+
+\subsection{Definition of the pattern matching problem}
+
+\index{pattern matching!definition of|(}
+A pattern matching problem takes as input a \emph{pattern} \TZ{P}, a
+term \TZ{T} and an (input) environment $\epsilon$ and results in
+either \emph{failure} or \emph{success}, in the latter case together
+with an (output) environment $\epsilon'$ that extends $\epsilon$.
+
+The domain of $\epsilon'$ must include the domain of $\epsilon$ and
+all variables occurring in \TZ{P}.  We say that $\epsilon'$ is minimal
+if its domain is exactly that.
+
+Informally we can say that pattern matching succeeds if the structure
+of the pattern \TZ{P} is the same as that of the term \TZ{T} and there
+exists an environment $\epsilon'$ extending $\epsilon$ such that for
+each occurrence of a variable in \TZ{P}, its value in $\epsilon'$ is
+the term in the corresponding position of \TZ{T}.  $\epsilon'$ is then
+the output environment if it is minimal.
+
+More precisely, the pattern matching succeeds with an output environment $\epsilon'$
+if $\epsilon'$ is a minimal extension of $\epsilon$ and \TZ{P} matches \TZ{T},
+which means that exactly one of the following hold:
+\begin{itemize}
+\item \TZ{P} is on the form \T{$\Z{P}_1$ = $\Z{P}_2$} and
+both $\TZ{P}_1$ and $\TZ{P}_2$ match \TZ{T};
+\item \TZ{P} is an atomic literal which denotes \TZ{T};
+\item \TZ{P} is a variable which $\epsilon'$ maps to \TZ{T};
+\item \TZ{P} is a universal pattern;
+\item there exists a $k\geq0$ such that \TZ{P} is a tuple pattern \T{\char`\{$\Z{P}_1$,\tdots,
+$\Z{P}_k$\char`\}},
+\TZ{T} is a tuple with size $k$ and elements $\TZ{T}_1$, \ldots, $\TZ{T}_k$, and for
+each $i$, $1\leq i\leq k$, $\TZ{P}_i$ matches $\TZ{T}_i$;
+\item \TZ{P} is a list pattern \T{[]} and \TZ{T} is an empty list;
+\item \TZ{P} is a list pattern \T{[$\Z{P}_h$|$\Z{P}_t$]}, \TZ{T} is a cons
+with head $\TZ{T}_h$ and tail $\TZ{T}_t$, $\TZ{P}_h$ matches $\TZ{T}_h$ and
+$\TZ{P}_t$ matches $\TZ{T}_t$.
+\end{itemize}
+
+\noindent If pattern matching succeeds with an environment $\epsilon'$, then
+$\epsilon'$ is unique (as can be shown).
+\index{pattern matching!definition of|)}
+
+\subsection{Coding pattern matching}
+
+\label{section:coding-pattern-matching}
+\index{pattern matching!coding of|(}
+
+As will be obvious below where pattern matching is used, the pattern
+is available at compile-time and so is the context, as was noted in
+\S\ref{section:REB}.  Therefore the pattern matching can be computed
+by code that traverses the term and verifies that the structure is the
+same as in the pattern, filling in values for variables not in the
+input context as they are encountered in the pattern.  When a variable
+not in the input context of the pattern occurs more than once in the
+pattern, any occurrence can be proclaimed the binding occurrence.  It
+should be the one actually visited first by the pattern matching
+algorithm being used.
+
+Here is an example of how code for matching \TZ{P} against \TZ{T}
+could be generated.  The generated code examines the term \TZ{T},
+provided at run time.  We assume that the representation of
+environments is such that for each variable there is a \emph{location}
+with undefined initial contents that can be written once with a value
+for the variable.  We assume that when the code is run, $\epsilon'$
+has been obtained by extending $\epsilon$ with locations for the
+variables that occur in \TZ{P} but not in $\epsilon$.  If execution
+passes through all the code, the pattern matching has succeeded and
+all locations in $\epsilon'$ have been written with values.
+
+We describe recursively the code generation for a pattern $p$ with
+\TZ{P} as initial value.  At run time, $t$ should be the term against
+which $p$ is to be matched.  The initial value of $t$ will be \TZ{T}.
+
+\begin{itemize}
+\item If $p$ is a pattern \T{$p_1$ = $p_2$}, generate code that:
+\begin{itemize}
+\item Match $p_1$ against $t$.
+\item Match $p_2$ against $t$.
+\end{itemize}
+\item If $p$ is an atomic literal, generate code that finishes the matching with failure
+if $t$ is not exactly that literal.
+\item If $p$ is the binding occurrence of a variable, generate code that
+writes $t$ in its location in $\epsilon'$.
+\item If $p$ is a variable but not the binding occurrence, generate code that
+finishes the matching with failure if the contents of its location in $\epsilon'$ is
+not (exactly) equal to $t$.
+\item If $p$ is the universal pattern, generate no code.
+\item If $p$ is a tuple pattern \T{\char`\{$p_1$,\tdots,$p_k$\char`\}} (where $k\geq 0$),
+generate code that:
+\begin{itemize}
+\item If $t$ is not a tuple of size $k$, complete with failure.
+\item Match $p_1$ against element $1$ of $t$.
+\item[] \ldots
+\item Match $p_k$ against element $k$ of $t$.
+\end{itemize}
+\item If $p$ is a list pattern \T{[]}, generate code that finishes the matching
+with failure if $t$ is not an empty list.
+\item If $p$ is a list pattern \T{[$p_h$|$p_t$]} (or some list pattern that
+is equal to such a pattern), generate code that:
+\begin{itemize}
+\item If $t$ is not a cons, finish the matching with failure.
+\item Match $p_h$ against the head of $t$.
+\item Match $p_t$ against the tail of $t$.
+\end{itemize}
+\end{itemize}
+
+As there are no loops in the generated code (and assuming that testing
+for equality always completes) the matching must either finish with
+failure or reach the end and thus finish successfully.
+\index{pattern matching!coding of|)}
+
+\section{Functions, function applications and calls}
+
+\label{section:function-application}
+\index{function!application|(}
+
+Function application is part of the evaluation of several kinds of
+\Erlang\ expressions, so we describe it once and for all here. The
+syntax of these expressions is described elsewhere
+(\S\ref{section:application-exprs},
+\ifOld\S\ref{section:process-bifs}\fi
+\ifStd\S\ref{section:process-module}\fi), as is the
+syntax of the expressions that name or denote functions
+(\S\ref{section:fun-exprs},
+\S\ref{section:program-forms}).
+
+\index{function!call|(}
+Evaluation of a function application consists of two parts: evaluation
+of the arguments\index{evaluation!of arguments} of the function and a
+\emph{function call}.  How arguments are evaluated is described
+separately for each form of function application and the function call
+never begins until all arguments have been evaluated so here will be
+described only how the actual function call is evaluated.
+
+The input to a function call is some specification of which function
+is to be applied and the values of the arguments as a sequence of
+terms $\TZ{v}_1$, \ldots, $\TZ{v}_{\TZm{n}}$, for some $\TZ{n}\geq 0$.
+
+The function to be applied is always specified in one of the following four
+ways:
+\begin{enumerate}
+
+\item \label{item:explicit-mod-fun}
+A \emph{remote application}\index{function!application!remote}: two atoms \TZ{Mod} and \TZ{Fun}.
+Let \TZ{P} be the process evaluating the application.
+\begin{itemize}
+
+\item If a row with key $(\TZ{Mod},\TZ{Fun},\TZ{n})$ is in
+\T{entry_points[node[\Z{P}]]} (\S\ref{section:node-state-dynamic}),
+then the function to be applied is \T{\Z{Fun}/\Z{n}} in
+the module named \Z{Mod} and the value of the row is a pointer to the executable code
+(\S\ref{section:exported-functions}).
+
+\item \index{undefined_function/3 function@\T{undefined_function/3} function|(}
+\index{error_handler@\T{error_handler}!module|(}
+Otherwise, if there is a row with key
+$(\TZ{E},\T{undefined_function},\T{3})$ in
+\T{entry_points[node[\Z{P}]]} (\S\ref{section:process-state-dynamic},
+\S\ref{section:node-state-dynamic}), where \TZ{E} is the value of \T{error_handler[\Z{P}]},
+then the result of the function application is obtained by instead
+evaluating an application
+\begin{alltt}
+\Z{E}:undefined_function(\Z{Mod},\Z{Fun},[\(\Z{v}\sb{1}\),\tdots,\(\Z{v}\sb{\TZm{n}}\)])\R{.}
+\end{alltt}
+The initial value of \T{error_handler[\Z{P}]} is \T{error_handler} (cf.~below).
+
+\item Otherwise, the result of the
+function application is obtained by evaluating an application
+\begin{alltt}
+error_handler:undefined_function(\Z{Mod},\Z{Fun},[\(\Z{v}\sb{1}\),\tdots,\(\Z{v}\sb{\TZm{n}}\)])
+\end{alltt}
+The exported function \T{undefined_function/3} in the
+preloaded module \T{error_handler}
+exits with
+\T{\{undef,\{\Z{Mod},\Z{Fun},[$\Z{v}_1$,\tdots,\linebreak[0]$\Z{v}_{\Zm{n}}$]\}\}}.
+\index{undefined_function/3 function@\T{undefined_function/3} function|)}
+\index{error_handler@\T{error_handler}!module|)}
+
+\end{itemize}
+
+\item \label{item:function-application-atom}
+An atom \TZ{Fun}.
+The only kind of expression that specifies the
+function in this way is an \NT{ApplicationExpr} on the form
+\NT{AtomLiteral} \TXT{(} \OPT{Exprs} \TXT{)}.
+There are three possibilities:
+%%It is proposed to change this in Standard Erlang.
+\begin{itemize}
+
+\item If there is a BIF with an unqualified name
+\T{\Z{F}/\Z{n}}, then it is the function to be applied.
+
+\item Otherwise, if there is an attribute
+\index{import attribute@\T{import} attribute}
+\begin{alltt}
+-import(\Z{Mod},[\tdots,\Z{F}/\Z{n},\tdots])
+\end{alltt}
+then the function to be applied is to be obtained exactly as in
+case~\ref{item:explicit-mod-fun} from the atoms \TZ{Mod} and \TZ{Fun}.
+(It is thus a remote application.)
+
+\item Otherwise, if there is a definition of a function named
+\T{\Z{Fun}/\Z{n}} in the lexically enclosing module (which we may
+assume to be named \TZ{Mod}), then the function to be applied is the
+one so defined.  This is called a \emph{local
+application}\index{function!application!local}.
+
+\item Otherwise it is a compile-time error.
+\end{itemize}
+
+\item \label{item:function-application-impl-fun}
+\index{function!application!of \T{fun} expression|(}
+\index{fun expression@\T{fun} expression|(}
+An \emph{implicit \T{fun} application}: a function term that is the
+value of an expression \T{fun \Z{Fun}/\Z{k}}.  If there is a
+definition of a function named \T{\Z{Fun}/\Z{k}} in the lexically
+enclosing module (which we may assume to be named \TZ{Mod}), then the
+function to be applied is the one so defined; otherwies it is a
+compile-time error.  The function named \T{\Z{Fun}/\Z{k}} need not be
+exported from the module.
+
+\item \label{item:function-application-expl-fun}
+An \emph{explicit \T{fun} application}:
+a function term that is the value of an explicit \T{fun} expression
+(\S\ref{section:fun-exprs}).
+Let \TZ{Mod} be the module in which the \T{fun} expression lexically occurred.
+\index{function!application!of \T{fun} expression|)}
+\index{fun expression@\T{fun} expression|)}
+\end{enumerate}
+In cases \ref{item:function-application-impl-fun} and
+\ref{item:function-application-expl-fun} above, it may be that
+the arity of the function is not the same as the number of arguments
+to which it is being applied.  In this case, evaluation of the
+function application exits with
+\T{\{badarity,\{\Z{Mod},\Z{Fun},[$\Z{v}_1$,\tdots,\linebreak[0]$\Z{v}_{\Zm{n}}$]\}\}}.
+
+From the four cases above we see that
+the function to be applied is either one named \T{\Z{Fun}/\Z{n}}
+defined through
+a \NT{FunctionDeclaration} (\S\ref{section:program-forms}) in some module named
+\TZ{Mod}, or it is denoted by an explicit \T{fun} expression (\S\ref{section:fun-exprs}).
+We now describe how the evaluation proceeds in these two cases.
+
+\subsection{Call of a named function}
+
+\label{section:appl-named-function}
+\index{function!application!of named function|(}
+
+We shall describe evaluation of a call by a process \TZ{P} of the function named
+\T{\Z{Fun}/\Z{n}} in module
+\TZ{Mod} to the values $\TZ{v}_1$, \ldots, $\TZ{v}_{\TZm{n}}$ of the arguments.
+First, \T{current_function[\Z{P}]} (\S\ref{section:process-state-dynamic})
+should be set to
+\T{\{\Z{Mod},\Z{Fun},[$\Z{v}_1$,\tdots,$\Z{v}_{\Zm{n}}$]\}}.\footnote{This is
+necessary only in order to support the function \T{process_info/2}
+(\S\ref{section:processinfo2}).}
+Next, let the \NT{FunctionDeclaration} defining \T{\Z{Fun}/\Z{n}} in \T{Mod} be
+\begin{alltt}
+\Z{F}(\(\Z{P}\sb{1,1}\),\tdots,\(\Z{P}\sb{1,\TZm{n}}\)) \([\mbox{\T{when \(\Z{G}\sb{1}\)}}]\) -> \(\Z{B}\sb{1}\) ;
+\(\vdots\) ;
+\Z{F}(\(\Z{P}\sb{k,1}\),\tdots,\(\Z{P}\sb{k,\TZm{n}}\)) \([\mbox{\T{when \(\Z{G}\sb{k}\)}}]\) -> \(\Z{B}\sb{k}\).
+\end{alltt}
+where $k$ is a natural number, each $\TZ{P}_{i,j}$ ($1\leq i\leq k$ and
+$1\leq j\leq \TZ{n}$) is a \NT{Pattern}, each (optional) $\TZ{G}_i$ is a \NT{Guard}
+and each \T{$\Z{B}_i$} is a \NT{Body}.
+
+Carry out the following step for each function clause $i$, where $i$ goes from $1$ to $k$ in that order,
+until a clause $s$ is found for which both pattern matching and guard evaluation succeeds or all clauses
+have been tried.
+\begin{itemize}
+\item Match the terms $\TZ{v}_1$, \ldots, $\TZ{v}_{\TZm{n}}$
+against the patterns $\TZ{P}_{i,1}$, \ldots, $\TZ{P}_{i,\TZm{n}}$ in an empty environment.  If the
+matching succeeds, evaluate the guard $\TZ{G}_i$ in the output environment of the pattern matching (an omitted
+guard trivially succeeds).
+\end{itemize}
+If there is no clause for which both pattern matching and guard evaluation succeeds,
+then the evaluation of the function application exits with
+\T{\{function_clause,\{\Z{Mod},\Z{Fun},[$\Z{v}_1$,\tdots,$\Z{v}_{\Zm{n}}$]\}\}}.
+Otherwise, the evaluation of the function application continues by evaluating the body
+$\TZ{B}_s$ in the output environment of guard $\TZ{G}_s$.
+\index{function!application!of named function|)}
+
+\subsection{Call of an unnamed function}
+
+\label{section:appl-unnamed-function}
+\index{function!application!of \T{fun} expression|(}
+\index{fun expression@\T{fun} expression|(}
+\index{clause!of fun expression@of \T{fun} expression|(}
+
+We shall describe evaluation of a call of a function term to the values
+$\TZ{v}_1$, \ldots, $\TZ{v}_{\Zm{n}}$ of the arguments.
+Suppose that the function term was obtained by evaluating in an environment $\epsilon$ a
+\NT{FunExpr}
+\begin{alltt}
+fun (\(\Z{P}\sb{1,1}\),\tdots,\(\Z{P}\sb{1,\TZm{n}}\)) \([\)when \(\Z{G}\sb{1}]\) -> \(\Z{B}\sb{1}\) ;
+    \(\vdots\) ;
+    (\(\Z{P}\sb{k,1}\),\tdots,\(\Z{P}\sb{k,\TZm{n}}\)) \([\)when \(\Z{G}\sb{k}]\) -> \(\Z{B}\sb{k}\)
+end
+\end{alltt}
+where $k$ is a natural number, each $\TZ{P}_{i,j}$ ($1\leq i\leq k$ and
+$1\leq j\leq \TZ{n}$) is a \NT{Pattern}, each (optional) $\TZ{G}_i$ is a \NT{Guard}
+and each \T{$\Z{B}_i$} is a \NT{Body}.  Suppose also that the \T{fun} expression
+occurred lexically in the module named \TZ{Mod}.
+
+Carry out the following step for each function clause $i$, where $i$ goes from $1$ to $k$ in that order,
+until a clause $s$ is found for which both pattern matching and guard evaluation succeeds or all clauses
+have been tried.
+\begin{itemize}
+\item Match the terms $\TZ{v}_1$, \ldots, $\TZ{v}_{\TZm{n}}$
+against the patterns $\TZ{P}_{i,1}$, \ldots, $\TZ{P}_{i,\TZm{n}}$ in an empty environment
+(\emph{not} $\epsilon$).  If
+the matching succeeds, let $\epsilon'_i$ be the output environment.
+Evaluate the guard $\TZ{G}_i$ in $\epsilon\oplus\epsilon'_i$ (an omitted
+guard trivially succeeds).
+\end{itemize}
+If there is no clause for which both pattern matching and guard evaluation succeeds,
+then the evaluation of the function application exits with
+\ifStd
+\T{\{lambda_clause,\{\Z{Mod},\Z{T},[$\Z{v}_1$,\tdots,$\Z{v}_{\Zm{n}}$]\}\}},
+where \TZ{T} is an implementation-specific term that may help in
+identifying the \T{fun} expression.
+\else
+\T{\{lambda_clause,\Z{Mod}\}}.
+\fi
+Otherwise, evaluation of the function application continues by
+evaluating the body $\TZ{B}_s$ in the output environment of guard
+$\TZ{G}_s$.
+
+Note that matching the formal parameters (i.e., the patterns of the
+clauses) against actual parameters
+(i.e., the terms $\TZ{v}_1$, \ldots,
+$\TZ{v}_{\TZm{n}}$) in an empty environment implies that
+variables in the patterns of a clause shadow variables
+in the input environment of the \T{fun} expression. It is recommended that
+the compiler issues a warning when such shadowing takes place (i.e., when
+there is a variable in a pattern of a \T{fun} clause that is bound in the
+input environment of the \T{fun} expression).
+\index{function!application!of \T{fun} expression|)}
+\index{fun expression@\T{fun} expression|)}
+\index{clause!of fun expression@of \T{fun} expression|)}
+
+\subsection{Extent of function calls and last call optimization}
+
+\label{section:extent-function-calls}
+\index{function!extent of call|(}
+
+We shall state precisely when a function call begins and ends.
+Consider a function application where a function is specified in either
+of the four ways described in \S\ref{section:function-application}.
+The function call begins when matching of the patterns of the function clauses
+(either as identified through a module name, a function symbol and an arity,
+or as given in an explicit \T{fun} expression) against the values of the
+arguments begins.  (In \ifStd an \fi \ifOld the \fi
+actual implementation there is \ifStd typically \fi an
+entry point of the code for the function, cf.~\T{entry_points[\Z{N}]} of
+a node \TZ{N}, and the beginning of the function call corresponds to the
+moment when execution reaches that entry point.)
+
+Note that argument evaluation in the evaluation of a function application thus
+always occurs before the function call begins.
+
+Note also that in the case of a remote function application (i.e., case
+\ref{item:explicit-mod-fun} of \S\ref{section:function-application}) when there
+is no exported function with the given module name, function symbol and arity,
+there is no function call, so there is no beginning, nor an end.
+
+In order to state when the function call ends we must consider several cases
+(cf.~\S\ref{section:appl-named-function}):
+\begin{itemize}
+\item If there is no clause of the function declaration for which both pattern matching
+and guard evaluation succeeds, then the function call ends when the evaluation
+of the function application completes (abruptly).
+\item Otherwise, let \TZ{B} be the body
+of the selected clause and let $\TZ{E}'$ be the final expression in the evaluation
+of \TZ{B} as defined below.
+\begin{itemize}
+\item If $\TZ{E}'$ is a
+\iffalse remote \fi
+function application, and
+evaluation of \TZ{B} does not complete abruptly before $\TZ{E}'$ is evaluated, then
+the original function call ends when the function call in $\TZ{E}'$ begins.
+The function call in $\TZ{E}'$ is said to be the \emph{last call}\index{function!last call}
+of \TZ{B}.
+\item Otherwise, the function call ends when the evaluation
+of the original function application completes (normally or abruptly).
+\end{itemize}
+\end{itemize}
+
+We shall define the final expression of a body and of an expression through mutual recursion.
+This is well-defined only when evaluation of the body or the expression completes
+normally.
+
+\begin{itemize}
+\item The final expression in the evaluation of a body \T{$\Z{E}_1$, \tdots, $\Z{E}_k$}, where
+$k\geq1$, is the expression $\TZ{E}_k$.
+\item The final expression in the evaluation of an expression \TZ{E} is defined case by case:
+\begin{itemize}
+\item If \TZ{E} is a block expression \T{begin \Z{B} end}, then the final expression of
+\TZ{E} is the final expression of the body \TZ{B}.
+\item If \TZ{E} is \ifStd a \T{cond}, \else an \fi
+\T{if} or \T{case} expression (\ifStd\S\ref{section:cond-expr},\fi
+\S\ref{section:if-expr}, \S\ref{section:case-expr}), then
+the final expression of
+\TZ{E} is the final expression of the body of the selected clause of \TZ{E}.
+\item If \TZ{E} is a \T{receive} expression (\S\ref{section:receive-expr}), then:
+\begin{itemize}
+\item If the expiry time was reached, then 
+the final expression of \TZ{E} is the final expression of the expiry body of \TZ{E}.
+\item Otherwise,
+the final expression of
+\TZ{E} is the final expression of the body of the selected clause of \TZ{E}.
+\end{itemize}
+\ifStd
+\item If \TZ{E} is a \T{try} expression (\S\ref{section:try-expr}), then:
+\begin{itemize}
+\item If evaluation of the protected body of the \T{try} expression completed normally, then 
+the final expression of
+\TZ{E} is \TZ{E} itself.
+\item Otherwise,
+the final expression of
+\TZ{E} is the final expression of the body of the selected clause of \TZ{E}.
+\end{itemize}
+\fi
+\item If \TZ{E} is a parenthesized expression \T{($\Z{E}'$)}, then the final expression of
+\TZ{E} is $\TZ{E}'$.
+\item Otherwise, the final expression of \TZ{E} is \TZ{E} itself.
+\end{itemize}
+\end{itemize}
+
+When a function call ends,
+\ifStd a \StdErlang\ implementation must ensure \fi
+\ifOld \Erlang\ ensures \fi
+that any resources that are not recycled through garbage collection
+have been restored.  In particular this means that if memory for
+function calls is allocated on a stack, the size of the stack
+\ifStd must be \fi
+\ifOld is \fi
+the same when a function call begins and when it ends.
+
+\label{section:lco}
+
+\index{last call optimization|(}
+A consequence of this requirement and the definition of when a
+function call ends is that an \Erlang\ implementation \ifStd must
+provide \else provides \fi \emph{last call optimization} when the
+final expression in the body of a called function is a function
+application.
+\index{last call optimization|)}
+
+\label{section:function-use}
+
+\index{function!use of|(}
+Consider a process \TZ{P} that is evaluating an application of the
+exported function \T{\Z{Fun}/\Z{n}} in the module named \TZ{M}.  Let
+\TZ{B} be the binary that contains the compiled code
+(\S\ref{section:code-generation}) for the version of \TZ{M} that is
+current when the function call begins
+(\S\ref{section:current-version}).  Process \TZ{P} is then
+\emph{using} function \T{\Z{Fun}/\Z{n}} in \TZ{B} from the time that
+the function call begins until the function call ends.
+\index{function!use of|)}
+\index{function!extent of call|)}
+\index{function!application|)}
+\index{function!call|)}
+
+\section{Bodies}
+
+\label{section:bodies}
+
+\index{body|(}
+A \emph{body} is a nonempty sequence of expressions.
+
+\SYNTAX
+
+\begin{rules}
+\grrule{Body}
+       {\NT{Exprs}}
+
+\grrule{Exprs}
+       {\NT{Expr} \OR
+        \NT{Exprs} \TXT{,} \NT{Expr}}
+\end{rules}
+
+\EVALUATION
+
+Evaluation of a body \T{$\Z{E}_1$, \tdots, $\Z{E}_k$},
+where $k\geq 1$, with an input environment $\epsilon$
+is carried out as follows:
+
+\begin{itemize}
+\item First $\TZ{E}_1$ is evaluated, then
+$\TZ{E}_2$, and so on, until finally $\TZ{E}_k$ is evaluated.  The
+values of expressions $\TZ{E}_1$, \ldots, $\TZ{E}_{k-1}$ are
+completely ignored.  If the evaluations of all these expressions
+complete normally, then the evaluation of the body also completes
+normally and its value is the value of expression $\TZ{E}_k$.
+\item If the evaluation of some expression $\TZ{E}_i$, where $1\leq
+i\leq k$, completes abruptly with some reason \TZ{R}, the expressions
+$\TZ{E}_{i+1}$, \ldots, $\TZ{E}_k$ are not evaluated and evaluation of
+the body completes abruptly with reason \TZ{R}.
+\end{itemize}
+(Recall that in \S\ref{section:evorder} we stated that this is the
+\emph{perceivable} evaluation order.  If advantageous from an
+efficiency point of view, an implementation can often change the order
+of evaluation of expressions that have no side effects.)
+
+\ENVIRONMENTS
+
+\begin{itemize}
+\item $\epsilon$ is used as input environment of expression $\TZ{E}_1$.
+\item For each $i$, $1< i\leq k$, the output environment of
+expression $\TZ{E}_{i-1}$ is used as input environment of expression
+$\TZ{E}_i$.
+\item The output environment of expression $\TZ{E}_k$ is
+used as output environment of the body.
+\end{itemize}
+\index{body|)}
+
+\section{\T{catch} expressions}
+
+\label{section:catch}
+\index{catch expression@\T{catch} expression|(}
+
+\ifOld
+A \T{catch} expression is used for restoring normal mode of
+evaluation\index{evaluation!normal mode of}.
+\else
+A \T{catch} expression is an obsolete form of expression used for
+restoring normal mode of evaluation\index{completion!restoring
+normal}\index{evaluation!normal mode of}.  In new code a \T{try}
+expression (\S\ref{section:try-expr}) should be used instead of a
+\T{catch} expression\ifDiff (\S\ref{section:new-try})\fi.
+\fi
+
+\SYNTAX
+
+\begin{rules}
+\grrule{Expr}
+       {\TXT{catch} \NT{Expr} \OR
+        \NT{MatchExpr}}
+\end{rules}
+
+\EVALUATION
+
+Evaluating an expression \T{catch \Z{E}} begins by evaluating \TZ{E}.
+\begin{itemize}
+\item If evaluation of \TZ{E} completes normally and its result is \TZ{v},
+then evaluation of \T{catch \Z{E}} also completes normally with result
+\TZ{v}.
+\item If evaluation of \TZ{E} completes abruptly with reason
+\T{\char`\{'THROW',\Z{T}\char`\}}, for some term \TZ{T}, then evaluation
+of \T{catch \Z{E}} completes normally with result \TZ{T}.
+\item If evaluation of \TZ{E} completes abruptly with reason
+\T{\char`\{'EXIT',\Z{T}\char`\}},
+for some term \TZ{T}, then evaluation of \T{catch \Z{E}} completes
+normally with result \T{\char`\{'EXIT',\Z{T}\char`\}}.
+\end{itemize}
+
+\ENVIRONMENTS
+
+\begin{itemize}
+\item The input environment of \T{catch \Z{E}} is used as input environment of \TZ{E}.
+\item The output environment of \TZ{E} is not used;\footnote{If evaluation of
+\TZ{E} completes abruptly, then the values of some variables with binding occurrences
+in \TZ{E} may not have been computed.  Therefore any bindings in
+\TZ{E} must not be visible outside it.}
+the output environment of \T{catch \Z{E}} is the same as its input environment.
+\end{itemize}
+\index{catch expression@\T{catch} expression|)}
+
+\section{Match expressions}
+
+\label{section:match-expr}
+\index{match expression|(}
+\index{= operator@\T{=} operator|(}
+
+A match expression consists of a pattern and an expression.  Its
+purpose is to match the pattern against the value of the expression,
+providing bindings for variables having their binding occurrence in
+the pattern.
+
+\SYNTAX
+
+\begin{rules}
+\grrule{MatchExpr}
+       {\NT{Pattern} \TXT{=} \ifStd\NT{SendExpr}\fi\ifOld\NT{MatchExpr}\fi \OR
+        \NT{SendExpr}}
+\end{rules}
+
+\EVALUATION
+
+The evaluation of an expression \T{\Z{P} = \Z{E}}, where \TZ{P} is a
+pattern and
+\TZ{E} is an expression, begins with evaluating \TZ{E}.
+\begin{itemize}
+\item If the evaluation of \TZ{E} completes
+abruptly with reason \TZ{R}, then the evaluation of the match expression also
+completes abruptly with reason \TZ{R}.
+\item If the evaluation of \TZ{E} completes normally with the term
+\TZ{T} as result, then what remains is matching \TZ{P} against \TZ{T}.
+\begin{itemize}
+\item If the matching succeeds, then the computation of
+the match expression completes normally with result \TZ{T}.
+\item If the matching fails, the computation of the
+match expression exits with reason \T{\char`\{badmatch,$\Z{T}'$\char`\}}, where
+$\TZ{T}'$ is some term that is a (not necessarily strict) subterm of \TZ{T} such
+that its top level does not match the corresponding subpattern of \TZ{P}.
+\end{itemize}
+\end{itemize}
+
+\ENVIRONMENTS
+
+\begin{itemize}
+\item The input environment of the match expression is used as input environment of \TZ{E}.
+\item The output environment of \TZ{E} is used as input environment of the pattern matching.
+\item The output environment of the pattern matching is used as output environment of
+the match expression.
+\end{itemize}
+
+\iffalse
+A match expression has only one proper subexpression so it is not meaningful to
+talk about an order of evaluation.  However, note that in an expression
+\begin{alltt}
+\(\Z{P}\sb{1}\) = \(\Z{P}\sb{2}\) = \(\cdots\) = \(\Z{P}\sb{k}\) ! \Z{E}
+\end{alltt}
+matching against pattern $\TZ{P}_i$ will be completed before
+matching against pattern $\TZ{P}_{i-1}$ begins and variables
+having their binding occurrence in pattern $\TZ{P}_i$ can have
+applied occurrences in pattern $\TZ{P}_{i-1}$.
+\fi
+\index{match expression|)}
+\index{= operator@\T{=} operator|)}
+
+\section{Send expressions}
+
+\label{section:send-expr}
+\index{send expression|(}
+\index{"! operator@\T{"!}~operator|(}
+
+A send expression has two operands. The value of the leftmost operand
+should identify a process or port to which the value of the rightmost
+operand will be sent.
+
+\SYNTAX
+
+\begin{rules}
+\grrule{SendExpr}
+       {\NT{CompareExpr} \TXT{!}\ \NT{SendExpr} \OR
+        \NT{CompareExpr}}
+\end{rules}
+
+\EVALUATION
+
+The evaluation of a send expression \T{$\Z{E}_1$ !\ $\Z{E}_2$} begins
+with evaluating the operands $\TZ{E}_1$ and $\TZ{E}_2$
+\ifStd left-to-right \fi \ifOld in some order \fi
+in the input environment of the send expression.
+
+Let $\TZ{v}_1$ and $\TZ{v}_2$ be the values of $\TZ{E}_1$ and
+$\TZ{E}_2$ respectively.
+\begin{itemize}
+\item If $\TZ{v}_1$ is a PID\index{PID} or a port\index{port},
+then $\TZ{v}_2$ is dispatched as a message to $\TZ{v}_1$
+(\S\ref{section:messages}, \S\ref{section:send-port}).
+\item If $\TZ{v}_1$ is an atom, then $\TZ{v}_1$ is looked up in
+\T{registry[\Z{N}]}, where \TZ{N} is the node on which the current
+process is executing.
+\begin{itemize}
+\item If there is a process with some PID \TZ{P}
+registered\index{process!registry} under the name $\TZ{v}_1$ on node
+\TZ{N} (\S\ref{section:process-registry}), then $\TZ{v}_2$ is
+dispatched as a message to \TZ{P}.
+\item If there is no process registered under the name $\TZ{v}_1$ on
+node \TZ{N}, then
+\ifOld evaluation of  the send expression exits with \T{badarg}. \fi
+\ifStd the send expression has no effect. \fi
+\end{itemize}
+\item If $\TZ{v}_1$ is a 2-tuple of atoms \TZ{A} and \TZ{N}, then
+\TZ{A} is looked up in \T{registry[\Z{N}]} (although this lookup is
+performed on node \TZ{N}).
+\begin{itemize}
+\item If there is a process with some PID \TZ{P} registered under the name \TZ{A}
+on node \TZ{N}, then $\TZ{v}_2$ is dispatched as a message to \TZ{P}
+(\S\ref{section:messages}).
+\item If there is no process registered under the name \TZ{A} on node \TZ{N}, then
+the send expression has no effect.
+\end{itemize}
+\item If $\TZ{v}_1$ is not a PID, neither a port, nor an atom, nor a
+2-tuple of atoms, then
+evaluation of the send expression exits with \T{badarg}.
+\end{itemize}
+
+If evaluation completes normally, the value of the send expression is
+$\TZ{v}_2$.
+
+\ENVIRONMENTS
+
+The output environment of the operands is used as output environment
+of the send expression.
+\index{send expression|)}
+\index{"! operator@\T{"!}~operator|)}
+
+\section{Relational and equational operators}
+
+\label{section:relational}
+\index{term!comparison|(}
+\index{relational operators|(}
+\index{equational operators|(}
+\index{< operator@\T{<} operator|(}
+\index{=< operator@\T{=<} operator|(}
+\index{> operator@\T{>} operator|(}
+\index{>= operator@\T{>=} operator|(}
+\index{=:= operator@\T{=:=} operator|(}
+\index{=/= operator@\T{=/=} operator|(}
+\index{== operator@\T{==} operator|(}
+\index{/= operator@\T{/=} operator|(}
+
+The relational and equality operators do not associate neither to left,
+nor to the right.
+
+These operators can be applied to any pair of values and will always
+return \T{true} or \T{false}.
+
+\SYNTAX
+
+\begin{rules}
+\grrule{CompareExpr}
+       {\NT{ListConcExpr} \NT{RelationalOp} \NT{ListConcExpr} \OR
+        \NT{ListConcExpr} \NT{EqualityOp} \NT{ListConcExpr} \OR
+        \NT{ListConcExpr}}
+
+\grruleoneof{RelationalOp}{\TXT{<~~~~=<~~~>~~~~>=}}
+
+\grruleoneof{EqualityOp}{\TXT{=:=~~=/=~~==~~~/=}}
+\end{rules}
+
+\EVALUATION
+
+Evaluation of an expression \T{$\Z{E}_1$ \Z{O} $\Z{E}_2$}, where \TZ{O} is
+one of the eight relational and equality operators, begins with evaluating
+the operands $\TZ{E}_1$ and $\TZ{E}_2$
+\ifStd left-to-right \fi \ifOld in some order \fi
+in the input environment
+of \T{$\Z{E}_1$ \Z{O} $\Z{E}_2$}.  Let the values of
+the operands be $\TZ{v}_1$ and $\TZ{v}_2$, respectively.
+See the following sections for how the result is computed for each
+operator.
+
+\ENVIRONMENTS
+
+The output environment of the operands is used as output environment of
+\T{$\Z{E}_1$ \Z{O} $\Z{E}_2$}.
+
+\subsection{Relational operators \T{<}, \T{=<}, \T{>}, and \T{>=}}
+
+\label{section:relationalops}
+
+%First the terms $\TZ{v}_1$ and $\TZ{v}_2$ are coerced (\S\ref{section:coercion});
+%let $(\TZ{w}_1,\TZ{w}_2)=\I{coerce}(\TZ{v}_1,\TZ{v}_2)$.
+The terms are compared according to the term order (\S\ref{section:term-order})
+and equality (\S\ref{section:equality}).  If the comparison succeeds, the value
+of the expression is \T{true}; otherwise it is \T{false}.
+\begin{itemize}
+\item The operator \T{<} succeeds if $\TZ{v}_1$ precedes $\TZ{v}_2$ in the term
+order.
+\item The operator \T{=<} succeeds if $\TZ{v}_1$ precedes $\TZ{v}_2$ in the term
+order, or $\TZ{v}_1$ is equal to $\TZ{v}_2$.
+\item The operator \T{>} succeeds if $\TZ{v}_2$ precedes $\TZ{v}_1$ in the term
+order.
+\item The operator \T{>=} succeeds if $\TZ{v}_2$ precedes $\TZ{v}_1$ in the term
+order, or $\TZ{v}_1$ is equal to $\TZ{v}_2$.
+\end{itemize}
+
+\subsection{Exact equational operators \T{=:=}, \T{=/=}}
+
+\label{section:exactequationalops}
+\index{equality!exact|(}
+
+If the operator is \T{=:=}, then the value of the expression is \T{true} if
+$\TZ{v}_1$ is (exactly) equal to $\TZ{v}_2$ and \T{false} otherwise.
+
+If the operator is \T{=/=}, then the value of the expression is \T{false} if
+$\TZ{v}_1$ is (exactly) equal to $\TZ{v}_2$ and \T{true} otherwise.
+\index{equality!exact|)}
+
+\subsection{Arithmetic equational operators \T{==}, \T{/=}}
+
+\label{section:coercingequationalops}
+\index{equality!arithmetic|(}
+
+If the operator is \T{==}, then the value of the expression is \T{true} if
+$\TZ{v}_1$ is arithmetically equal to $\TZ{v}_2$ and \T{false} otherwise.
+
+If the operator is \T{/=}, then the value of the expression is \T{false} if
+$\TZ{v}_1$ is arithmetically equal to $\TZ{v}_2$ and \T{true} otherwise.
+\index{equality!arithmetic|)}
+
+\index{term!comparison|)}
+\index{relational operators|)}
+\index{equational operators|)}
+\index{< operator@\T{<} operator|)}
+\index{=< operator@\T{=<} operator|)}
+\index{> operator@\T{>} operator|)}
+\index{>= operator@\T{>=} operator|)}
+\index{=:= operator@\T{=:=} operator|)}
+\index{=/= operator@\T{=/=} operator|)}
+\index{== operator@\T{==} operator|)}
+\index{/= operator@\T{/=} operator|)}
+
+\section{List concatenation operators}
+
+\label{section:listconc-exprs}
+\index{list!concatenation operators|(}
+\index{++ operator@\T{++} operator|(}
+\index{-- operator@\T{--} operator|(}
+
+The list concatenation operators associate to the right.  This results in the most
+efficient computation of expressions on the form \T{$\Z{E}_1$
+++ $\Z{E}_2$ ++ $\Z{E}_3$}.  However, note that an expression \T{$\Z{E}_1$
+-- $\Z{E}_2$ -- $\Z{E}_3$} is equivalent to \T{$\Z{E}_1$
+-- ($\Z{E}_2$ -- $\Z{E}_3$)}, which may be counterintuitive.
+
+\SYNTAX
+
+\begin{rules}
+\grrule{ListConcExpr}
+       {\NT{AdditionShiftExpr} \NT{ListConcOp} \NT{ListConcExpr} \OR
+        \NT{AdditionShiftExpr}}
+
+\grruleoneof{ListConcOp}{\TXT{++~~~--}}
+\end{rules}
+
+\EVALUATION
+
+Evaluation of an expression \T{$\Z{E}_1$ ++ $\Z{E}_2$} or
+\T{$\Z{E}_1$ -- $\Z{E}_2$} begins by evaluating
+the operands $\TZ{E}_1$ and $\TZ{E}_2$
+\ifStd left-to-right \fi \ifOld in some order \fi
+in the input
+environment of the whole expression.  Let the values of the operands
+be $\TZ{v}_1$ and $\TZ{v}_2$, respectively.
+See the following sections for how the result is computed for each
+operator.
+
+\ENVIRONMENTS
+
+The output environment of the operands is used as output environment of
+the list concatenation expression.
+
+\subsection{List addition operator \T{++}}
+
+\label{section:list-addition}
+\index{list!addition|(}
+
+\begin{itemize}
+\item If $\TZ{v}_1$ is not a list,
+the evaluation of \T{$\Z{E}_1$
+++ $\Z{E}_2$} exits with reason \T{badarg}.
+\item Otherwise, suppose that the list $\TZ{v}_1$ has the $k$ elements
+$\TZ{x}_1$, \ldots, $\TZ{x}_k$.  The value of  \T{$\Z{E}_1$ ++ $\Z{E}_2$}
+is then a list with $\TZ{x}_1$, \ldots, $\TZ{x}_k$ as its first
+$k$ elements and $\TZ{v}_2$ as its $k$th tail.  This means that if
+$\TZ{v}_2$ is a list with the $l$ elements
+$\TZ{y}_1$, \ldots, $\TZ{y}_l$, then the value of \T{$\Z{E}_1$
+++ $\Z{E}_2$} is a list with the $k+l$ elements
+$\TZ{x}_1$, \ldots, $\TZ{x}_k$, $\TZ{y}_1$, \ldots, $\TZ{y}_l$.
+(If $\TZ{v}_2$ is not a list, then neither is the value of
+\T{$\Z{E}_1$ ++ $\Z{E}_2$}.)
+\end{itemize}
+
+The time required for computing the result from $\TZ{v}_1$ and
+$\TZ{v}_2$ should be % at most [this is understood?]
+$O(k)$ (where $k$ is the number of elements in $\TZ{v}_1$).
+
+Informally, this operator computes the result of concatenating two lists.
+\index{list!addition|)}
+
+\subsection{List difference operator \T{--}}
+
+\label{section:list-subtraction}
+\index{list!difference|(}
+
+\begin{itemize}
+\item If $\TZ{v}_1$ or $\TZ{v}_2$ is not a list,
+the evaluation of \T{$\Z{E}_1$
+-- $\Z{E}_2$} exits with reason \T{badarg}.
+\item Otherwise, suppose that $\TZ{v}_2$ has the $l$ elements
+\T{$\Z{y}_1$}, \ldots, \T{$\Z{y}_l$}.  Let us define inductively a sequence $s_0$, \ldots,
+$s_l$, each of which is a list.  Let $s_0$ be $\TZ{v}_1$ and let $s_{i+1}$ (for $0\leq i<l$)
+be:
+\begin{itemize}
+\item If $\TZ{y}_{i+1}$ is an element in $s_i$, then let $s_{i+1}$ be $s_i$ without the
+first occurrence of $\TZ{y}_{i+1}$.
+\item Otherwise, let $s_{i+1}$ be $s_i$.
+\end{itemize}
+The value of \T{$\Z{E}_1$ -- $\Z{E}_2$} is then $s_l$.
+\end{itemize}
+
+The time required for computing the result from $\TZ{v}_1$ and
+$\TZ{v}_2$ should be % at most [this is understood?]
+$O(kl)$ (where $k$ and $l$ are the number of elements in
+$\TZ{v}_1$ and $\TZ{v}_2$, respectively).
+
+Informally, this operator computes the result of removing the elements of one list
+from another, a form of ``list difference''.
+\index{list!difference|)}
+
+\index{list!concatenation operators|)}
+\index{++ operator@\T{++} operator|)}
+\index{-- operator@\T{--} operator|)}
+
+\section{Additive and shift operators}
+
+\label{section:additive}
+\label{section:shift}
+\index{additive operators|(}
+\index{shift operators|(}
+\index{+ operator@\T{+} operator|(}
+\index{- operator@\T{-} operator|(}
+\index{bor operator@\T{bor} operator|(}
+\index{bxor operator@\T{bxor} operator|(}
+\index{bsl operator@\T{bsl} operator|(}
+\index{bsr operator@\T{bsr} operator|(}
+\index{or operator@\T{or} operator|(}
+\index{xor operator@\T{xor} operator|(}
+
+The additive and shift operators associate to the left.
+
+\SYNTAX
+
+\begin{rules}
+\grrule{AdditionShiftExpr}
+       {\NT{AdditionShiftExpr} \NT{AdditionOp} \NT{MultiplicationExpr} \OR
+        \NT{AdditionShiftExpr} \NT{ShiftOp} \NT{MultiplicationExpr} \OR
+        \NT{AdditionShiftExpr} \TXT{or} \NT{MultiplicationExpr} \OR
+        \NT{AdditionShiftExpr} \TXT{xor} \NT{MultiplicationExpr} \OR
+        \NT{MultiplicationExpr}}
+
+\grruleoneof{AdditionOp}{\TXT{+~~~~-}\\
+                         \TXT{bor~~bxor}}
+
+\grruleoneof{ShiftOp}{\TXT{bsl~~bsr}}
+\end{rules}
+
+\EVALUATION
+
+Evaluation of an expression \T{$\Z{E}_1$ \Z{O} $\Z{E}_2$}, where
+\TZ{O} is one of the additive operators \TXT{+}, \TXT{-}, \TXT{bor}
+and \TXT{bxor}, shift operators \TXT{bsl} and \TXT{bsr} or logical
+operators \TXT{or} and \TXT{xor} begins with evaluating the operands
+$\TZ{E}_1$ and $\TZ{E}_2$
+\ifStd left-to-right \fi \ifOld in some order \fi
+in the input environment of the whole expression.  Let the values
+of the operands be $\TZ{v}_1$ and $\TZ{v}_2$, respectively.
+See the following sections for how the result is computed for each
+operator.
+
+\ENVIRONMENTS
+
+The output environment of the operands is used as output environment of
+\T{$\Z{E}_1$ \Z{O} $\Z{E}_2$}.
+
+\subsection{Numeric addition operators \T{+} and \T{-}}
+
+\label{section:additionops}
+\index{integer!addition|(}
+\index{float!addition|(}
+\index{integer!subtraction|(}
+\index{float!subtraction|(}
+
+\begin{itemize}
+\item If $\TZ{v}_1$ or $\TZ{v}_2$ is not a number, then
+evaluation of \T{$\Z{E}_1$ \Z{O} $\Z{E}_2$} exits with \T{\badarith}.
+\item Otherwise, if both $\TZ{v}_1$ and $\TZ{v}_2$ are integers,
+$\mathit{add}_I(\Er[\TZ{v}_1],\Er[\TZ{v}_2])$ (if \TZ{O} is \T{+}) or
+$\mathit{sub}_I(\Er[\TZ{v}_1],\Er[\TZ{v}_2])$ (if \TZ{O} is \T{-}) is
+computed; let the result be $r$.
+\item Otherwise, the terms $\TZ{v}_1$ and $\TZ{v}_2$ are coerced to floats
+(\S\ref{section:coercion});
+let $(\TZ{w}_1,\TZ{w}_2)=\mathit{coerce}(\TZ{v}_1,\TZ{v}_2)$.
+Next $\mathit{add}_F(\Er[\TZ{w}_1],\Er[\TZ{w}_2])$ (if \TZ{O} is \T{+}) or
+$\mathit{sub}_F(\Er[\TZ{w}_1],\Er[\TZ{w}_2])$ (if \TZ{O} is \T{-}) is
+computed; let the result be $r$.
+\end{itemize}
+If $r$ is a number, the value of \T{$\Z{E}_1$ \Z{O} $\Z{E}_2$} is $\Re[r]$;
+otherwise, evaluation of \T{$\Z{E}_1$ \Z{O} $\Z{E}_2$}
+exits with $\Re[r]$.
+\index{integer!addition|)}
+\index{float!addition|)}
+\index{integer!subtraction|)}
+\index{float!subtraction|)}
+
+\subsection{Integer bitwise operator \T{bor}}
+
+\label{section:bitwiseor}
+\index{integer!bitwise or|(}
+
+\begin{itemize}
+\item If $\TZ{v}_1$ or $\TZ{v}_2$ is not an integer, then
+      evaluation of \T{$\Z{E}_1$ bor $\Z{E}_2$} exits with \T{\badarith}.
+\item Otherwise, the value of \T{$\Z{E}_1$ or $\Z{E}_2$} is the integer
+      that is the bitwise OR of $\TZ{v}_1$ and $\TZ{v}_2$,
+      i.e., the integer that in binary two's-com\-ple\-ment
+      representation has a zero in those positions where the binary
+      two's-com\-ple\-ment representations of both
+      $\TZ{v}_1$ and $\TZ{v}_2$ have a zero, and a
+      one in the other positions.
+\end{itemize}
+\index{integer!bitwise or|)}
+
+\subsection{Integer bitwise operator \T{bxor}}
+
+\label{section:bitwisexor}
+\index{integer!bitwise xor|(}
+
+\begin{itemize}
+\item If $\TZ{v}_1$ or $\TZ{v}_2$ is not an integer, then
+      evaluation of \T{$\Z{E}_1$ bxor $\Z{E}_2$} exits with \T{\badarith}.
+\item Otherwise, the value of \T{$\Z{E}_1$ xor $\Z{E}_2$} is the integer
+      that is the bitwise XOR of $\TZ{v}_1$ and $\TZ{v}_2$,
+      i.e., the integer that in binary two's-com\-ple\-ment
+      representation has a one in those positions where the binary
+      two's-com\-ple\-ment representation of exactly one of
+      $\TZ{v}_1$ and $\TZ{v}_2$ has a one,
+      and a zero in the other positions.
+\end{itemize}
+\index{integer!bitwise xor|)}
+
+\subsection{Shift operators \T{bsl} and \T{bsr}}
+
+\label{section:shift-ops}
+\index{integer!bitwise shift|(}
+
+These operators compute bitwise shifts in the binary two's-com\-ple\-ment
+representation of integers.
+The left-hand operator gives the integer to be shifted and the right-hand
+operator gives the number of positions to shift.
+
+The \T{bsl} operator computes bitwise shift to the left with zeroes in
+the lowest-order bits of the result.  The \T{bsr} operator computes
+arithmetic shift to the right, i.e., with ones in
+the highest-order bits of the result if the left-hand operand was negative
+and zeros otherwise.
+
+\begin{itemize}
+\item If $\TZ{v}_1$ or $\TZ{v}_2$ is not an integer, evaluation of
+the shift expression exits with \T{\badarith}.
+\ifStd It is also permitted for an implementation to exit with
+\T{integer_overflow} \fi
+\ifOld \OldErlang\ also exits with \T{badarg} \fi
+if $\TZ{v}_2$ is not a fixnum (\S\ref{section:integer-type}).
+\item Otherwise, if the operator is \T{bsl}:
+\begin{itemize}
+\item If $\TZ{v}_2$ is negative, the value of the shift expression is
+the same as \T{bsr} for $\TZ{v}_1$ and $-\TZ{v}_2$.
+\item Otherwise, compute $\Er[\TZ{v}_1]\cdot2^{\Er[\TZ{v}_2]}$ and let
+the result be $r$.  (This is the result of extending the lowest-order
+bits in the binary two's-complement representation of $\TZ{v}_1$ with
+$\TZ{v}_2$ zeroes.)  If $r\in I$, then the value of \T{$\Z{E}_1$ bsl
+$\Z{E}_2$} is $\Re[r]$; otherwise evaluation of the shift expression
+exits with $\Re[\B{integer\_overflow}]$.
+\end{itemize}
+\item Otherwise, the operator is \T{bsr}:
+\begin{itemize}
+\item If $\TZ{v}_2$ is negative, the value of the shift expression is
+the same as \T{bsl} for $\TZ{v}_1$ and $-\TZ{v}_2$.
+\item Otherwise, compute
+$\lfloor\Er[\TZ{v}_1]\cdot2^{-\Er[\TZ{v}_2]}\rfloor$ and let the
+result be $r$.  (This is the result of removing the $\TZ{v}_2$
+lowest-order bits in the binary two's-complement representation of
+$\TZ{v}_1$.)  The result is always in $I$ when $\TZ{v}_1$ is in $I$;
+the value of \T{$\Z{E}_1$ bsr $\Z{E}_2$} is $\Re[r]$.
+\end{itemize}
+\end{itemize}
+\index{integer!bitwise shift|)}
+
+\subsection{Disjunction operator \T{or}}
+
+\label{section:booleanor}
+\index{Boolean!OR|(}
+
+\begin{itemize}
+\item If $\TZ{v}_1$ or $\TZ{v}_2$ is not a Boolean, then
+      evaluation of \T{$\Z{E}_1$ or $\Z{E}_2$} exits with
+      \ifStd\T{badbool}\else\T{badarg}\fi.
+\item Otherwise, if at least one of $\TZ{v}_1$ and $\TZ{v}_2$ is \T{true},
+      the result is \T{true}.
+\item Otherwise, the result is \T{false}.
+\end{itemize}
+\index{Boolean!OR|)}
+
+\subsection{Exclusion operator \T{xor}}
+
+\label{section:booleanxor}
+\index{Boolean!XOR|(}
+
+\begin{itemize}
+\item If $\TZ{v}_1$ or $\TZ{v}_2$ is not a Boolean, then
+      evaluation of \T{$\Z{E}_1$ xor $\Z{E}_2$} exits with
+      \ifStd\T{badbool}\else\T{badarg}\fi.
+\item Otherwise, if exactly one of $\TZ{v}_1$ and $\TZ{v}_2$ is \T{true},
+      the result is \T{true}.
+\item Otherwise, the result is \T{false}.
+\end{itemize}
+\index{Boolean!XOR|)}
+
+\index{additive operators|)}
+\index{shift operators|)}
+\index{+ operator@\T{+} operator|)}
+\index{- operator@\T{-} operator|)}
+\index{bor operator@\T{bor} operator|)}
+\index{bxor operator@\T{bxor} operator|)}
+\index{bsl operator@\T{bsl} operator|)}
+\index{bsr operator@\T{bsr} operator|)}
+\index{or operator@\T{or} operator|)}
+\index{xor operator@\T{xor} operator|)}
+
+\section{Multiplicative operators}
+
+\label{section:multiplicative}
+\index{multiplicative operators|(}
+\index{* operator@\T{*} operator|(}
+\index{/ operator@\T{/} operator|(}
+\ifStd\index{// operator@\T{//} operator|(}\fi
+\index{div operator@\T{div} operator|(}
+\ifStd\index{mod operator@\T{mod} operator|(}\fi
+\index{rem operator@\T{rem} operator|(}
+\index{band operator@\T{band} operator|(}
+\index{and operator@\T{and} operator|(}
+
+The multiplicative operators associate to the left.
+
+\SYNTAX
+
+\begin{rules}
+\grrule{MultiplicationExpr}
+       {\NT{MultiplicationExpr} \NT{MultiplicationOp} \NT{PrefixOpExpr} \OR
+        \NT{MultiplicationExpr} \TXT{and} \NT{PrefixOpExpr} \OR
+        \NT{PrefixOpExpr}}
+
+\grruleoneof{MultiplicationOp}{\TXT{*~~~~/}\\
+                               \TXT{\ifStd//~~~\fi div~~\ifStd mod~~\fi rem}\\
+                               \TXT{band}}
+\end{rules}
+
+\EVALUATION
+
+Evaluation of an expression \T{$\Z{E}_1$ \Z{O} $\Z{E}_2$}, where
+\TZ{O} is one of the \ifStd seven \else five \fi multiplicative
+operators \TXT{*}, \TXT{/},
+\ifStd\TXT{//}, \fi\TXT{div}, \ifStd\TXT{mod}, \fi\TXT{rem} and
+\TXT{band} or logical operator \TXT{and} begins with evaluating
+the operands $\TZ{E}_1$ and $\TZ{E}_2$
+\ifStd left-to-right \fi \ifOld in some order \fi
+in the input environment of \T{$\Z{E}_1$ \Z{O} $\Z{E}_2$}.  Let the values
+of the operands be $\TZ{v}_1$ and $\TZ{v}_2$, respectively.
+See the following sections for how the result is computed for each
+operator.
+
+\ENVIRONMENTS
+
+The output environment of the operands is the output environment of
+\T{$\Z{E}_1$ \Z{O} $\Z{E}_2$}.
+
+\subsection{Numeric multiplication operator \T{*}}
+
+\label{section:multiplication}
+\index{integer!multiplication|(}
+\index{float!multiplication|(}
+
+\begin{itemize}
+\item If $\TZ{v}_1$ or $\TZ{v}_2$ is not a number, then
+evaluation of \T{$\Z{E}_1$ * $\Z{E}_2$} exits with \T{\badarith}.
+\item Otherwise, if both $\TZ{v}_1$ and $\TZ{v}_2$ are integers,
+$\mathit{mul}_I(\Er[\TZ{v}_1],\Er[\TZ{v}_2])$ is
+computed; let the result be $r$.
+\item Otherwise, the terms $\TZ{v}_1$ and $\TZ{v}_2$ are coerced to floats
+(\S\ref{section:coercion});
+let $(\TZ{w}_1,\TZ{w}_2)=\mathit{coerce}(\TZ{v}_1,\TZ{v}_2)$.
+Next $\mathit{mul}_F(\Er[\TZ{w}_1],\Er[\TZ{w}_2])$ is
+computed; let the result be $r$.
+\end{itemize}
+If $r$ is a number, the value of \T{$\Z{E}_1$ * $\Z{E}_2$} is $\Re[r]$;
+otherwise, evaluation of \T{$\Z{E}_1$ * $\Z{E}_2$} exits with $\Re[r]$.
+\index{integer!multiplication|)}
+\index{float!multiplication|)}
+
+\subsection{Float division operator \T{/}}
+
+\label{section:floatdiv}
+\index{float!division|(}
+
+\begin{itemize}
+\item If $\TZ{v}_1$ or $\TZ{v}_2$ is not a number, then
+evaluation of \T{$\Z{E}_1$ / $\Z{E}_2$} exits with \T{\badarith}.
+\item Otherwise, the terms $\TZ{v}_1$ and $\TZ{v}_2$ are both coerced to floats
+(\S\ref{section:coercion}); let $(\TZ{w}_1,\TZ{w}_2)=
+(\mathit{toFloat}(\TZ{v}_1),\mathit{toFloat}(\TZ{v}_2))$.
+Next $\mathit{div}_F(\Er[\TZ{w}_1],\Er[\TZ{w}_2])$ is computed; let the result be $r$.
+\end{itemize}
+If $r$ is a number, the value of \T{$\Z{E}_1$ / $\Z{E}_2$} is $\Re[r]$;
+otherwise, evaluation of \T{$\Z{E}_1$ / $\Z{E}_2$} exits with $\Re[r]$.
+\index{float!division|)}
+
+\ifStd
+\subsection{Integer division operator \T{//}}
+
+\label{section:intdiv-f}
+\index{integer!division|(}
+
+\begin{itemize}
+\item If $\TZ{v}_1$ or $\TZ{v}_2$ is not an integer, then
+evaluation of \T{$\Z{E}_1$ // $\Z{E}_2$} exits with \T{\badarith}.
+\item Otherwise, $\mathit{div}_I^f(\Er[\TZ{v}_1],\Er[\TZ{v}_2])$ is computed;
+let the result be $r$.
+\end{itemize}
+If $r$ is a number, the value of \T{$\Z{E}_1$ // $\Z{E}_2$} is $\Re[r]$;
+otherwise, evaluation of \T{$\Z{E}_1$ // $\Z{E}_2$} exits with $\Re[r]$.
+\index{integer!division|)}
+\fi
+
+\subsection{Integer division operator \T{div}}
+
+\label{section:intdiv}
+\index{integer!division|(}
+
+\begin{itemize}
+\item If $\TZ{v}_1$ or $\TZ{v}_2$ is not an integer, then
+evaluation of \T{$\Z{E}_1$ div $\Z{E}_2$} exits with \T{\badarith}.
+\item Otherwise, $\mathit{div}_I^t(\Er[\TZ{v}_1],\Er[\TZ{v}_2])$ is computed;
+let the result be $r$.
+\end{itemize}
+If $r$ is a number, the value of \T{$\Z{E}_1$ div $\Z{E}_2$} is $\Re[r]$;
+otherwise, evaluation of \T{$\Z{E}_1$ div $\Z{E}_2$} exits with $\Re[r]$.
+\index{integer!division|)}
+
+\ifStd
+\subsection{Integer modulo operator \T{mod}}
+
+\label{section:intmod}
+\index{integer!modulo|(}
+
+\begin{itemize}
+\item If $\TZ{v}_1$ or $\TZ{v}_2$ is not an integer, then
+evaluation of \T{$\Z{E}_1$ mod $\Z{E}_2$} exits with \T{\badarith}.
+\item Otherwise, $\mathit{rem}_I^f(\Er[\TZ{v}_1],\Er[\TZ{v}_2])$ is computed;
+let the result be $r$.
+\end{itemize}
+If $r$ is a number, the value of \T{$\Z{E}_1$ mod $\Z{E}_2$} is $\Re[r]$;
+otherwise, evaluation of \T{$\Z{E}_1$ mod $\Z{E}_2$} exits with $\Re[r]$.
+\index{integer!modulo|)}
+\fi
+
+\subsection{Integer remainder operator \T{rem}}
+
+\label{section:intrem}
+\index{integer!remainder|(}
+
+\begin{itemize}
+\item If $\TZ{v}_1$ or $\TZ{v}_2$ is not an integer, then
+evaluation of \T{$\Z{E}_1$ rem $\Z{E}_2$} exits with \T{\badarith}.
+\item Otherwise, $\mathit{rem}_I^t(\Er[\TZ{v}_1],\Er[\TZ{v}_2])$ is computed;
+let the result be $r$.
+\end{itemize}
+If $r$ is a number, the value of \T{$\Z{E}_1$ rem $\Z{E}_2$} is $\Re[r]$;
+otherwise, evaluation of \T{$\Z{E}_1$ rem $\Z{E}_2$} exits with $\Re[r]$.
+\index{integer!remainder|)}
+
+\subsection{Integer bitwise operator \T{band}}
+
+\label{section:bitwiseand}
+\index{integer!bitwise and|(}
+
+\begin{itemize}
+\item If $\TZ{v}_1$ or $\TZ{v}_2$ is not an integer, then
+      evaluation of \T{$\Z{E}_1$ band $\Z{E}_2$} exits with \T{\badarith}.
+\item Otherwise, the value of \T{$\Z{E}_1$ band $\Z{E}_2$} is the integer
+      that is the bitwise AND of $\TZ{v}_1$ and $\TZ{v}_2$,
+      i.e., the integer that in binary two's-com\-ple\-ment
+      representation has a one in those positions where the binary
+      two's-com\-ple\-ment representations of both $\TZ{v}_1$ and $\TZ{v}_2$
+      have a one, and a zero in the other positions.
+\end{itemize}
+\index{integer!bitwise and|)}
+
+\subsection{Conjunction operator \T{and}}
+
+\label{section:booleanand}
+\index{Boolean!AND|(}
+
+\begin{itemize}
+\item If $\TZ{v}_1$ or $\TZ{v}_2$ is not a Boolean, then
+      evaluation of \T{$\Z{E}_1$ and $\Z{E}_2$} exits with
+      \ifStd\T{badbool}\else\T{badarg}\fi.
+\item Otherwise, if both $\TZ{v}_1$ and $\TZ{v}_2$ are \T{true},
+      the result is \T{true}.
+\item Otherwise, the result is \T{false}.
+\end{itemize}
+\index{Boolean!AND|)}
+
+\index{integer!bitwise and|)}
+\index{multiplicative operators|)}
+\index{* operator@\T{*} operator|)}
+\index{/ operator@\T{/} operator|)}
+\ifStd\index{// operator@\T{//} operator|)}\fi
+\index{div operator@\T{div} operator|)}
+\ifStd\index{mod operator@\T{mod} operator|)}\fi
+\index{rem operator@\T{rem} operator|)}
+\index{band operator@\T{band} operator|)}
+\index{and operator@\T{and} operator|)}
+
+\section{Unary operators}
+
+\label{section:unary}
+\index{unary operators|(}
+\index{+ operator@\T{+} operator|(}
+\index{- operator@\T{-} operator|(}
+\index{bnot operator@\T{bnot} operator|(}
+\index{not operator@\T{not} operator|(}
+
+The unary operators are \T{+}, \T{-}, \T{bnot} and \T{not}.
+The unary operators do not associate.  For example, the
+parentheses are necessary in \T{bnot(-X)}.
+
+\SYNTAX
+
+\begin{rules}
+\grrule{PrefixOpExpr}
+       {\NT{PrefixOp} \NT{RecordExpr} \OR
+        \NT{RecordExpr}}
+
+\grruleoneof{PrefixOp}{\TXT{+~~~~-}\\
+                       \TXT{bnot~not}}
+\end{rules}
+
+\EVALUATION
+
+Evaluation of an expression \T{\Z{O} \Z{E}}, where \TZ{O} is
+one of the four unary operators \TXT{+}, \TXT{-},
+\TXT{bnot} and \TXT{not}, in an environment $\epsilon$ begins with evaluating
+the operand \TZ{E} in $\epsilon$.  Let its value be \TZ{v}.
+See the following sections for how the result is computed for each
+operator.
+
+\ENVIRONMENTS
+
+The output environment of \TZ{E} is used as output environment of
+\T{\Z{O} \Z{E}}.
+
+\subsection{Unary plus operator \T{+}}
+
+\label{section:unaryplus}
+\index{integer!identity|(}
+\index{integer!unary plus|(}
+\index{float!identity|(}
+\index{float!unary plus|(}
+
+\ifStd
+\begin{itemize}
+\item If \TZ{v} is a number, then the value of \T{+ \Z{E}} is \TZ{v}.
+\item Otherwise, the evaluation of \T{+ \Z{E}} exits with \T{\badarith}.
+\end{itemize}
+\fi
+\ifOld
+\TZ{v} is returned.\footnote{It is not intended that the unary \T{+} operator
+should be applied to anything but numbers.}
+\fi
+\index{integer!identity|)}
+\index{integer!unary plus|)}
+\index{float!identity|)}
+\index{float!unary plus|)}
+
+\subsection{Unary minus operator \T{-}}
+
+\label{section:unaryminus}
+\index{integer!negation|(}
+\index{integer!unary minus|(}
+\index{float!negation|(}
+\index{float!unary minus|(}
+
+The type of the result depends on the type of $\TZ{v}$.
+\begin{itemize}
+\item If $\TZ{v}$ is not a number,
+evaluation of \T{- \Z{E}} exits with \T{badarith}.
+%$\mathit{neg}_I(\Er[\TZ{v}])$ is computed; let the result be $r$.
+\item Otherwise, if $\TZ{v}$ is an integer,
+$\mathit{neg}_I(\Er[\TZ{v}])$ is computed; let the result be $r$.
+\item Otherwise $\TZ{v}$ is a float,
+$\mathit{neg}_F(\Er[\TZ{v}])$ is computed; let the result be $r$.
+\end{itemize}
+If $r$ is a number, then the value of \T{- \Z{E}} is $\Re[r]$;
+otherwise, evaluation of \T{- \Z{E}} exits with $\Re[r]$.
+\index{integer!negation|)}
+\index{integer!unary minus|)}
+\index{float!negation|)}
+\index{float!unary minus|)}
+
+\subsection{Bitwise complement operator \T{bnot}}
+
+\label{section:bitwisecomp}
+\index{integer!bitwise complement|(}
+\index{integer!bitwise negation|(}
+
+\begin{itemize}
+\item If \TZ{v} is an integer, then the value of \T{bnot \Z{E}} is $(-\TZ{v})-1$
+(Note that in two's-com\-ple\-ment representation this numeral is the bitwise
+complement of \TZ{v} and that $(-\TZ{v})-1$ may be representable even when $-\TZ{v}$ is not)
+\item Otherwise, the evaluation of \T{bnot \Z{E}} exits with \T{\badarith}.
+\end{itemize}
+\index{integer!bitwise complement|)}
+\index{integer!bitwise negation|)}
+
+\subsection{Boolean complement operator \T{not}}
+
+\label{section:booleannot}
+\index{Boolean!complement|(}
+\index{Boolean!negation|(}
+
+\begin{itemize}
+\item If \TZ{v} is the atom \T{true}, then the value of \T{not \Z{E}}
+      is \T{false}.
+\item If \TZ{v} is the atom \T{false}, then the value of \T{not \Z{E}}
+      is \T{true}.
+\item Otherwise, the evaluation of \T{not \Z{E}} exits with
+      \ifStd\T{badbool}\else\T{badarg}\fi.
+\end{itemize}
+\index{Boolean!complement|)}
+\index{Boolean!negation|)}
+
+\index{unary operators|)}
+\index{+ operator@\T{+} operator|)}
+\index{- operator@\T{-} operator|)}
+\index{bnot operator@\T{bnot} operator|)}
+\index{not operator@\T{not} operator|)}
+
+\section{Record expressions}
+
+\label{section:record-exprs}
+\index{record!expression|(}
+\index{# separator@\T{\char`\#} separator|(}
+
+A record declaration (\S\ref{section:record-declarations})
+\begin{alltt}
+-record(\Z{R},\{\(\Z{F}\sb{1}[\mbox{\T{=\(\Z{E}\sb{1}\)}}],\tdots,\Z{F}\sb{n}[\mbox{\T{=\(\Z{E}\sb{n}\)}}]\)\})
+\end{alltt}
+establishes \TZ{R} as a record type with $n$ named fields $\TZ{F}_1$,
+\ldots, $\TZ{F}_n$.  The compiler decides an invertible mapping for
+\TZ{R} from the field names $\TZ{F}_1$, \ldots, $\TZ{F}_n$ to the
+integers $2$, \ldots, $n+1$.  Let us call this mapping
+$\mathit{record\_field}_{\TZm{R}}$\index{record_field@$\mathit{record\_field}$}
+and its inverse
+$\mathit{record\_field}_{\TZm{R}}^{-1}$\index{record_field
+-1@$\mathit{record\_field}^{-1}$}.
+\index{record!is a tuple|(}
+A record term of type \TZ{R} is then represented by a tuple with $n+1$
+elements where the first element is the atom
+\TZ{R} and element $i$ contains the value for field
+$\mathit{record\_field}_{\TZm{R}}^{-1}(i)$, where $2\leq i\leq n+1$.
+\index{record!is a tuple|)}
+
+The value of $\mathit{record\_field}_{\TZm{R}}(\TZ{F})$ is available as
+\T{\char`\#\Z{R}.\Z{F}}. For most purposes it is sufficient and
+appropriate to use this mapping only indirectly through record element
+access and record update expressions (see below).
+
+\SYNTAX
+
+\begin{rules}
+\grrule{RecordExpr}
+       {\OPT{RecordExpr} \TXT{\char`\#} \NT{RecordType} \TXT{.}\ \NT{RecordFieldName} \OR
+        \OPT{RecordExpr} \TXT{\char`\#} \NT{RecordType} \NT{RecordUpdateTuple} \OR
+        \NT{ApplicationExpr}}
+
+\grrule{RecordUpdateTuple}
+       {\TXT{\char`\{} \OPT{RecordFieldUpdates} \TXT{\char`\}}}
+
+\grrule{RecordFieldUpdates}
+       {\NT{RecordFieldUpdate} \OR
+        \NT{RecordFieldUpdates} \TXT{,}\ \NT{RecordFieldUpdate}}
+
+\grrule{RecordFieldUpdate}
+       {\NT{RecordFieldName} \NT{RecordFieldValue}}
+
+\grrule{RecordFieldValue}
+       {\TXT{=} \NT{Expr}}
+\end{rules}
+(The rules for \NT{RecordType} and \NT{RecordFieldName} appear
+in \S\ref{section:pattern-matching}.)
+
+There are four kinds of record expression and we will describe them one by one.
+
+\subsection{Record field index}
+
+\label{section:field-index}
+\index{record!field index expression|(}
+A record field index expression gives the position of a field in the tuple
+that is the record.
+
+\EVALUATION
+
+The value of an expression \T{\char`\#\Z{R}.\Z{F}}, where \TZ{R} is a
+record name and \TZ{F} is the name of a field in \TZ{R}, is the
+integer $\mathit{record\_field}_{\TZm{R}}(\TZ{F})$.
+
+It is a compile-time error if the expression is not in the scope of
+a declaration of a record type \TZ{R} having a field \TZ{F}.
+
+\ENVIRONMENTS
+
+The output environment is the same as the input environment.
+
+\NOTE
+
+\ifStd An implementation may treat \fi
+\ifOld \OldErlang\ treats \fi
+a record field index expression \T{\char`\#\Z{R}.\Z{F}}
+as syntactic sugar for an integer literal $\mathit{record\_field}_{\TZm{R}}(\TZ{F})$.
+\index{record!field index expression|)}
+
+\subsection{Record field access}
+
+\label{section:field-access}
+\index{record!field access expression|(}
+A record field access expression extracts one field of a record.
+
+\EVALUATION
+
+In the scope of a record declaration that establishes \TZ{R} as
+a record type with $n$ fields, the evaluation of an expression
+\T{\Z{E}\char`\#\Z{R}.\Z{F}}, where \TZ{F} is the name of a field in \TZ{R},
+begins with
+evaluating the expression \TZ{E}; let its value be \TZ{v}.
+\begin{itemize}
+\item If \TZ{v} is a tuple with $n+1$ elements and element $1$
+of \TZ{v} is \TZ{R}, the value of the whole expression is
+element $\mathit{record\_field}_{\TZm{R}}(\TZ{F})$ of \TZ{v}.
+\item Otherwise, evaluation of the whole expression exits
+with \T{badarg}.
+\end{itemize}
+It is a compile-time error if the expression is not in the scope of
+a declaration of a record type \TZ{R} having a field \TZ{F}.
+
+\ENVIRONMENTS
+
+The input environment of the whole expression is used as input environment
+of \TZ{E} and the output environment of \TZ{E} is used as output environment of the
+whole expression.
+
+\NOTE
+
+\ifStd An implementation may treat \fi
+\ifOld \OldErlang\ treats \fi
+\T{\Z{E}\char`\#\Z{R}.\Z{F}}
+as syntactic sugar for a function application
+\T{element($\mathit{record\_field}_{\TZm{R}}(\TZ{F})$,\Z{E})}.
+\index{record!field access expression|)}
+
+\subsection{Record creation}
+
+\label{section:record-creation}
+\index{record!creation expression|(}
+
+A record creation expression creates a new record with field values as specified
+or according to the record declaration.
+
+\EVALUATION
+
+In the scope of a record declaration that establishes \TZ{R} as
+a record type with $n$ fields, an expression
+\T{\char`\#\Z{R}\{$\Z{F}_1$=$\Z{E}_1$,\tdots,$\Z{F}_k$=$\Z{E}_k$\}},
+where \TZ{R} is a record name and $\TZ{F}_1$, \ldots, $\TZ{F}_k$ are
+distinct names of fields in \TZ{R}, is evaluated exactly as if it
+were a tuple skeleton
+\begin{textdisplay}
+\T{\{\Z{R},$\Z{E}'_1$,\tdots,$\Z{E}'_n$\}}
+\end{textdisplay}
+where each expression $\TZ{E}'_i$, $1\leq i\leq n$, is as follows:
+\begin{itemize}
+\item If there is an integer
+$j$, $1\leq j\leq k$, such that $\mathit{record\_field}_{\TZm{R}}(\TZ{F}_j)=i$,
+then $\TZ{E}'_i$ is $\TZ{E}_j$.
+\item Otherwise, if there is a default initializer expression for
+the field named $\mathit{record\_field}_{\TZm{R}}^{-1}(i)$, then
+$\TZ{E}'_i$ is that expression.
+\item Otherwise, $\TZ{E}'_i$ is the atom literal \T{undefined}.
+\end{itemize}
+It is a compile-time error if the expression is not in the scope of
+a declaration of a record type \TZ{R} having at least the fields
+$\TZ{F}_1$, \ldots, $\TZ{F}_k$, or if $\TZ{F}_1$, \ldots, $\TZ{F}_k$
+are not distinct.
+
+Expressions $\TZ{E}'_1$, \ldots, $\TZ{E}'_n$ are evaluated
+\ifStd left-to-right\fi \ifOld in some order\fi,
+let their values be $\TZ{v}'_1$, \ldots, $\TZ{v}'_n$.  The value
+of the record creation expression is then a $n+1$-tuple with
+the atom \TZ{R} as its first element and $\TZ{v}'_1$, \ldots, $\TZ{v}'_n$
+as the remaining elements.
+
+\ENVIRONMENTS
+
+The input environment of the whole expression is used as input environment
+of $\TZ{E}_1$, \ldots, $\TZ{E}_k$ and the output environment of
+$\TZ{E}_1$, \ldots, $\TZ{E}_k$ is used as output environment of the
+whole expression.  However, any default initializer expressions
+must be evaluated in an empty environment and must have an empty
+output environment.
+
+\NOTE
+
+\ifStd An implementation may treat \fi
+\ifOld \OldErlang\ treats \fi
+\T{\char`\#\Z{R}\char`\{$\Z{F}_1$=$\Z{E}_1$,\tdots,$\Z{F}_k$=$\Z{E}_k$\char`\}}
+as syntactic sugar for the tuple skeleton described above.
+\index{record!creation expression|)}
+
+\subsection{Record update}
+
+\label{section:record-update}
+\index{record!update expression|(}
+A record update expression creates a new record with field values as specified
+or according to a given record.
+
+\EVALUATION
+
+In the scope of a record declaration that establishes \TZ{R} as
+a record type with $n$ fields, the evaluation of an expression
+\T{$\Z{E}_0$\char`\#\Z{R}\{$\Z{F}_1$=$\Z{E}_1$,\tdots,$\Z{F}_k$=$\Z{E}_k$\}},
+where \TZ{R} is a record name and $\TZ{F}_1$, \ldots, $\TZ{F}_k$ are
+distinct names of fields in \TZ{R}, begins with
+evaluating the expressions $\TZ{E}_0$, $\TZ{E}_1$, \ldots,
+$\TZ{E}_k$ \ifStd left-to-right\fi \ifOld in some order\fi.  Let their values be
+$\TZ{v}_0$, $\TZ{v}_1$, \ldots, $\TZ{v}_k$.
+\begin{itemize}
+\item If $\TZ{v}_0$ is not a tuple with $n+1$ elements, or its first element is
+not the atom \TZ{R}, then evaluation of the record update expression exits
+with \T{badarg}.
+\item Otherwise, the value of the whole expression is
+an $n+1$-tuple where element $1$ is the atom \TZ{R} and
+where for each $i$, $2\leq i\leq n+1$,
+element $i$ is obtained as follows:
+\begin{itemize}
+\item If there is an integer
+$j$, $1\leq j\leq k$, such that $\mathit{record\_field}_{\TZm{R}}(\TZ{F}_j)=i$,
+then element $i$ is $\TZ{v}_j$.
+\item Otherwise, element $i$ is element $i$ of $\TZ{v}_0$.
+\end{itemize}
+\end{itemize}
+It is a compile-time error if the expression is not in the scope of
+a declaration of a record type \TZ{R} having at least the fields
+$\TZ{F}_1$, \ldots, $\TZ{F}_k$, or if $\TZ{F}_1$, \ldots, $\TZ{F}_k$
+are not distinct.
+
+\ENVIRONMENTS
+
+The input environment of the whole expression is used as input environment
+of $\TZ{E}_0$, $\TZ{E}_1$, \ldots, $\TZ{E}_k$ and the output environment of
+$\TZ{E}_0$, $\TZ{E}_1$, \ldots, $\TZ{E}_k$ is used as output environment of the
+whole expression.
+
+\NOTE
+
+\ifStd An implementation may treat \fi
+\ifOld \OldErlang\ treats \fi
+\T{$\Z{E}_0$\char`\#\Z{R}\{$\Z{F}_1$=$\Z{E}_1$,\tdots,$\Z{F}_k$=$\Z{E}_k$\}}
+as syntactic sugar for
+\iftrue
+an expression such as
+\begin{alltt}
+case \(\Z{E}\sb{0}\) of
+    \{\Z{R},\(\Z{V}\sb{1}\),\tdots,\(\Z{V}\sb{n}\)\} ->
+        \{\Z{R},\(\Z{E}\sp{\prime}\sb{1}\),\tdots,\(\Z{E}\sp{\prime}\sb{n}\)\}
+    _ -> exit(badarg)
+end
+\end{alltt}
+where each $\TZ{V}_i$ and $\TZ{E}'_i$, $1\leq i\leq n$, is as follows:
+\begin{itemize}
+\item If there is an integer
+$j$, $1\leq j\leq k$, such that $\mathit{record\_field}_{\TZm{R}}(\TZ{F}_j)=i$,
+then $\TZ{V}_i$ is a universal pattern and $\TZ{E}'_i$ is $\TZ{E}_j$.
+\item Otherwise, $\TZ{V}_i$ is a new variable and $\TZ{E}'_i$ is $\TZ{V}_i$.
+\end{itemize}
+\else
+a function application
+\begin{alltt}
+fun (\(\Z{V}\sb{0}\),\(\Z{V}\sb{1}\),\tdots,\(\Z{V}\sb{k}\)) ->
+    case \(\Z{V}\sb{0}\) of
+        \{\Z{R},\(\Z{W}\sb{1}\),\tdots,\(\Z{W}\sb{n}\)\} ->
+            \{\Z{R},\(\Z{E}\sp{\prime}\sb{1}\),\tdots,\(\Z{E}\sp{\prime}\sb{n}\)\}
+        _ -> exit(badarg)
+    end (\(\Z{E}\sb{0}\),\(\Z{E}\sb{1}\),\tdots,\(\Z{E}\sb{k}\))
+\end{alltt}
+where each $\TZ{V}_i$, $0\leq i\leq k$, is a new variable
+and each $\TZ{W}_i$ and $\TZ{E}'_i$, $1\leq i\leq n$, is as follows:
+\begin{itemize}
+\item If there is an integer
+$j$, $1\leq j\leq k$, such that $\mathit{record\_field}_{\TZm{R}}(\TZ{F}_j)=i$,
+then $\TZ{W}_i$ is a universal pattern and $\TZ{E}'_i$ is $\TZ{V}_j$.
+\item Otherwise, $\TZ{W}_i$ is a new variable and $\TZ{E}'_i$ is $\TZ{W}_i$.
+\end{itemize}
+\fi
+A \emph{new variable} is a variable not in the input domain.
+Moreover, all new variables are distinct.
+\index{record!update expression|)}
+\index{record!expression|)}
+\index{# separator@\T{\char`\#} separator|)}
+
+\section{Function application expressions}
+
+\label{section:application-exprs}
+\index{function!application!expression|(}
+
+There are three forms of function application expressions: for applying a
+named function in the same module, for applying a named and exported function
+in a different module, and for applying the value of a function expression.
+There are also BIFs for function application, cf.\
+\ifOld\S\ref{section:process-bifs}\fi
+\ifStd\S\ref{section:process-module}\fi.  Syntactically the first form
+is included in the third form.
+
+\SYNTAX
+
+\begin{rules}
+\grrule{ApplicationExpr}
+       {\NT{PrimaryExpr} \TXT{(} \OPT{Exprs} \TXT{)} \OR
+        \NT{PrimaryExpr} \TXT{:} \NT{PrimaryExpr} \TXT{(} \OPT{Exprs} \TXT{)} \OR
+        \NT{PrimaryExpr}}
+\end{rules}
+
+\EVALUATION
+
+There are three forms of application expressions and we will describe
+them one by one.
+\begin{itemize}
+
+\item An expression on the form
+\T{\Z{Fun}($\Z{E}_1$,\tdots,$\Z{E}_{\Zm{k}}$)}, where \TZ{Fun} is a
+function name, is a
+\emph{local function application}\index{function!application!local}.
+It is evaluated by evaluating the expressions $\TZ{E}_1$, \ldots,
+$\TZ{E}_{\TZm{k}}$
+\ifStd left-to-right \fi \ifOld in some order \fi and then
+as described in case~\ref{item:function-application-atom} of
+\S\ref{section:function-application}.  It is a compile-time error if
+there is no function named \T{\Z{Fun}/\Z{k}} in the lexically
+enclosing module declaration.
+
+\item An expression on the form
+\T{$\Z{E}_m$:$\Z{E}_0$($\Z{E}_1$,\tdots,$\Z{E}_{\TZm{k}}$)} where
+$\TZ{E}_m$ and $\TZ{E}_0$ evaluate to atoms is a
+\emph{remote function application}\index{function!application!remote}.
+It is evaluated by evaluating the expressions $\TZ{E}_1$, \ldots,
+$\TZ{E}_{\TZm{k}}$
+\ifStd left-to-right \fi \ifOld in some order \fi and then
+as described in case~\ref{item:explicit-mod-fun} of
+\S\ref{section:function-application}.
+
+\item The evaluation of an expression on the form \T{$\Z{E}_0$($\Z{E}_1$,\tdots,$\Z{E}_{\Zm{k}}$)} (where
+$\TZ{E}_0$ is not an atomic literal) begins with
+evaluating the expressions $\TZ{E}_0$, $\TZ{E}_1$, \ldots, $\TZ{E}_{\TZm{k}}$
+\ifStd left-to-right\fi \ifOld in some order\fi.
+Then it depends on the value of $\TZ{E}_0$:
+\begin{itemize}
+
+\item If the value of $\TZ{E}_0$ is the result of evaluating an
+implicit \T{fun} expression (\S\ref{section:fun-exprs}), then
+evaluation proceeds as described in
+case~\ref{item:function-application-impl-fun} of
+\S\ref{section:function-application}.
+
+\item If the value of $\TZ{E}_0$ is the result of evaluating an
+explicit \T{fun} expression (\S\ref{section:fun-exprs}), then
+evaluation proceeds as described in
+case~\ref{item:function-application-expl-fun} of
+\S\ref{section:function-application}.
+
+\item If the value of $\TZ{E}_0$ is a 2-tuple \T{\{\Z{Mod},\Z{Fun}\}},
+where \TZ{Mod} and \TZ{Fun} are atoms, then the expression is a remote
+function application and is evaluated exactly as if it were an
+application expression
+\T{\Z{Mod}:\Z{Fun}($\Z{E}_1$,\tdots,$\Z{E}_{\Zm{k}}$)}.
+(see above).  Note that this is form is obsolete and should not be
+used.  It is only kept for backwards compatibility may not be
+supported in the future.
+
+\item Otherwise, evaluation of the application expression exits with
+\T{badfun}.
+\end{itemize}
+
+\end{itemize}
+
+\ENVIRONMENTS
+
+The input environment of the whole expression is used as input environment
+of [[$\TZ{E}_m$,] $\TZ{E}_0$,] $\TZ{E}_1$, \ldots, $\TZ{E}_k$ and the output
+environment of
+[[$\TZ{E}_m$,] $\TZ{E}_0$,] $\TZ{E}_1$, \ldots, $\TZ{E}_k$
+is used as output environment of the whole expression.
+\index{function!application!expression|)}
+
+\section{Primary Expressions}
+
+\label{section:primary-exprs}
+\index{primary expressions|(}
+The primary expressions are the building blocks from which other
+expressions are constructed.  Note that many of them are themselves
+compound but the enclosed expressions can be thought of as being
+parenthesized so primary expressions have infinite precedence.
+
+\begin{rules}
+\grrule{PrimaryExpr}
+       {\NT{Variable} \OR
+        \NT{AtomicLiteral} \OR
+        \NT{TupleSkeleton} \OR
+        \NT{ListSkeleton} \OR
+        \NT{ListComprehension} \OR
+        \NT{BlockExpr} \OR
+        \ifStd\NT{AllTrueExpr} \OR
+        \NT{SomeTrueExpr} \OR\fi
+        \ifStd\NT{CondExpr} \OR\fi
+        \NT{IfExpr} \OR
+        \NT{CaseExpr} \OR
+        \NT{ReceiveExpr} \OR
+        \ifStd\NT{TryExpr} \OR\fi
+        \NT{FunExpr} \OR
+        \ifOld\NT{QueryExpr} \OR\fi
+        \NT{ParenthesizedExpr}}
+\end{rules}
+
+\subsection{Variables}
+
+\label{section:variables-eval}
+
+\index{variable!expression|(}
+An applied occurrence of a variable\index{variable!applied occurrence}
+has its value given by a variable
+binding in the current environment\index{environment}.
+The requirement to verify at compile time
+that every applied variable occurrence is in the input context\index{context!input}
+at the occurrence (\S\ref{section:REB})
+guarantees that there must be such a binding at run time.
+
+\SYNTAX
+
+A \NT{Variable} is a \NT{Token} and its syntax is described in \S\ref{section:variables}.
+
+\EVALUATION
+
+Evaluation of an expression \TZ{V}, where \TZ{V} is a variable,
+consists of looking up the value for \TZ{V} in the input environment.
+If there is no binding for \TZ{V} in the input environment
+(\S\ref{section:environments}), then it is
+a compile-time error (\S\ref{section:REB}, \S\ref{section:scope}).
+
+\ENVIRONMENTS
+
+The input and output environments of a variable are the same.
+\index{variable!expression|)}
+
+\subsection{Atomic literals}
+
+\label{section:atomic-literals}
+\index{atomic literal|(}
+
+An \emph{atomic literal} always denotes the same value regardless of
+the context so no evaluation is necessary to determine which term an
+atomic literal denotes.  All atomic literals except string literals
+are elementary terms.
+
+\SYNTAX
+
+\begin{rules}
+\grrule{AtomicLiteral}
+       {\NT{IntegerLiteral} \OR
+        \NT{FloatLiteral} \OR
+        \NT{CharLiteral} \OR
+        \NT{StringLiterals} \OR
+        \NT{AtomLiteral}}
+
+\grrule{StringLiterals}
+       {\NT{StringLiteral} \OR
+	\NT{StringLiterals} \NT{StringLiteral}}
+\end{rules}
+
+\EVALUATION
+
+The compiler can be expected to compile a literal into code that directly
+creates the internal representation of the term.
+
+\begin{itemize}
+\item An atom literal always denotes an atom, cf.~\S\ref{section:atoms}.
+\item An integer literal always denotes an integer, cf.~\S\ref{section:integers}.
+\item A float literal always denotes a float, cf.~\S\ref{section:floats}.
+\item A character literal always denotes a character, cf.~\S\ref{section:chars}.
+\item A string literal always denotes a string, cf.~\S\ref{section:strings}.
+\end{itemize}
+
+Note that a string literal may be written as several subsequent stubs,
+which are nevertheless thought of as constituting a single string
+literal.  For example,
+\begin{verbatim}
+"this " "is o" "ne string"
+\end{verbatim}
+is indistinguishable from the
+string literal
+\begin{alltt}
+"this is one string"\R{.}
+\end{alltt}
+This suggests one way to write a string literal on more than one line:
+dividing it into several parts and breaking the lines (and adding
+indentation) between them.
+
+\ENVIRONMENTS
+
+The input and output environments of an atomic literal are the same.
+\index{atomic literal|)}
+
+\subsection{Tuple skeletons}
+
+\label{section:tuple-skeletons}
+\index{tuple!skeleton|(}
+
+For a tuple skeleton, the ``surface structure'' is obvious and no
+evaluation is needed to obtain it.  If all immediate subexpressions of
+a tuple skeleton are literals, the tuple skeleton is itself a (tuple)
+literal.
+
+\SYNTAX
+
+\begin{rules}
+\grrule{TupleSkeleton}
+       {\TXT{\char`\{} \OPT{Exprs} \TXT{\char`\}}}
+\end{rules}
+
+\ifOld
+A tuple skeleton may have at most 255 elements so tuples with more elements
+must be created in some other way than through syntax (e.g., by calling the BIF
+\T{list_to_tuple/1}\index{list_to_tuple/1@\T{list_to_tuple/1}}
+[\S\ref{section:listtotuple1}]).
+\fi
+
+\EVALUATION
+
+For a tuple skeleton it is always obvious that it denotes a tuple with
+$k$ elements, for some natural number $k$.
+
+Evaluation of an expression \T{\char`\{$\Z{E}_1$,\tdots,$\Z{E}_k$\char`\}}
+begins with
+evaluating the immediate subexpressions $\TZ{E}_1$, \ldots, $\TZ{E}_k$
+\ifStd left-to-right \fi \ifOld in some order \fi
+in the input environment of \T{\char`\{$\Z{E}_1$,\tdots,$\Z{E}_k$\char`\}}.
+Let the values of the immediate subexpressions be $\TZ{v}_1$, \ldots, $\TZ{v}_k$.
+The value of the tuple skeleton is then a $k$-tuple mapping $i$ to $\TZ{v}_i$,
+$1\leq i\leq k$.
+
+\ENVIRONMENTS
+
+The output environment of the immediate subexpressions is used as
+output environment of
+\T{\char`\{$\Z{E}_1$,\tdots,$\Z{E}_k$\char`\}}.
+\index{tuple!skeleton|)}
+
+\subsection{List skeletons}
+
+\label{section:list-skeletons}
+\index{cons|(}
+\index{list!skeleton|(}
+
+(As for list patterns, ``cons skeletons'' may be a more accurate name but
+the main use is for lists.)
+
+For a list skeleton, the ``surface structure'' is obvious and no
+evaluation is needed to obtain it.  If all immediate subexpressions of
+a list skeleton are literals, the list skeleton is itself a (list)
+literal.
+
+\SYNTAX
+
+\begin{rules}
+\grrule{ListSkeleton}
+       {\TXT{[} \TXT{]} \OR
+        \TXT{[} \NT{Exprs} \OPT{ListSkeletonTail} \TXT{]}}
+
+\grrule{ListSkeletonTail}
+       {\TXT{|} \NT{Expr}}
+\end{rules}
+
+\EVALUATION
+
+For a list skeleton it is always obvious that for some natural number
+$k$, it denotes either
+\begin{itemize}
+\item a list with exactly $k$ elements (when on the
+form \T{[$\Z{E}_1$,\tdots,$\Z{E}_k$]}),
+\item a list with $k+l$ elements (when on the form
+\T{[$\Z{E}_1$,\tdots,$\Z{E}_k$|$\Z{E}_{k+1}$]} and the value
+of $\TZ{E}_{k+1}$ is a list with $l$ elements), or
+\item a term that is not a list at all (when on the form
+\T{[$\Z{E}_1$,\tdots,$\Z{E}_k$|$\Z{E}_{k+1}$]} and the value
+of $\TZ{E}_{k+1}$ is not a list).
+\end{itemize}
+
+As for list patterns we should note that certain list skeletons
+are equal:
+\begin{itemize}
+\item \T{[$\Z{E}_1$]} equals \T{[$\Z{E}_1$|[]]}.
+\item \T{[$\Z{E}_1$,$\Z{E}_2$,\tdots,$\Z{E}_k$]} (where $k>1$) equals \T{[$\Z{E}_1$|[$\Z{E}_2$,\tdots,$\Z{E}_k$]]}.
+\item \T{[$\Z{E}_1$,$\Z{E}_2$,\tdots,$\Z{E}_k$|$\Z{E}_{k+1}$]} (where $k>1$) equals \T{[$\Z{E}_1$|[$\Z{E}_2$,\tdots,\allowbreak$\Z{E}_k$|\allowbreak$\Z{E}_{k+1}$]]}.
+\end{itemize}
+We can therefore describe evaluation and other properties of list skeletons as if each
+\NT{ListSkeleton} is either \TXT{[]} or \TXT{[} \NT{Expr} \TXT{|}
+\NT{Expr} \TXT{]}.
+
+A list skeleton \T{[]} is a literal and its value is an empty list.
+
+An expression \T{[$\Z{E}_1$|$\Z{E}_2$]} can be thought of as if it
+were an application of a cons operator.\footnote{Indeed the
+corresponding language element in some related languages is a proper
+(right-associative) operator.  For example, in Standard ML
+\cite{milner+tofte+harper:revised-definition} the corresponding
+expression is written as \T{$\Z{E}_1$ ::\ $\Z{E}_2$}.} We shall
+therefore refer to $\TZ{E}_1$ and $\TZ{E}_2$ as the operands of the
+expression.
+
+Evaluation of an expression \T{[$\Z{E}_1$|$\Z{E}_2$]} begins with
+evaluating the operands $\TZ{E}_1$ and $\TZ{E}_2$
+\ifStd left-to-right \fi \ifOld in some order \fi
+in the
+input environment of \T{[$\Z{E}_1$|$\Z{E}_2$]}.  Let the values of the
+operands be $\TZ{v}_1$ and $\TZ{v}_2$, respectively.  The value of the
+\T{[$\Z{E}_1$|$\Z{E}_2$]} is then a cons with $\TZ{v}_1$ as its head
+and $\TZ{v}_2$ as its tail.  (If $\TZ{v}_2$ is a list, then so is the
+value of \T{[$\Z{E}_1$|$\Z{E}_2$]}.)
+
+\ENVIRONMENTS
+
+The output environment of the operands is used as output environment
+of \T{[$\Z{E}_1$|$\Z{E}_2$]}.
+\index{cons|)}
+\index{list!skeleton|)}
+
+\subsection{List comprehensions}
+
+\label{section:list-comprehensions}
+\index{list!comprehension|(}
+
+A list comprehension always denotes a list, produced by evaluating an
+expression for each collection of values of its variables.  These
+collections of values are produced by some generators and are those
+that in addition satisfy certain filters.
+
+\SYNTAX
+
+\begin{rules}
+\grrule{ListComprehension}
+       {\TXT{[} \NT{Expr} \TXT{||} \NT{ListComprehensionExprs} \TXT{]}}
+
+\grrule{ListComprehensionExprs}
+       {\NT{ListComprehensionExpr} \OR
+        \NT{ListComprehensionExprs} \TXT{,} \NT{ListComprehensionExpr}}
+
+\grrule{ListComprehensionExpr}
+       {\NT{Generator} \OR
+        \NT{Filter}}
+
+\grrule{Generator}
+       {\NT{Pattern} \TXT{<-} \NT{Expr}}
+
+\grrule{Filter}
+       {\NT{Expr}}
+\end{rules}
+The syntactic constituents of a list comprehension is a \emph{template
+expression} (to the left of \T{||}) and a collection of generators and
+filters that we will call the \emph{body} (to the right of \T{||}).
+
+A nontrivial generator has at least one variable in its pattern.  Each
+such variable can be expected to appear either in the template
+expression or in the right-hand side of some later generator or in
+some later filter.  The list is generated by substituting in the
+template expression all combinations of values that are yielded by the
+generators, such that the values satisfy all filters.
+
+Each variable occurrence in the pattern of a generator is a binding
+occurrence so it is a compile-time error if a variable occurs twice in such a pattern.
+To the right of a generator, all variables occurring in its pattern shadow variables in
+the input environment (or bound by generators to the left  of it).
+The template expression of a generator is used in the environment in which all
+generators have contributed their bindings, as we explain in more detail below.
+
+\EVALUATION
+
+We will explain the result of evaluating a list comprehension
+\begin{alltt}
+[ \Z{E} || \(\Z{W}\sb{1}\),\tdots,\(\Z{W}\sb{k}\) ]
+\end{alltt}
+in terms of a sequence of sequences of environments $\Phi_0$,
+$\Phi_1$, \ldots, $\Phi_k$.
+
+\index{generator (in list comprehension)|(}
+\index{filter (in list comprehension)|(}
+The initial sequence of environments, $\Phi_0$, contains exactly one
+environment, which is the input environment of the list comprehension.
+Each other sequence of environments $\Phi_i$ ($1\leq i\leq k$) consists
+of all extensions of $\Phi_0$ that are generated by the generators in
+$\TZ{W}_1$, \ldots, $\TZ{W}_i$ and that satisfy the filters in
+$\TZ{W}_1$, \ldots, $\TZ{W}_i$.  The value of the list comprehension
+is a list $l$ of the same length as the number $n$ of environments in
+$\Phi_k$ and for each $i$, $1\leq i\leq n$, the $i$th element of $l$
+is the value of the template \TZ{E} when evaluated in the $i$th environment of
+$\Phi_k$.
+
+We shall now explain how given a sequence of environments $\Phi_i$,
+we obtain the next sequence of environments $\Phi_{i+1}$, where
+$0\leq i<k$.
+
+There are two cases depending on whether $\TZ{W}_{i+1}$ is a generator
+or a filter.
+
+\begin{itemize}
+\item $\TZ{W}_{i+1}$ is a generator \T{$\Z{P}_{i+1}$ <- $\Z{E}_{i+1}$}.
+Suppose that $\Phi_i$ consists of the environments $\epsilon_{i,1}$,
+\ldots, $\epsilon_{i,m_i}$ for some natural number $m_i$.  For each
+$j$ ($1\leq j\leq m_i$), let $\TZ{v}_{i,j}$ be the value of
+$\TZ{E}_{i+1}$ when evaluated in $\epsilon_{i,j}$.
+If there is a $j$ ($1\leq j\leq m_i$) for which $\TZ{v}_{i,j}$ is not a list,
+then the computation of the list comprehension exits
+with reason \T{badmatch}.  Otherwise, for each $j$ ($1\leq j\leq m_i$),
+let $\Psi_{i,j}$ be the sequence of environments such that each
+element of $\Psi_{i,j}$ consists of the environment $\epsilon_{i,j}$ extended
+with the bindings resulting from matching the pattern $\TZ{P}_i$
+against the corresponding element of the list $\TZ{v}_{i,j}$.
+If $\TZ{P}_i$ does not match an element of $\TZ{v}_{i,j}$, that
+element is discarded, so
+$\Psi_{i,j}$ may contain fewer elements than $\TZ{v}_{i,j}$.  The order between
+elements in $\TZ{v}_{i,j}$ must be preserved in $\Psi_{i,j}$.  Finally, 
+$\Phi_{i+1}$ is the result of concatenating the sequences
+$\Psi_{i,1}$, \ldots, $\Psi_{i,m_i}$, in order.
+
+\item $\TZ{W}_{i+1}$ is a filter.
+$\Phi_{i+1}$ is obtained by evaluating $\TZ{W}_{i+1}$ in each
+environment of $\Phi_i$, keeping those environments in which the
+result is \T{true} and discarding those environments in which the
+result is \T{false}.  If for some environment the value of
+$\TZ{W}_{i+1}$ is not a Boolean, the computation of the list
+comprehension completes abruptly with reason
+\ifStd\T{badbool}\else\T{badarg}\fi.  The order between
+environments in $\Phi_i$ must be preserved in $\Phi_{i+1}$.
+\end{itemize}
+
+\ifStd
+\index{evaluation!order of|(}
+The order in which generators and filters are evaluated is not
+defined.
+(The description above of the result of evaluating a list comprehension
+suggests a ``breadth-first'' evaluation where each $\Phi_i$ is computed
+to completion before computing any part of $\Phi_{i+1}$.  An implementation
+may just as well use, for example, a ``depth-first'' evaluation strategy.)
+\index{evaluation!order of|)}
+\fi
+\index{generator (in list comprehension)|)}
+\index{filter (in list comprehension)|)}
+
+\ENVIRONMENTS
+
+The input and output environments of a list comprehension are the same.
+
+\EXAMPLES
+
+The value of the list comprehension in the body
+\begin{verbatim}
+Y = [1,2],
+Z = 42,
+[{X,Y,Z,W} || X <- Y, W <- [a,b], Y <- [4,5], W <- [c,d]]
+\end{verbatim}
+is
+\begin{verbatim}
+[{1,4,42,c},{1,4,42,d},{1,5,42,c},{1,5,42,d},
+ {1,4,42,c},{1,4,42,d},{1,5,42,c},{1,5,42,d},
+ {2,4,42,c},{2,4,42,d},{2,5,42,c},{2,5,42,d},
+ {2,4,42,c},{2,4,42,d},{2,5,42,c},{2,5,42,d}]
+\end{verbatim}
+Note that the generator for \T{X} is evaluated in an expression in which \T{Y} is \T{[1,2]},
+that the value for \T{Z} in the input environment is never shadowed by any generator so it is
+the same for every tuple in the result, and that although the leftmost generator for \T{W}
+produces values for \T{W} that are not accessible in the template pattern, they cause the
+results to be duplicated (as there are two possible values for the leftmost binding of \T{W}).
+
+\index{list!comprehension|)}
+
+\subsection{Block expressions}
+
+\label{section:block-exprs}
+\index{block expression|(}
+\index{begin expression@\T{begin} expression|(}
+A block expression has no effect on evaluation and is merely a way to
+parenthesize and delimit a sequence of expressions, i.e., a body.  This allows
+using a body where otherwise only a single expression would
+be allowed.
+
+\SYNTAX
+
+\begin{rules}
+\grrule{BlockExpr}
+       {\TXT{begin} \NT{Body} \TXT{end}}
+\end{rules}
+
+\EVALUATION
+
+Evaluating an expression \T{begin \Z{B} end} in an environment
+$\epsilon$ means to evaluate the body \TZ{B} in $\epsilon$
+(\S\ref{section:bodies}).
+
+If the evaluation of \TZ{B} completes abruptly with reason \TZ{R},
+evaluation of the block expression also completes abruptly with reason
+\TZ{R}.  If it completes normally, the value of \T{begin \Z{B} end} is
+the value of \TZ{B}.
+
+\ENVIRONMENTS
+
+The output environment of \TZ{B} is used as output environment of
+\T{begin \Z{B} end}.
+\index{block expression|)}
+\index{begin expression@\T{begin} expression|)}
+
+\ifStd
+\subsection{\T{all_true} expressions}
+
+\label{section:alltrue-exprs}
+\index{all_true expression@\T{all_true} expression|(}
+
+An \T{all_true} expression evaluates a sequence of expressions until
+an expression has been found for which the value was
+\T{false}, or all expressions have been evaluated.  The value of
+the \T{all_true} expression is \T{false} in the former case and
+\T{true} in the latter.
+
+\SYNTAX
+
+\begin{rules}
+\ifStd
+\grrule{AndTrueExpr}
+       {\TXT{all_true} \NT{Exprs} \TXT{end}}
+\fi
+\end{rules}
+
+\EVALUATION
+
+Evaluating an expression
+\begin{alltt}
+all_true \(\Z{E}\sb{1}\) ; \ldots ; \(\Z{E}\sb{k}\) end
+\end{alltt}
+in an environment $\epsilon$ means to evaluate the expressions
+$\TZ{E}_1$, \ldots, $\TZ{E}_k$ left-to-right with the following
+additional control:
+If the value $\TZ{v}_i$ of an expression $\TZ{E}_i$, $1\leq i\leq k$, is
+anything but \T{true}, then
+expressions $\TZ{E}_{i+1}$, \ldots, $\TZ{E}_k$ will not be evaluated and:
+\begin{itemize}
+\item if $\TZ{v}_i$ is \T{false}, evaluation of the \T{all_true} expression
+completes normally with result \T{false};
+\item otherwise, evaluation of the \T{all_true} expression exits
+with reason \T{badbool}.
+\end{itemize}
+If all expressions are evaluated with result \T{true}, then
+evaluation of the \T{all_true} expression
+completes normally with result \T{true}.
+
+\ENVIRONMENTS
+
+The output environment of expression $\TZ{E}_1$ is used as output environment of
+the \T{all_true} expression.
+\index{all_true expression@\T{all_true} expression|)}
+
+\subsection{\T{some_true} expressions}
+
+\label{section:sometrue-exprs}
+\index{some_true expression@\T{some_true} expression|(}
+
+A \T{some_true} expression evaluates a sequence of expressions until
+an expression has been found for which the value was
+\T{true}, or all expressions have been evaluated.  The value of
+the \T{some_true} expression is \T{true} in the former case and
+\T{false} in the latter.
+
+\SYNTAX
+
+\begin{rules}
+\ifStd
+\grrule{SomeTrueExpr}
+       {\TXT{some_true} \NT{Exprs} \TXT{end}}
+\fi
+\end{rules}
+
+\EVALUATION
+
+Evaluating an expression
+\begin{alltt}
+some_true \(\Z{E}\sb{1}\) ; \ldots ; \(\Z{E}\sb{k}\) end
+\end{alltt}
+in an environment $\epsilon$ means to evaluate the expressions
+$\TZ{E}_1$, \ldots, $\TZ{E}_k$ left-to-right with the following
+additional control:
+If the value $\TZ{v}_i$ of an expression $\TZ{E}_i$, $1\leq i\leq k$, is
+anything but \T{false}, then
+expressions $\TZ{E}_{i+1}$, \ldots, $\TZ{E}_k$ will not be evaluated and:
+\begin{itemize}
+\item if $\TZ{v}_i$ is \T{true}, evaluation of the \T{some_true} expression
+completes normally with result \T{true};
+\item otherwise, evaluation of the \T{some_true} expression exits
+with reason \T{badbool}.
+\end{itemize}
+If all expressions are evaluated with result \T{false}, then
+evaluation of the \T{some_true} expression
+completes normally with result \T{false}.
+
+\ENVIRONMENTS
+
+The output environment of expression $\TZ{E}_1$ is used as output environment of
+the \T{some_true} expression.
+\index{some_true expression@\T{some_true} expression|)}
+\fi % ifStd
+
+\subsection{If expressions}
+
+\label{section:if-expr}
+\index{if@\T{if}!expression|(}
+\index{clause!of if expression@of \T{if} expression|(}
+
+An \T{if} expression goes through a sequence of clauses, each
+consisting of a guard and a body, and its value is the value of the
+first body having a successful corresponding guard.
+
+\SYNTAX
+
+\begin{rules}
+\grrule{IfExpr}
+       {\TXT{if} \NT{IfClauses} \TXT{end}}
+
+\grrule{IfClauses}
+       {\NT{IfClause} \OR
+        \NT{IfClauses} \TXT{;} \NT{IfClause}}
+
+\grrule{IfClause}
+       {\NT{Guard} \NT{ClauseBody}}
+
+\grrule{ClauseBody}
+       {\TXT{->} \NT{Body}}
+\end{rules}
+(The rule for \NT{Guard} appears in \S\ref{section:guards}.)
+
+Each clause consists of a \emph{guard} and a \emph{body}.
+
+\EVALUATION
+
+Evaluation of an expression
+\begin{alltt}
+if
+    \(\Z{G}\sb{1}\) -> \(\Z{B}\sb{1}\) ;
+    \(\vdots\) ;
+    \(\Z{G}\sb{k}\) -> \(\Z{B}\sb{k}\)
+end
+\end{alltt}
+in an environment $\epsilon$ is carried out as follows.
+
+Each guard $\TZ{G}_i$ ($1\leq i\leq k$) is evaluated
+(in \ifStd that \fi \ifOld some \fi order)
+in $\epsilon$, as described in \S\ref{section:guards}, until one
+succeeds or all guards have failed.
+Let $s$ be the smallest number such that $\TZ{G}_s$
+succeeds, if such a number exists; otherwise evaluation of the
+\T{if} expression exits with reason \T{if_clause}.
+
+The value of the \T{if} expression is obtained by evaluating the body
+$\TZ{B}_s$ with the output environment of $\TZ{G}_s$ as input
+environment.
+
+\ENVIRONMENTS
+
+For each clause \T{$\Z{G}_i$ -> $\Z{B}_i$}, $1\leq i\leq k$, let $d_i$
+be the domain of the output environment of $\TZ{G}_i$ when $\epsilon$
+is the input environment, and let $d'_i$ be the domain of the output
+environment of $\TZ{B}_i$ when $d_i$ is the domain of its input
+environment.  The output environment of the \T{if}
+expression is obtained as the output environment of $\TZ{B}_s$
+restricted to the intersection of all $d'_i$, $1\leq i\leq k$.
+
+\NOTE
+
+The \T{if} expression above is equal to the following
+\T{case} expression (\S\ref{section:case-expr}):
+\begin{alltt}
+case \Z{L} of
+    _ when \(\Z{G}\sb{1}\) -> \(\Z{B}\sb{1}\) ;
+    \(\vdots\) ;
+    _ when \(\Z{G}\sb{k}\) -> \(\Z{B}\sb{k}\)
+end
+\end{alltt}
+where \TZ{L} is any literal, such as \T{42}.  An \T{if} expression
+is thus like a \T{case} expression but with trivial matching.
+\index{if@\T{if}!expression|)}
+\index{clause!of if expression@of \T{if} expression|)}
+
+\ifStd
+\subsection{Cond expressions}
+
+\label{section:cond-expr}
+\index{cond expression@\T{cond} expression|(}
+\index{clause!of cond expression@of \T{cond} expression|(}
+
+A \T{cond} expression goes through a sequence of clauses, each
+consisting of a Boolean expression and a body, and its value is the
+value of the first body having a true test.
+
+\SYNTAX
+
+\begin{rules}
+\ifStd
+\grrule{CondExpr}
+       {\TXT{cond} \NT{CondClauses} \TXT{end}}
+
+\grrule{CondClauses}
+       {\NT{CondClause} \OR
+        \NT{CondClauses} \TXT{;} \NT{CondClause}}
+
+\grrule{CondClause}
+       {\NT{Expr} \NT{ClauseBody}}
+\fi
+\end{rules}
+(The rule for \NT{ClauseBody} appears in \S\ref{section:if-expr}.)
+% % Groucho Marx would love this one...
+% We refer to the sequence of clauses as the \emph{clauses} of the
+% \T{cond} expression.
+Each clause consists of a \emph{test} (which is a Boolean expression)
+and a \emph{body}.
+
+\EVALUATION
+
+Evaluation of an expression
+\begin{alltt}
+cond
+    \(\Z{E}\sb{1}\) -> \(\Z{B}\sb{1}\) ;
+    \(\vdots\) ;
+    \(\Z{E}\sb{k}\) -> \(\Z{B}\sb{k}\)
+end
+\end{alltt}
+in an environment $\epsilon$ is carried out as follows.
+
+Each test $\TZ{E}_i$ ($1\leq i\leq k$) is evaluated (in that
+order) with
+$\epsilon$ as input environment until one is found that
+does not complete normally with \T{false} as result or
+all tests have been evaluated.
+
+\begin{itemize}
+\item If evaluation of every test $\TZ{E}_i$, $1\leq i\leq k$,
+completed normally with \T{false} as result, then evaluation
+of the \T{cond} expression exits with reason \T{cond_clause}.
+\item Otherwise, let $\TZ{E}_s$ be the first test not to complete
+normally with \T{false}.  There are three possibilities:
+\begin{itemize}
+\item If evaluation of $\TZ{E}_s$ completed abruptly with some
+reason \TZ{R}, then evaluation of the \T{cond} expression
+completes abruptly with reason \TZ{R}.
+\item If evaluation of $\TZ{E}_s$ completed normally and the
+result was not \T{true}, then evaluation of the \T{cond} expression
+completes abruptly with reason \TZ{badbool}.
+\item If evaluation of $\TZ{E}_s$ completed normally with
+result \T{true}, then the value of the \T{cond} expression
+is obtained by evaluating the body $\TZ{B}_s$ with the
+output environment of $\TZ{E}_s$ as input environment.
+\end{itemize}
+\end{itemize}
+
+\ENVIRONMENTS
+
+For each clause \T{$\Z{E}_i$ -> $\Z{B}_i$}, $1\leq i\leq k$, let $d_i$
+be the domain of the output environment of $\TZ{E}_i$ when $\epsilon$
+is the input environment, and let $d'_i$ be the domain of the output
+environment of $\TZ{B}_i$ when $d_i$ is the domain of its input
+environment.  The output environment of the \T{cond}
+expression is obtained as the output environment of $\TZ{B}_s$
+restricted to the intersection of all $d'_i$, $1\leq i\leq k$.
+\index{cond expression@\T{cond} expression|)}
+\index{clause!of cond expression@of \T{cond} expression|)}
+\fi	%\ifStd
+
+\subsection{Case expressions}
+
+\label{section:case-expr}
+\index{case expression@\T{case} expression|(}
+\index{clause!of case expression@of \T{case} expression|(}
+
+A \T{case} expression chooses between sequences of expressions to
+evaluate, depending on the value of some expression.
+
+\SYNTAX
+
+\begin{rules}
+\grrule{CaseExpr}
+       {\TXT{case} \NT{Expr} \TXT{of} \NT{\CrtClauses} \TXT{end}}
+
+\grrule{\CrtClauses}
+       {\NT{\CrtClause} \OR
+        \NT{\CrtClauses} \TXT{;} \NT{\CrtClause}}
+
+\grrule{\CrtClause}
+       {\NT{Pattern} \OPT{ClauseGuard} \NT{ClauseBody}}
+
+\grrule{ClauseGuard}
+       {\TXT{when} \NT{Guard}}
+
+\grrule{Guard}
+       {\NT{Body}}
+\end{rules}
+(The rule for \NT{ClauseBody} appears in \S\ref{section:if-expr}.)
+
+We refer to the expression between \T{case} and \T{of} as the \emph{switch
+expression} and to the sequence of clauses to the right of \T{of} as
+the \emph{clauses} of the \T{case} expression.  Each clause consists
+of a \emph{pattern}, an optional \emph{guard} and a \emph{body}.
+An omitted guard is equivalent with a trivially satisfied \T{true} guard.
+
+\EVALUATION
+
+Evaluation of an expression
+\begin{alltt}
+case \Z{E} of
+    \(\Z{P}\sb{1}\) \([\)when \(\Z{G}\sb{1}]\) -> \(\Z{B}\sb{1}\) ;
+    \(\vdots\) ;
+    \(\Z{P}\sb{k}\) \([\)when \(\Z{G}\sb{k}]\) -> \(\Z{B}\sb{k}\)
+end
+\end{alltt}
+in an environment $\epsilon$ is carried out as follows.
+
+First the switch expression \TZ{E} is evaluated in $\epsilon$.  If
+that evaluation completes abruptly with reason \TZ{R}, then evaluation
+of the \T{case} expression also completes abruptly with reason \TZ{R}.
+If the evaluation of the switch expression completes normally, let us
+call its value \TZ{v} and its output environment $\epsilon'$.
+
+Next each pattern $\TZ{P}_i$ ($1\leq i\leq k$) is matched
+(in \ifStd that \fi \ifOld some \fi order)
+against \TZ{v} in $\epsilon'$ and (in case of a successful
+match) the corresponding guard $\TZ{G}_i$ is evaluated in the output
+environment of $\TZ{P}_i$.  Let $s$ be the smallest number such that
+$\TZ{P}_s$ matches \TZ{v} and $\TZ{G}_s$ succeeds, if such a number
+exists; otherwise evaluation of the \T{case} expression exits with
+reason \T{case_clause}.
+
+The value of the \T{case} expression is obtained by evaluating the
+body $\TZ{B}_s$ in the output environment of $\TZ{G}_s$.
+
+\ENVIRONMENTS
+
+For each clause \T{$\Z{P}_i$ when $\Z{G}_i$ -> $\Z{B}_i$}, $1\leq
+i\leq k$, let $d_i$ be the domain of the output environment of
+$\TZ{P}_i$ when $\epsilon'$ is its input environment, let $d'_i$ be
+the domain of the output environment of $\TZ{G}_i$ when $d_i$ is the
+domain of its input environment, and let $d''_i$ be the domain of the
+output environment of $\TZ{B}_i$ when $d'_i$ is the domain of its
+input environment.  The output environment of the \T{case} expression
+is obtained as the output environment of $\TZ{B}_s$ restricted to the
+intersection of all $d''_i$, $1\leq i\leq k$.
+
+\NOTE
+
+The name \NT{\CrtClause} refers to the fact that \NT{CaseExpr}%
+\ifStd, \NT{ReceiveExpr} and \NT{TryExpr} all \else\ and \NT{ReceiveExpr} both \fi
+have the same kind of clauses.)
+\index{case expression@\T{case} expression|)}
+\index{clause!of case expression@of \T{case} expression|)}
+
+\subsection{Receive expressions}
+
+\label{section:receive-expr}
+\index{receive expression@\T{receive} expression|(}
+\index{message!reception of|(}
+\index{expiry!of \T{receive} expression|(}
+\index{clause!of receive expression@of \T{receive} expression|(}
+
+A \T{receive} expression normally consumes one message from the
+message queue of the process evaluating it.  The exception is when the
+\T{receive} expression specifies an expiry time, there is no suitable
+message waiting when the processing of the \T{receive} expression
+begins and the specified amount of time passes before such a message
+arrives. \T{receive} expressions are similar to \T{case} expressions
+(S\ref{section:case-expr}) both in syntax and in semantics but cannot
+be defined in terms of them in a useful way (because a \T{receive}
+expression matches expressions against the message queue without
+removing them unless there is a matching clause).
+
+\SYNTAX
+
+\begin{rules}
+\grrule{ReceiveExpr}
+       {\TXT{receive} \NT{\CrtClauses} \TXT{end} \OR
+        \TXT{receive} \OPT{\CrtClauses} \TXT{after} \NT{Expr} \NT{ClauseBody} \TXT{end}}
+\end{rules}
+(The rules for \NT{\CrtClauses} and \NT{ClauseBody} appear
+in \S\ref{section:case-expr} and \S\ref{section:if-expr}, respectively.)
+
+We refer to the sequence of clauses as the \emph{clauses} of the
+\T{receive} expression.  Each clause consists of a \emph{pattern}, an optional
+\emph{guard} and a \emph{body}.
+An omitted guard is equivalent with a trivially satisfied \T{true} guard.
+A \T{receive} expression containing
+a part \T{after \Z{E} -> \Z{B}} is said to have an \emph{expiry part}.
+Then \TZ{E} is called the \emph{expiry expression} of the
+\T{receive} expression and \TZ{B} is called the \emph{expiry body}.
+A clause must either have at least one clause or an expiry part, or both.
+
+\EVALUATION
+
+Evaluation of an expression
+\begin{alltt}
+receive
+    \(\Z{P}\sb{1}\) \([\)when \(\Z{G}\sb{1}]\) -> \(\Z{B}\sb{1}\) ;
+    \(\vdots\) ;
+    \(\Z{P}\sb{k}\) \([\)when \(\Z{G}\sb{k}]\) -> \(\Z{B}\sb{k}\)
+\([\)after
+    \Z{E} -> \(\Z{B}\sb{k+1}]\)
+end
+\end{alltt}
+(where $k$ may be zero, in which case there must be an expiry part) in
+an environment $\epsilon$ is carried out as follows by a process
+\TZ{Q}.
+
+The evaluation of a \T{receive} expression has three parts.  The first
+part only takes place if the \T{receive} expression has an expiry part.
+The second part is the same for all \T{receive} expressions.
+The third part is somewhat different if the \T{receive} expression
+has an expiry part.
+
+\begin{itemize}
+\item \B{Part 1.}
+The purpose of this part is to determine the expiry time of the
+\T{receive} expression, if it has an expiry part.
+
+If the \T{receive} expression has an expiry part, the expiry
+expression \TZ{E} is evaluated in $\epsilon$.  If that evaluation
+completes abruptly with reason \TZ{R}, then evaluation of the
+\T{receive} expression also completes abruptly with reason \TZ{R}.  If
+the evaluation of the expiry expression completes normally, let us
+call its value \TZ{WaitingTime}.  If \TZ{WaitingTime} is neither the
+atom \T{infinity}, nor a nonnegative integer, the evaluation of the
+\T{receive} expression completes abruptly with reason \T{badarg}.
+\TZ{WaitingTime} will be used in part 3, if evaluation reaches that part.
+\ifOld In \OldErlang\ \TZ{WaitingTime} must be a fixnum. \fi
+% should we state a lowest limit on WaitingTime???
+Next the system clock of \T{node[\Z{Q}]} is read before anything else
+happens.  Let its value be \TZ{Start}.
+
+Note that the output environment of the expiry expression is not used.
+Its variable bindings are therefore local.\footnote{From the syntax it
+might seem as if bindings of the expiry expression ought to be visible
+in the expiry body but if the bindings of the expiry expression were
+visible at all, they could then just as well be visible for all
+clauses.  A careful approach has therefore been to make all its
+bindings local.}
+
+\item \B{Part 2.}
+The purpose of this part is to process an existing message if there
+is one in the queue.
+
+Suppose that \T{message_queue[\Z{Q}]} contains
+the $n$ terms $\TZ{M}_1$, \ldots, $\TZ{M}_n$, in that order.
+\begin{textdisplay}
+For each term $\TZ{M}_j$ ($1\leq j\leq n$, in that order):
+\begin{itemize}
+\item[] for each clause $i$ ($1\leq j\leq k$, in \ifStd that \fi \ifOld some \fi order):
+\begin{itemize}
+\item[] match $\TZ{P}_i$ against $\TZ{M}_j$ in $\epsilon$ and if that
+succeeds, evaluate $\TZ{G}_i$ in the output environment of $\TZ{P}_i$,
+\end{itemize}
+\end{itemize}
+\end{textdisplay}
+until a (first) term $\TZ{M}_t$ has been found for which there is a
+\ifStd (first) \fi matching pattern $\TZ{P}_s$ with successful guard $\TZ{G}_s$,
+if they exist at all; otherwise evaluation of the
+\T{receive} expression continues with part~3 below.
+
+\iffalse
+Each term $\TZ{M}_j$ ($1\leq j\leq n$) is matched (in that order)
+against each pattern $\TZ{P}_i$ ($1\leq i\leq k$, in that
+order) and (in case of a successful match) the corresponding
+guard $\TZ{G}_i$ is evaluated.  The input environment of each pattern matching
+is $\epsilon$ and the output environment of each matching is the
+input environment of the corresponding guard.
+Let $t$ be the smallest number
+for which there exists a smallest number $s$ such that
+$\TZ{P}_s$ matches $\TZ{M}_t$ and $\TZ{G}_s$ succeeds, if such a number $t$ exists;
+otherwise evaluation of the
+\T{receive} expression continues with part~3 below.
+\fi
+
+The term $\TZ{M}_t$ is removed from \T{message_queue[\Z{Q}]}.
+
+The value of the \T{receive} expression is then obtained by evaluating
+the body $\TZ{B}_s$ in the output environment of $\TZ{G}_s$.
+
+(Note that if necessary, every message in the message queue will be
+tried against every clause, even if there is an expiry.)
+
+\item \B{Part 3.}
+The purpose of this part is to wait for a receivable term to appear in
+the message queue, or to expire.
+\iffalse
+We define two actions:
+\begin{Lentry}
+\item[Maybe new message] If there is some message in
+\T{message_queue[\Z{Q}]} that has not previously been examined,
+process the first such message as in part~2. (This may complete the
+evaluation of the \T{receive} expression.)
+\item[Maybe timeout] The system clock of \T{node[\Z{Q}]} is read.
+If its value is greater than or equal to
+\T{\Z{Start}+\T{WaitingTime}}, the evaluation of the \T{receive}
+expression finishes by letting $s$ be $k+1$ and evaluating the expiry body $\TZ{B}_s$ with
+$\epsilon$ as input environment.  If its evaluation completes abruptly with reason \TZ{R},
+then evaluation of the
+\T{receive} expression also completes abruptly with reason \TZ{R}.  If
+the evaluation of the expiry body completes normally, its value is also the
+value of the \T{receive} expression.
+\end{Lentry}
+\fi
+There are three alternatives:
+\begin{enumerate}
+\item If the \T{receive} expression has no expiry part, or \TZ{WaitingTime}
+is the atom \T{infinity}, then:
+\begin{dinglist}{230}
+\item \T{status[\Z{Q}]} is changed to \T{waiting}
+and \T{timer[\Z{Q}]} is set to \T{0}.
+When \T{status[\Z{Q}]} becomes \T{running} again,
+if there are messages in \T{message_queue[\Z{Q}]}
+which have not previously been examined, process them as in part~2.
+If that does not complete the evaluation of the \T{receive} expression,
+execution continues at \ding{230} above.
+\end{dinglist}
+\item \label{case:zero-waiting}
+If the \T{receive} expression has an expiry part and \TZ{WaitingTime}
+is the integer \T{0}, then:
+\begin{itemize}
+\item[] The evaluation of the \T{receive} expression
+finishes by letting $s$ be $k+1$ and evaluating the expiry body $\TZ{B}_s$ with
+$\epsilon$ as input environment.  If its evaluation completes abruptly with
+reason \TZ{R}, then evaluation of the \T{receive} expression also completes
+abruptly with reason \TZ{R}.  If the evaluation of the expiry body completes
+normally, its value is also the value of the \T{receive} expression.
+(Note that \T{status[\Z{Q}]} is not affected.)
+\end{itemize}
+\item Otherwise, the \T{receive} expression has an expiry part for which \TZ{WaitingTime}
+is a positive integer.  \T{timer[\Z{Q}]} is set to \TZ{Waiting\-Time}.
+\begin{dinglist}{230}
+\item \T{status[\Z{Q}]} is changed to \T{waiting}.
+If there are messages in \T{message_queue[\Z{Q}]} that have not previously been examined
+when \T{status[\Z{Q}]} becomes \T{running} again,
+process them as in part~2.
+If that does not complete the evaluation of the \T{receive} expression,
+the system clock of \T{node[\Z{Q}]} is read and if its value is greater than
+or equal to \T{\Z{Start}+\T{WaitingTime}}, evaluation of the \T{receive} expression
+finishes as described for case~\ref{case:zero-waiting}.
+Otherwise, execution continues at \ding{230} above.
+\end{dinglist}
+\end{enumerate}
+(Note that when there are unexamined messages in the queue,
+they will be processed even if the expiry time
+has been reached.  This implies that the value of the expiry
+expression cannot
+be seen as a hard limit on how much time the evaluation of the receive expression
+may take.)
+\end{itemize}
+
+\ENVIRONMENTS
+
+For each clause \T{$\Z{P}_i$ when $\Z{G}_i$ -> $\Z{B}_i$}, $1\leq
+i\leq k$, let $d_i$ be the domain of the output environment of
+$\TZ{P}_i$ when $\epsilon$ is its input environment, let $d'_i$ be
+the domain of the output environment of $\TZ{G}_i$ when $d_i$ is the
+domain of its input environment, and let $d''_i$ be the domain of the
+output environment of $\TZ{B}_i$ when $d'_i$ is the domain of its
+input environment.  Let $d''_{k+1}$ be the domain of the output
+environment of $\TZ{B}_{k+1}$ when its input environment is $\epsilon$.
+
+The output environment of the \T{receive} expression is
+the output environment of $\TZ{B}_s$ restricted to the
+intersection of all $d''_i$, $1\leq i\leq k+1$.
+\index{receive expression@\T{receive} expression|)}
+\index{message!reception of|)}
+\index{expiry!of \T{receive} expression|)}
+\index{clause!of receive expression@of \T{receive} expression|)}
+
+\ifStd
+\subsection{Try expressions}
+
+\label{section:try-expr}
+\index{try expression@\T{try} expression|(}
+\index{clause!of try expression@of \T{try} expression|(}
+
+A \T{try} expression has as purpose to evaluate a sequence of
+expressions normally except that if evaluation of the expressions
+completes abruptly, alternative sequences of expressions can be
+evaluated to achieve a normal
+completion\index{evaluation!normal mode of}\index{completion!restoring normal},
+depending on the reason for the abrupt completion.
+
+\T{try} expressions generalize the earlier \T{catch} expressions (cf.\
+\S\ref{section:catch}) which should not be used in new code.\ifDiff\footnote{The \T{try}
+expression is an addition from \OldErlang, cf.~\S\ref{section:new-try}.}\fi
+
+\SYNTAX
+
+\begin{rules}
+\ifStd
+\grrule{TryExpr}
+       {\TXT{try} \NT{Body} \TXT{catch} \NT{\CrtClauses} \TXT{end} \OR
+        \TXT{try} \NT{Body} \TXT{end}}
+\fi
+\end{rules}
+(The rules for \NT{\CrtClauses} appear in S\ref{section:case-expr}.)
+
+We refer to the body to the left of \T{catch} as
+the \emph{protected body} and to the (optional) sequence of clauses to the
+right of \T{catch} as the \emph{clauses} of the
+\T{receive} expression.  Each clause consists of a \emph{pattern}, an optional
+\emph{guard} and a \emph{body}.
+An omitted guard is equivalent with a trivially satisfied \T{true} guard.
+
+\EVALUATION
+
+Evaluation of an expression
+\begin{alltt}
+try
+    \Z{B}
+catch
+    \(\Z{P}\sb{1}\) \([\)when \(\Z{G}\sb{1}]\) -> \(\Z{B}\sb{1}\) ;
+    \(\vdots\) ;
+    \(\Z{P}\sb{k}\) \([\)when \(\Z{G}\sb{k}]\) -> \(\Z{B}\sb{k}\)
+end
+\end{alltt}
+in an environment $\epsilon$ is carried out as follows.
+
+First the protected body \TZ{B} is evaluated in $\epsilon$.
+\begin{itemize}
+\item If that
+evaluation completes normally with result \TZ{v}, then evaluation of the
+\T{try} expression also completes normally with result \TZ{v}.
+\item Otherwise, evaluation of the protected body completes abruptly;
+let \TZ{R} be the reason for the abrupt completion.
+(Recall that this is a term on the form \T{\char`\{'EXIT',\Z{T}\char`\}}
+or \T{\char`\{'THROW',\Z{T}\char`\}}.)
+
+For each clause $i$ ($1\leq j\leq k$, in that order),
+\begin{itemize}
+\item match $\TZ{P}_i$ against $\TZ{R}$ in $\epsilon$ and if that
+succeeds evaluate $\TZ{G}_i$ in the output environment of $\TZ{P}_i$,
+\end{itemize}
+\end{itemize}
+until a (first) clause $s$ has been found for which
+$\TZ{P}_s$ matches $\TZ{R}$ and $\TZ{G}_s$ succeeds.
+\begin{itemize}
+\item If no such clause exists, evaluation of the
+\T{try} expression completes abruptly with reason \TZ{R}.
+\item Otherwise, the value of the \T{try} expression
+is obtained by evaluating the $\TZ{B}_s$ in the output
+environment of $\TZ{G}_s$.
+\end{itemize}
+
+An expression
+\begin{alltt}
+try
+    \Z{B}
+end
+\end{alltt}
+is syntactic sugar for an expression
+\begin{alltt}
+try
+    \Z{B}
+catch
+    \Z{V} -> \Z{V}
+end
+\end{alltt}
+where \TZ{V} is a free variable not in the output environment of \TZ{B}.
+An expression \T{try \Z{E} end} is thus similar to an
+expression \T{catch \Z{E}} although not equivalent (they have different
+results when \TZ{E} completes abruptly with a reason \T{\{'THROW',\tdots\}}).
+However, both expressions will always complete normally.
+
+\ENVIRONMENTS
+
+For each clause \T{$\Z{P}_i$ when $\Z{G}_i$ -> $\Z{B}_i$}, $1\leq
+i\leq k$, let $d_i$ be the domain of the output environment of
+$\TZ{P}_i$ when $\epsilon$ is its input environment, let $d'_i$ be
+the domain of the output environment of $\TZ{G}_i$ when $d_i$ is the
+domain of its input environment, and let $d''_i$ be the domain of the
+output environment of $\TZ{B}_i$ when $d'_i$ is the domain of its
+input environment.
+
+Let $d''_0$ be the domain of the output environment of \TZ{B}.
+
+Let $d$ be the intersection of all $d''_i$, $0\leq i\leq k$.
+
+\begin{itemize}
+\item If evaluation of $B$ completed normally, the output environment of
+the \T{try} expression is the output environment of \TZ{B} restricted
+to $d$.
+\item Otherwise, the output environment of
+the \T{try} expression is the output environment of $\TZ{B}_s$ restricted
+to $d$.
+\end{itemize}
+\index{try expression@\T{try} expression|)}
+\index{clause!of try expression@of \T{try} expression|)}
+\fi
+
+\subsection{\T{fun} expressions}
+
+\label{section:fun-exprs}
+\index{fun expression@\T{fun} expression|(}
+
+A \T{fun} expression denotes a function.  Its value can therefore be applied.
+
+A \T{fun} expression is similar to a literal in that it is normal (i.e.,
+it cannot be further simplified).  However, it is not expected that the value
+of a \T{fun} expression
+is represented internally in such a way that the \T{fun} expression can be
+reconstructed.
+
+\SYNTAX
+
+\begin{rules}
+\grrule{FunExpr}
+       {\TXT{fun} \NT{FunctionArity} \OR
+        \TXT{fun} \NT{FunClauses} \TXT{end}}
+
+\grrule{FunClauses}
+       {\NT{FunClause} \OR
+        \NT{FunClauses} \TXT{;} \NT{FunClause}}
+
+\grrule{FunClause}
+       {\TXT{(} \OPT{Patterns} \TXT{)} \OPT{ClauseGuard} \NT{ClauseBody}}
+\end{rules}
+
+\EVALUATION
+
+A \T{fun} expression is either \emph{implicit} or \emph{explicit}.  In the former
+case, it refers to a named
+function in the same module and in the latter case, it explicitly describes a function.
+\begin{itemize}
+\item Consider first an implicit \T{fun} expression on
+the form \T{fun \Z{F}/\Z{A}}, where \TZ{F} is an atom and \TZ{A} is a decimal literal.
+If there is no function with name \TZ{F} and
+arity \TZ{A} in the module in which the \T{fun} expression lexically appears, then
+it is a compile-time error.  Otherwise,
+the expression \T{fun \Z{F}/\Z{A}} denotes a function term that can be applied.
+Evaluation of an application of such a function term is described in
+\S\ref{section:function-application}.
+\item
+\index{clause!of fun expression@of \T{fun} expression|(}
+Consider now an explicit \T{fun} expression, i.e., an expression
+\begin{alltt}
+fun (\(\Z{P}\sb{1,1}\),\tdots,\(\Z{P}\sb{1,n\sb{1}}\)) \([\)when \(\Z{G}\sb{1}]\) -> \(\Z{B}\sb{1}\) ;
+    \(\vdots\) ;
+    (\(\Z{P}\sb{k,1}\),\tdots,\(\Z{P}\sb{k,n\sb{k}}\)) \([\)when \(\Z{G}\sb{k}]\) -> \(\Z{B}\sb{k}\)
+end
+\end{alltt}
+where $k$ is a natural number, each $\TZ{P}_{i,j}$ ($1\leq i\leq k$ and
+$1\leq j\leq n_i$) is a \NT{Pattern}, each (optional) $\TZ{G}_i$ is a \NT{Guard}
+and each \T{$\Z{B}_i$} is a \NT{Body}.  It is a compile-time error if
+there is no number \TZ{A} such that $\TZ{A}=n_1=\cdots=n_k$.
+Otherwise the \T{fun} expression denotes a function term that can be applied.
+Evaluation of an application of such a function term is described in
+\S\ref{section:function-application}.
+\index{clause!of fun expression@of \T{fun} expression|)}
+\end{itemize}
+
+\ENVIRONMENTS
+
+The input and output environments of a \T{fun} expression are the same, i.e.,
+any variables bound in (an explicit) \T{fun} expression are local to it.
+\index{fun expression@\T{fun} expression|)}
+
+\ifOld
+\subsection{\T{query} expressions}
+
+\label{section:query-exprs}
+\index{query expression@\T{query} expression|(}
+
+Query expressions are only syntactically part of \Erlang\ but is a
+query interface to the database system Mnesia, part of OTP
+\cite[ch.~6]{otp-mnesia}.  Their semantics will not be described in
+detail here.
+
+\SYNTAX
+
+\begin{rules}
+\grrule{QueryExpr}
+       {\TXT{query} \NT{ListComprehension} \TXT{end}}
+\end{rules}
+There is a syntactic extension to \NT{RecordExpr} that is only valid inside
+a \NT{QueryExpr}:
+\begin{rules}
+\grrule{RecordExpr}
+       {\NT{RecordExpr} \TXT{.}\ \NT{RecordFieldName}}
+\end{rules}
+\index{query expression@\T{query} expression|)}
+\fi % ifOld
+
+\subsection{Parenthesized expressions}
+
+\label{section:paren-expr}
+\index{parenthesized expression|(}
+
+An expression may always be enclosed in parentheses without changing its meaning.
+Such parentheses may be used in order to express the syntactic structure
+of an expression when the grammatical rules would otherwise give another
+structure.  
+
+\SYNTAX
+
+\begin{rules}
+\grrule{ParenthesizedExpr}
+       {\TXT{(} \NT{Expr} \TXT{)}}
+\end{rules}
+
+\EVALUATION
+
+Evaluating an expression \T{(\Z{E})} means evaluating \TZ{E}.
+
+\ENVIRONMENTS
+
+The output environment of \TZ{E} is used as the output environment of \T{(\Z{E})}.
+\index{primary expressions|)}
+\index{parenthesized expression|)}
+
+\section{Guards}
+
+\label{section:guards}
+\index{guard|(}
+
+In \Erlang\ a pattern can optionally be augmented with a \emph{guard}
+for expressing additional conditions on the term that is to be matched
+against the pattern.  A guard consists of a nonempty sequence of
+\emph{guard tests}\index{guard!test}.
+
+The guard tests have subexpressions, which are \emph{guard
+expressions}\index{guard!expression}.
+When compared with expressions, both guard tests and guard
+expressions are syntactically restricted.
+They are built from a small repertoire of primitives for which it is
+guaranteed that:
+\begin{itemize}
+\item Their evaluation takes bounded (often constant) time.
+\item They do not have any effects.
+\item There are only ``simple'' errors.
+\end{itemize}
+
+\SYNTAX
+
+\begin{rules}
+\grrule{Guard}
+       {\NT{GuardTest} \OR
+        \NT{Guard} \TXT{,} \NT{GuardTest}}
+\end{rules}
+
+\EVALUATION
+
+Evaluation of a guard completes with success or with failure; there is
+no concept of abrupt completion.
+
+A guard is evaluated by evaluating the guard tests from left to right
+until one is found that fails, in which case evaluation of the whole
+guard fails without evaluating any more guard tests, or all guard
+tests have been evaluated, in which case evaluation of the whole guard
+succeeds.
+
+\ENVIRONMENTS
+
+The input and output environments of a guard are the same.
+
+\subsection{Guard tests}
+
+\label{section:record-guards}
+\index{guard!test|(}
+
+Guard tests are syntactically identical with certain Boolean
+expressions but their semantics are slightly different in the case of
+abrupt completion.
+
+There are five kinds of guard tests: trivially true tests,
+record tests, recognizers, term comparisons and parenthesized guard tests.
+
+\SYNTAX
+
+\begin{rules}
+\grrule{GuardTest}
+       {\TXT{true} \OR
+        \NT{GuardRecordTest} \OR
+\ifstruct        \NT{GuardStructTest} \OR \fi
+        \NT{GuardRecognizer} \OR
+        \NT{GuardTermComparison} \OR
+        \NT{ParenthesizedGuardTest}}
+
+\grrule{GuardRecordTest}
+       {\TXT{record} \TXT{(} \NT{GuardExpr} \TXT{,} \NT{RecordType} \TXT{)}}
+
+\ifstruct
+\grrule{GuardStructTest}
+       {\TXT{struct} \TXT{(} \NT{GuardExpr} \TXT{,} \NT{GuardExpr} \TXT{)}}
+\fi
+
+\grrule{GuardRecognizer}
+       {\NT{RecognizerBIF} \TXT{(} \NT{GuardExpr} \TXT{)}}
+
+\grrule{RecognizerBIF}
+       {\NT{AtomLiteral}}
+
+\grrule{GuardTermComparison}
+       {\NT{GuardExpr} \NT{RelationalOp} \NT{GuardExpr} \OR
+        \NT{GuardExpr} \NT{EqualityOp} \NT{GuardExpr}}
+
+\grrule{ParenthesizedGuardTest}
+       {\TXT{(} \NT{GuardTest} \TXT{)}}
+\end{rules}
+
+\EVALUATION
+
+We discuss the kinds of guard tests one by one.
+
+\label{section:record2}
+
+\begin{itemize}
+\item \index{true expression@\T{true} expression|(}
+A \T{true} test succeeds trivially.
+\index{true expression@\T{true} expression|)}
+\item \index{record/2@\T{record/2}!recognizer|(}
+A \NT{GuardRecordTest} \T{record(\Z{E},\Z{R})} (where \TZ{E} is a guard
+expression and \TZ{R} is a record type) is evaluated by evaluating \TZ{E}
+and then testing the result.  The test succeeds if the evaluation of \TZ{E}
+completes normally with some result \TZ{v} and \TZ{v} is a record of type \TZ{R};
+otherwise the
+test fails.  Note that there is no BIF \T{record/2}, a \NT{GuardRecordTest}
+just happens to have the same syntax as a function application.
+\index{record/2@\T{record/2}!recognizer|)}
+\item \index{BIF!recognizer|(}
+A \NT{GuardRecognizer} is an application of one of the recognizer
+BIFs of \S\ref{section:recognizer-bifs} to a guard expression.  It is
+evaluated by evaluating the guard expression and applying the BIF to
+the result.  The test succeeds if the evaluation of the guard
+expression completes normally with some result \TZ{v}
+and the BIF returns \T{true} for \TZ{v}; otherwise the test fails.
+\index{BIF!recognizer|)}
+\item \index{term!comparison|(}
+A \NT{GuardTermComparison} is a \NT{RelationalOp} or an
+\NT{EqualityOp} applied to a pair of guard expressions.  It is applied
+by evaluating both operands and then computing a boolean as described
+in \S\ref{section:relational}.  The test succeeds if evaluations of
+both operands complete normally with some results $\TZ{v}_1$ and
+$\TZ{v}_2$ and the subsequently computed boolean is \T{true};
+otherwise the test fails.
+\index{term!comparison|)}
+\item \index{test!parenthesized|(}
+A \NT{ParenthesizedGuardTest} \T{(\Z{G})} succeeds if, and only if,
+the guard test \TZ{G} succeeds.
+\index{test!parenthesized|)}
+\end{itemize}
+Note that if any subexpression of a guard test completes abruptly, the
+guard test (and thus the guard of which it is a part) fails.  A guard
+test can never complete abruptly.
+
+\ENVIRONMENTS
+
+The input and output environments of a guard test are the same.
+\index{guard!test|)}
+
+\subsection{Guard expressions}
+
+\index{guard!expression|(}
+
+The guard expressions are syntactically identical with
+certain expressions.
+
+\begin{rules}
+\grrule{GuardExpr}
+       {\NT{GuardAdditionShiftExpr}}
+
+\grrule{GuardAdditionShiftExpr}
+       {\NT{GuardAdditionShiftExpr} \NT{AdditionOp} \NT{GuardMultiplicationExpr} \OR
+        \NT{GuardAdditionShiftExpr} \NT{ShiftOp} \NT{GuardMultiplicationExpr} \OR
+        \NT{GuardMultiplicationExpr}}
+
+\grrule{GuardMultiplicationExpr}
+       {\NT{GuardMultiplicationExpr} \NT{MultiplicationOp} \NT{GuardPrefixOpExpr} \OR
+        \NT{GuardPrefixOpExpr}}
+
+\grrule{GuardPrefixOpExpr}
+       {\NT{PrefixOp} \NT{GuardApplicationExpr} \OR
+        \NT{GuardApplicationExpr}}
+
+\grrule{GuardApplicationExpr}
+       {\NT{GuardBIF} \TXT{(} \OPT{GuardExprs} \TXT{)} \OR
+        \NT{GuardRecordExpr} \OR
+        \NT{GuardPrimaryExpr}}
+
+\iffalse
+How to get it through BISON:
+
+\grrule{GuardApplicationExpr}
+       {\NT{GuardBIF} \TXT{(} \TXT{)} \OR
+        \NT{GuardTypeTest} \OR
+        \NT{GuardBIF} \TXT{(} \NT{GuardExpr} \TXT{,} \OPT{GuardExprs} \TXT{)} \OR
+        \NT{GuardRecordExpr} \OR
+        \NT{GuardPrimaryExpr}}
+\fi
+
+\grrule{GuardBIF}
+       {\NT{AtomLiteral}}
+
+\grrule{GuardExprs}
+       {\NT{GuardExpr} \OR
+        \NT{GuardExprs} \TXT{,} \NT{GuardExpr}}
+
+\grrule{GuardRecordExpr}
+       {\OPT{GuardPrimaryExpr} \TXT{\#} \NT{AtomLiteral} \TXT{.} \NT{AtomLiteral}}
+
+\grrule{GuardPrimaryExpr}
+       {\NT{Variable} \OR
+        \NT{AtomicLiteral} \OR
+        \NT{GuardListSkeleton} \OR
+        \NT{GuardTupleSkeleton} \OR
+        \NT{ParenthesizedGuardExpr}}
+
+\grrule{GuardListSkeleton}
+       {\TXT{[} \TXT{]} \OR
+        \TXT{[} \NT{GuardExprs} \OPT{GuardListSkeletonTail} \TXT{]}}
+
+\grrule{GuardListSkeletonTail}
+       {\TXT{|} \NT{GuardExpr}}
+
+\grrule{GuardTupleSkeleton}
+       {\TXT{\{} \OPT{GuardExprs} \TXT{\}}}
+
+\grrule{ParenthesizedGuardExpr}
+       {\TXT{(} \NT{GuardExpr} \TXT{)}}
+\end{rules}
+It is described in \S\ref{chapter:bifs}
+which BIFs are guard BIFs.
+
+\EVALUATION
+
+All guard expressions are expressions and a guard expression is
+evaluated exactly as the corresponding expression.  Evaluation of a
+guard expression may complete abruptly but a guard expression always
+occurs as part of a guard test which will restore normal evaluation
+by simply failing.
+
+\ENVIRONMENTS
+
+The input and output environments of a guard expression are the same.
+\index{guard!expression|)}
+\index{guard|)}

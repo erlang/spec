@@ -1,0 +1,1091 @@
+%
+% %CopyrightBegin%
+%
+% Copyright Ericsson AB 2017. All Rights Reserved.
+%
+% Licensed under the Apache License, Version 2.0 (the "License");
+% you may not use this file except in compliance with the License.
+% You may obtain a copy of the License at
+%
+%     http://www.apache.org/licenses/LICENSE-2.0
+%
+% Unless required by applicable law or agreed to in writing, software
+% distributed under the License is distributed on an "AS IS" BASIS,
+% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+% See the License for the specific language governing permissions and
+% limitations under the License.
+%
+% %CopyrightEnd%
+%
+
+\chapter{Processes and concurrency}
+
+\label{chapter:processes}
+\index{process|(}
+
+\section{An overview of \Erlang\ processes}
+
+\label{section:spawning-processes}
+
+An \Erlang\ \emph{process} is an entity that exists for a certain
+time, is evaluating a function application, has a state and is able to
+communicate with other processes during its lifetime.  It may complete
+normally or abruptly.
+
+\index{PID|(}
+Each process is associated with a unique term, called its \emph{process
+identifier} or \emph{PID}.  The PID of a process is used for referring
+to the process, for example, when communicating with it. As there is
+a one-to-one correspondence between processes and PIDs, we will often
+abuse our terminology and write about the PIDs as if they were the
+actual processes. A process can obtain its own PID using the BIF
+\T{self/0}\index{self/0 BIF@\T{self/0} BIF} (\S\ref{section:self0}).
+\index{PID|)}
+
+\index{process!spawning a|(}
+Normally a function application appears in a program through an
+expression on the form \T{\Z{F}($\Z{T}_1$,\tdots,$\Z{T}_k$)} or
+\T{\Z{M}:\Z{F}($\Z{T}_1$,\tdots,$\Z{T}_k$)} (or through an application
+of one of the BIFs \T{apply/2} and \T{apply/3}).
+In the normal mode of
+evaluation, the expression is then evaluated as part of the same
+process until it completes
+normally, in which case the result is the value of the expression,
+or it completes abruptly, in which case the enclosing expression also
+completes abruptly.
+
+Through the BIFs \T{spawn/3}, \T{spawn/4}, \T{spawn_link/3}
+and \T{spawn_link/4} (\ifOld\S\ref{section:process-bifs}\fi
+\ifNew\S\ref{section:process-module}\fi)
+it is possible to request instead that the application is evaluated in a process
+of its own.  An application \T{spawn(\Z{M},\T{F},[$\Z{E}_1$,\tdots,$\Z{E}_k$])}
+has the effect of spawning a new process that evaluates the application
+\T{\Z{M}:\Z{F}($\Z{E}_1$,\tdots,$\Z{E}_k$)}, but does not wait for its
+value to be computed.  The value of the expression
+\T{spawn(\Z{M},\T{F},[$\Z{E}_1$,\tdots,$\Z{E}_k$])} is instead the
+PID of the new process.  The value of
+\T{\Z{M}:\Z{F}($\Z{E}_1$,\tdots,$\Z{E}_k$)} cannot be accessed even
+though it is computed (when the computation completes normally) so it is
+obvious that any result of a process must be made available through
+communication.
+
+\index{process!initial call|(}
+Let the values of the expressions \TZ{M}, \TZ{F}, $\TZ{E}_1$, \ldots, $\TZ{E}_k$
+be \TZ{Mod}, \TZ{Fun}, $\TZ{v}_1$, \ldots, $\TZ{v}_k$.  The call of
+the function \T{\Z{Mod}:\Z{Fun}/$k$} to the values  $\TZ{v}_1$, \ldots, $\TZ{v}_k$
+is known as the \emph{initial call} of the process.
+\index{process!initial call|)}
+
+The BIF \T{spawn/3} spawns the new process on the same node as the
+process evaluating the application while
+\T{spawn/4} spawns the new process on a specified node (\S\ref{chapter:nodes}).
+The BIFs \T{spawn_link/3} and \T{spawn_link/4} are like
+\T{spawn/3} and \T{spawn/4}, respectively, but link the spawning and
+spawned processes (\S\ref{section:links}).
+\index{process!spawning a|)}
+
+\index{process!communication|(}
+\index{signal!communication|(}
+\index{message!communication|(}
+\index{exit!signal|(}
+Processes communicate through \emph{signals}.  The two kinds
+of signals that are immediately noticeable for \Erlang\ programmers
+are \emph{messages} and \emph{exit signals}.
+Both messages and exit signals are terms but they are sent and received
+differently and with different purposes.
+
+An exit signal is automatically sent upon completion of a process
+and it may cause abrupt completion of other processes, as described
+in \S\ref{section:exit-signals}.
+\index{exit!signal|)}
+
+A message is sent by evaluating a \emph{send expression}, i.e.,
+an application of the \T{!}\ operator (\S\ref{section:send-expr}).
+\iffalse
+The value of the left-hand operand should be the PID of the receiving
+process (or an atom that is registered to identify a PID)
+and the value of the right-hand operand should be the message to be sent.
+\fi
+Correspondingly, evaluating a \T{receive}
+expression (\S\ref{section:receive-expr}) normally receives one message and
+dispatches on its form.
+The mechanism for communication by messages is described in
+\S\ref{section:messages}.
+\index{message!communication|)}
+\index{process!communication|)}
+\index{signal!communication|)}
+
+\section{Process names}
+
+\label{section:process-names}
+\index{process!registry|(}
+
+Each node maintains a registry of names of processes, providing a level
+of abstraction when referring to a process.  These names are atoms and
+can be used instead of the PID when sending a message to a process.
+It is also possible to retrieve the current PID that a name is
+registered to stand for.
+
+Process names are described in more detail elsewhere
+(\S\ref{section:process-registry}) as are the BIFs
+\T{register/2}, \T{whereis/1}, \T{unregister/1} and \T{registered/0}
+(\ifOld\S\ref{section:process-registry-bifs}\fi
+\ifNew\S\ref{section:process-module}\fi).
+\index{process!registry|)}
+
+\section{Linked processes}
+
+\label{section:links}
+\index{process!linking|(}
+
+\index{exit!signal|(}
+A pair of processes $\TZ{P}_1$ and $\TZ{P}_2$
+may be \emph{linked},
+which means that when
+$\TZ{P}_1$ completes, an exit signal (\S\ref{section:exit-signals}) is sent to
+$\TZ{P}_2$, and vice versa. Receiving the exit signal can either cause $\TZ{P}_2$ to
+complete abruptly or notify $\TZ{P}_2$ of the completion of $\TZ{P}_1$
+in the form of a message (\S\ref{section:messages}). Links are
+completely symmetric so there is no distinction between the linked
+processes. A process may link to itself but that has no effect.
+\index{exit!signal|)}
+
+\iffalse
+Although a link is between two processes, the transitive closure of
+the links forms groups of processes.  Unless some process in such a
+group is trapping exit signals (\S\ref{section:exit-signals}),
+completion of one process in the group eventually causes (abrupt)
+completion of all processes in the group.
+\else
+Note that when a process $\TZ{P}_1$ is linked to two or more processes,
+say $\TZ{P}_2$ and $\TZ{P}_3$, then if $\TZ{P}_2$ completes abruptly,
+the exit signal received by $\TZ{P}_1$ will cause abrupt completion also
+of $\TZ{P}_1$ (unless it is trapping exits), which will cause an exit signal
+to be sent to $\TZ{P}_3$, etc.  The abrupt completion of $\TZ{P}_2$ thus
+causes abrupt completion of $\TZ{P}_3$ even though the processes were not
+linked directly.
+In this way, abrupt completion of one process in a collection of linked
+processes may cause abrupt completion of several or all processes in the group.
+\fi
+
+A link can be created between two processes
+$\TZ{P}_1$ and $\TZ{P}_2$ in the following ways:
+\begin{itemize}
+\item If one of the processes spawned the other using the BIF
+\T{spawn_link/3}\index{spawn_link/3 BIF@\T{spawn_link/3} BIF}
+or \T{spawn_link/4}\index{spawn_link/4 BIF@\T{spawn_link/4} BIF}.
+In this case, the link is in effect as soon as the process has been created.
+\item \index{link/1 BIF@\T{link/1} BIF|(}
+If process $\TZ{P}_1$ calls the BIF \T{link/1}
+with $\Z{P}_2$ as argument,
+or process $\TZ{P}_1$ calls it with $\Z{P}_2$ as argument.
+In this case, setting up the link takes an
+unspecified amount of time.
+If the two processes are already linked when one of them evaluates an application of
+\T{link/1}, it has no effect. If when (say) $\TZ{P}_1$ evaluates \T{link($\Z{P}_2$)} the process
+$\TZ{P}_2$ has completed, then no link is created and $\TZ{P}_1$ eventually receives an exit signal
+\T{\{'EXIT',$\Z{P}_2$,\Z{noproc}\}} (\S\ref{section:exit-signals}).
+
+For details see the description of the BIF \T{link/1} (\S\ref{section:link1})
+and \S\ref{section:signal-arrival}.
+\index{link/1 BIF@\T{link/1} BIF|)}
+\end{itemize}
+\index{unlink/1 BIF@\T{unlink/1} BIF|(}
+The link between two processes $\TZ{P}_1$ and $\TZ{P}_2$ is removed if process $\TZ{P}_1$ evaluates
+\T{unlink($\Z{P}_2$)} or process $\TZ{P}_2$ evaluates \T{unlink($\Z{P}_1$)}.  It takes an
+unspecified amount of time before the link is removed.
+If the two processes are not linked when one of them evaluates an application of
+\T{unlink/1}, it has no effect.
+For details see the description of the BIF \T{unlink/1} (\S\ref{section:unlink1})
+and \S\ref{section:signal-arrival}.
+\index{unlink/1 BIF@\T{unlink/1} BIF|)}
+
+Obviously, two processes setting up or removing a link between each other may need to
+synchronize with messages to ensure the status of the link before further processing.
+
+It is also possible for a process and a port to be linked, as described in
+\S\ref{section:port-linking}.
+\index{process!linking|)}
+
+\section{Completion of processes and exit signals}
+
+\label{section:exit-signals}
+
+In this section we describe what causes a process to complete and the exit signals and
+messages that are dispatched when that happens.  We also describe how exit signals are
+sent using the BIF \T{exit/2} and what happens when exit signals are received.
+
+\subsection{Process completion}
+
+\label{section:process-completion}
+\index{process!completion|(}
+
+A process may complete for one of the following four reasons:
+\begin{itemize}
+\item The evaluation of the toplevel application of a process completes normally:
+\TZ{Reason} will be \T{normal}.
+\item The evaluation of the toplevel application of a process completes abruptly
+with exit reason \TZ{R}: \TZ{Reason} will be \TZ{R}.
+\item The evaluation of the toplevel application of a process completes abruptly
+with a thrown term: \TZ{Reason} will be \T{nocatch}.
+\item The process receives an exit signal that causes it to complete abruptly
+(\S\ref{section:receiving-exit-signal}),
+\TZ{Reason} will then be as specified in \S\ref{section:signal-arrival}.
+\end{itemize}
+
+\index{exit/1 BIF@\T{exit/1} BIF|(}
+The BIF \T{exit/1} (\S\ref{section:exit1}) is typically used to make a function
+call exit with some reason, as some kind of error has been detected.  Unless the
+code has been written to restore normal computation, the process executing the
+function call will terminate.
+That is, evaluation of an application \T{exit(\Z{Reason})} for some term \TZ{Reason} completes
+abruptly with the exit term \TZ{Reason} as reason
+and unless the evaluation is governed by a \ifNew\T{try} (or \T{catch}) \else \T{catch} \fi
+expression, the process completes as described
+above.
+\index{exit/1 BIF@\T{exit/1} BIF|)}
+
+\index{throw/1 BIF@\T{throw/1} BIF|(}
+The BIF \T{throw/1} (\S\ref{section:throw1}) is intended for nonlocal
+control, not for signalling an error or making a process terminate.
+\index{throw/1 BIF@\T{throw/1} BIF|)}
+
+\index{exit!signal|(}
+\ifNew\index{process!monitoring|(}\fi
+When a process completes, an \emph{exit signal} is sent to every process
+that is linked to it\ifNew\ and a message is sent to every process
+monitoring it\fi.
+The order in which these exit signals \ifNew and messages \fi are sent
+is not defined.
+The exit signal contains the PID of the completing process and contains the exit
+reason\ifNew, while a message contains only the PID\fi.
+\ifNew\index{process!monitoring|)}\fi
+\index{exit!signal|)}
+
+\index{process!linking|(}
+More precisely, suppose that process \TZ{P} completes for one of the reasons above.
+For each process $\TZ{P}'$ for which $\TZ{P}'$ is in \T{linked[\Z{P}]}\ifNew
+or for which there is a pair $\langle\TZ{P}',k\rangle$ (for some $k$) in
+\T{monitoring_processes[\Z{P}]}\fi,
+dispatch an exit signal with \TZ{P} as sender and \TZ{Reason} as reason.
+
+If two processes $\TZ{P}_1$ and $\TZ{P}_2$ residing on different nodes
+(\S\ref{chapter:nodes})
+are linked and the nodes lose contact, $\TZ{P}_1$ and $\TZ{P}_2$ will receive
+exit signals with reason \T{noconnection}, as if the other process had completed.
+\index{process!linking|)}
+
+\ifNew
+\index{process!monitoring|(}
+Similarly a message \T{\{taskdown,$\Z{P}_2$\}} will be sent to $\TZ{P}_1$ if it is
+monitoring $\TZ{P}_2$, and vice versa.
+\index{process!monitoring|)}
+\fi
+\index{process!completion|)}
+
+\subsection{Sending exit signals explicitly}
+
+\label{section:sending-exit-signal}
+
+\index{exit!signal!sending|(}
+The BIF \T{exit/2} (\S\ref{section:exit2}) can be used to send
+exit signals to processes.
+If process $\TZ{P}_1$ evaluates the application \T{exit($\Z{P}_2$,\Z{Reason})},
+an exit signal with reason \TZ{Reason} is sent to process $\TZ{P}_2$, similarly to
+when process $\TZ{P}_1$ is linked with $\TZ{P}_2$ and
+completes with exit reason \TZ{Reason}.
+However, if \TZ{Reason} is \T{kill}\index{kill@\T{kill}!exit signal},
+the receiving process will always
+complete (\S\ref{section:signal-arrival}).
+
+Note that if $\TZ{P}_1$ is linked to $\TZ{P}_2$,
+and \T{trap_exit[$\Z{P}_2$]}\index{exit!signal!trapping} is \T{false}
+(or \TZ{Reason} is \T{kill}\index{kill@\T{kill}!exit signal}),
+then $\TZ{P}_2$ will
+terminate and an exit signal
+will subsequently be sent to $\TZ{P}_1$ itself.
+
+For details, see the description of the BIF
+\T{exit/2}\index{exit/2 BIF@\T{exit/2} BIF} (\S\ref{section:exit2}).
+\index{exit!signal!sending|)}
+
+\subsection{Receiving an exit signal}
+
+\label{section:receiving-exit-signal}
+\index{exit!signal!receiving|(}
+
+\index{exit!signal!trapping|(}
+We write that a process \TZ{P} is \emph{trapping exits} if \T{trap_exits[\Z{P}]}
+is \T{true}.
+
+When an exit signal is received, one of three things happens:
+\begin{itemize}
+\item If the receiving process is trapping exits and the exit signal
+was not sent using the BIF \T{exit/2}\index{exit/2 BIF@\T{exit/2} BIF} with
+\T{kill}\index{kill@\T{kill}!exit signal} as reason,
+then the reason is placed in the message queue of the receiving
+process.
+\item Otherwise, if the reason is
+\T{normal}\index{normal@\T{normal}!exit signal}, nothing happens.
+\item Otherwise (the reason is not \T{normal} and
+either the process is not trapping exits or the exit signal
+was sent using the BIF \T{exit/2} with \T{kill} as reason),
+the process completes 
+(\S\ref{section:signal-arrival}).
+\end{itemize}
+\index{exit!signal!trapping|)}
+
+For details, cf.~\S\ref{section:signal-arrival}.
+\index{exit!signal!receiving|)}
+
+\section{Communication by messages}
+
+\label{section:messages}
+
+\index{message!communication|(}
+A message in \Erlang\ can be any \Erlang\ term. A message is sent by a
+\emph{sending process} to a specific \emph{receiving process}, identified
+by its PID, by a registered name, which is an atom, or by 2-tuple of a node name and
+a registered name.
+
+Communication by messages in \Erlang\ is asynchronous, i.e., the process sending
+a message does not wait until the message is received.
+We shall therefore describe sending of messages and reception of messages in three steps:
+\begin{itemize}
+\item A message is dispatched from a process with some process as recipient.
+\item The message arrives at the message queue of the recipient.
+\item The recipient retrieves the message from its message queue.
+\end{itemize}
+\index{message!communication|)}
+
+\subsection{Sending a message}
+
+\label{section:sending-messages}
+\index{message!sending|(}
+
+The only primitive for sending a message in \Erlang\ is the operator \T{!}.
+An expression \T{\Z{E}$_1$ !\ \Z{E}$_2$} is called a \emph{send expression}\index{send expression}
+(\S\ref{section:send-expr}).
+
+The value of the left operand should either be a PID, an atom that is
+registered on the current node as a process name (\S\ref{section:process-names}),
+or a 2-tuple of atoms where the first element is a name for some process on the node named
+by the second element.
+The value of the right
+operand is the message to be dispatched. Evaluation of send expressions
+is described precisely in \S\ref{section:send-expr}.
+
+There is no direct way for the sending process to find out whether the
+message ever arrived at the message queue of the recipient process or was
+retrieved\ifOld\ (except that evaluation of a send expression will exit with reason
+\T{badarg} when the receiver is specified through an atom that is not a registered name)\fi.
+
+The dispatched message contains no other information than the message as such.
+In particular, it does not identify the sending process unless its PID is made part of
+the message.
+\index{message!sending|)}
+
+\subsection{Message arrival}
+
+\label{section:message-arrival}
+\index{message!arrival|(}
+
+When a term \TZ{Msg} arrives at the message queue\index{message!queue}
+of the recipient process \TZ{P} it is placed
+at the end of \T{message_queue[\Z{P}]}.  If \T{status[\Z{P}]} is \T{waiting}, then
+\T{status[\Z{P}]} is changed to \T{runnable} and the process will eventually proceed in
+part~3 of the evaluation of a \T{receive} expression (\S\ref{section:receive-expr}).
+
+For details, cf.~\S\ref{section:signal-arrival}.
+\index{message!arrival|)}
+
+\subsection{Receiving a message}
+
+\label{section:receiving-messages}
+\index{message!reception|(}
+
+The only primitive for receiving a message in \Erlang\
+is the \T{receive} expression\index{receive expression@\T{receive} expression}
+(\S\ref{section:receive-expr})
+which has the syntax
+\begin{alltt}
+receive
+    \Z{P}\(\sb{1}\) \([\)when \Z{G}\(\sb{1}]\) -> \Z{B}\(\sb{1}\) ;
+    \tdots
+    \Z{P}\(\sb{k}\) \([\)when \Z{G}\(\sb{k}]\) -> \Z{B}\(\sb{k}\)
+\([\)after
+    \Z{E} -> \Z{B}\(\sb{k+1}]\)
+end
+\end{alltt}
+where the \T{after} part is optional but must be included if $k=0$.
+
+When a receive expression is evaluated, each term in the message queue\index{message!queue}
+of the process is matched (in order) against each clause (i.e., a
+message is matched against the pattern of the clause and the guard of
+the clause is evaluated) until a message is found for which there is a
+matching clause. The message is then removed from the message queue of
+the process and the body of the first matching clause is evaluated.
+
+If no term in the message queue matched any clause, then the process suspends until
+at least one term has arrived at the queue, each such term is then tried as above until one arrives
+that matches some clause. However, if the receive expression has an \T{after} part,
+then the waiting for a message expires\index{expiry!of \T{receive} expression} after
+the specified number of milliseconds have passed
+and the expiry body is evaluated.
+
+The evaluation of \T{receive} expressions is described in detail in
+\S\ref{section:receive-expr}.
+\index{message!reception|)}
+
+\subsection{Order of messages}
+
+\index{message!order|(}
+It is assured (through the rules of signals, cf.~\S\ref{section:signal-order})
+that if a process $\TZ{P}_1$ dispatches two messages
+$\TZ{M}_1$ and
+$\TZ{M}_2$ to the same process $\TZ{P}_2$, in that order, then message $\TZ{M}_1$ will never
+arrive after $\TZ{M}_2$ at the message queue of $\TZ{P}_2$.
+
+Note that this does not guarantee anything about in which order messages arrive when a process
+sends messages to two different processes.  Also note that linking/unlinking requests are
+processed as soon as they arrive at a process while messages can be received long after they
+arrived at the message queue\index{message!queue} (when the process evaluates a \T{receive} expression).
+For example, if a process $\TZ{P}_1$ evaluates
+\begin{alltt}
+link(\(\Z{P}\sb{2}\)), \(\Z{P}\sb{2}\) ! foo, unlink(\(\Z{P}\sb{2}\))
+\end{alltt}
+then the link between $\TZ{P}_1$ and $\TZ{P}_2$ may or may not still be in effect when process
+$\TZ{P}_2$ actually receives message \T{foo}, depending on whether the unlink request
+from process $\TZ{P}_1$ has arrived yet.  In order to guarantee that the link is in effect
+when process $\TZ{P}_2$ receives \T{foo}, process $\TZ{P}_2$ could send an answer message
+to $\TZ{P}_1$ which would wait to receive that message before unlinking.
+\index{message!order|)}
+
+\section{Signals}
+
+\label{section:signals}
+\index{signal!communication|(}
+
+In this section we describe a model for how communication between two processes
+or between a process and a port takes place in \Erlang.  The model is assumed in
+other parts of this specification.  It is important that it is a model:
+\ifNew
+an implementation is not required to use it for implementation, but communication
+should behave according to the model.
+\fi
+\ifOld
+\OldErlang\ does not use it in the implementation,
+but communication behaves according to the model.
+\fi
+
+All communication between processes and ports takes place through \emph{signals}.
+A signal is characterized by a sending process/port, a destination process/port,
+a \emph{kind} and additional data depending on the kind of the signal.
+The kind is one of the following:
+\begin{Lentry}
+\item[\I{Message}.] Additional data: a term that is the actual message.
+\item[\I{Exit signal}.] Additional data: a Boolean flag saying whether
+the sending process just died or not and a reason which is a term.
+\item[\I{Link request}.] Additional data: none. See \S\ref{section:links}.
+\item[\I{Unlink request}.] Additional data: none. See \S\ref{section:links}.
+\item[\I{Group leader request}.] Additional data: the process that is to
+be the new group leader of the destination process. See \S\ref{section:group-leader}.
+\item[\I{Info request}.] Additional data: a key which is an atom. See \S\ref{section:processinfo2}.
+\iffalse
+% [980603] I cannot see the need for this one!
+\item[\I{Monitor node request}.] Additional data: none. See \S\ref{section:monitor-node}.
+\fi
+\end{Lentry}
+%New signals may be added in the future.
+\ifOld
+\OldErlang\ has three additional kinds of signals, which are not described in detail here:
+\begin{Lentry}
+\item[\I{Suspend/resume request}.] For suspending of resuming a process, respectively.
+\item[\I{Garbage collection request}.] For requesting that garbage collection be done.
+\item[\I{Trace/notrace request}.] For turning tracing of a process on or off, respectively
+\end{Lentry}
+\fi
+\ifNew
+An implementation my have additional signals
+and at a low level the signals may be different from those reported here (there may
+not even be a signal concept) as long as the behaviour with respect to messages,
+exit signals, linking/unlinking, etc., coheres with what is described here.
+\fi
+\index{signal!communication|)}
+
+\subsection{Sending signals}
+
+\index{signal!sending|(}
+Sending a signal is completely asynchronous: the sending process has no direct way
+to infer when the signal reached its destination or even whether it was ever received.
+
+Sending the various types of signals is described in \S\ref{section:send-expr} (\I{messages}),
+\S\ref{section:exit-signals} (\I{exit signals}), \S\ref{section:links} (\I{link and unlink
+requests}), \S\ref{section:groupleader2} (\I{group leader requests}) and
+\S\ref{section:processinfo2} (\I{info requests}).
+% and \S\ref{section:monitornode2} (\I{monitor node requests}).
+\index{signal!sending|)}
+
+\subsection{Order of signals}
+
+\label{section:signal-order}
+\index{signal!order|(}
+
+The amount of time that passes between the dispatch of a signal $s$ destined
+for a process \TZ{P}
+and the arrival of $s$ at \TZ{P} is unspecified but positive. If \TZ{P}
+has completed, $s$ will never arrive at \TZ{P}.  In that case it is still possible that
+$s$ triggers another signal, for example if it is a link request
+(cf.~\S\ref{section:signal-arrival}).
+
+\ifOld It is guaranteed that \fi
+\ifNew An implementation must guarantee that \fi
+if a process $\TZ{P}_1$ dispatches two signals $s_1$ and $s_2$
+to the same process $\TZ{P}_2$, in that order, then signal $s_1$ will never
+arrive after $s_2$ at $\TZ{P}_2$.
+\ifOld It is ensured that \fi
+\ifNew An implementation should ensure that \fi
+whenever possible, a signal dispatched to a process should eventually arrive at it.
+There are
+situations when it is not reasonable to require that all signals arrive at their
+destination, in particular when a signal is sent to a process on a different node
+and communication between the nodes is temporarily lost.
+\index{signal!order|)}
+
+\subsection{Arrival of signals}
+
+\label{section:signal-arrival}
+\index{signal!arrival|(}
+
+Consider a signal in transit with destination process \TZ{P}.
+When the signal arrives at the node on which \TZ{P} resides or resided,
+what happens primarily depends on whether \TZ{P} has completed or not.
+(If the sender and destination processes reside on the same node, the processing
+may nevertheless be subject to delay.)
+\begin{itemize}
+\item If \TZ{P} has completed, what happens depends on the kind of the signal:
+\begin{itemize}
+\item \index{process!linking|(}If the signal was a link request from a process $\TZ{P}'$
+then an exit signal \T{noproc}\index{noproc exit signal@\T{noproc} exit signal}
+is sent to $\TZ{P}'$.\index{process!linking|)}
+%\item Anything else???
+\item Otherwise, the signal is discarded.
+\end{itemize}
+\item If \TZ{P} has not completed, what happens also depends on the kind of the signal:
+\begin{itemize}
+\item \I{Message} with actual message \TZ{M}:
+the term \TZ{M} is placed at the end of
+\T{message_queue[\Z{P}]}\index{message!queue} (\S\ref{section:message-arrival}).
+\item \index{exit!signal|(}
+\I{Exit signal} with sender $\TZ{P}'$, flag \TZ{ProcessCompleted} and term \TZ{Cause}.
+(\TZ{ProcessCompleted} is \T{true} if $\TZ{P}'$ completed and \T{false} otherwise.)
+\index{exit!signal!trapping|(}
+First of all it is established whether reception of this exit signal causes \TZ{P}
+to complete abruptly or not.
+\begin{itemize}
+\item If \TZ{ProcessCompleted} is \T{true}, $\TZ{P}'$ is in \T{linked[\Z{P}]},
+\T{trap_exit[\Z{P}]} is \T{false} and \TZ{Cause} is something other than
+\T{normal}\index{normal@\T{normal}!exit signal},
+then \TZ{P} should complete: \TZ{Reason} is \TZ{Cause}.
+\item Otherwise, if \TZ{ProcessCompleted} is \T{false} and \TZ{Cause} is
+\T{kill}\index{kill@\T{kill}!exit signal},
+then \TZ{P} should complete: \TZ{Reason} is
+\T{killed}\index{killed exit signal@\T{killed} exit signal}.
+\item Otherwise, if \TZ{ProcessCompleted} is \T{false}, \T{trap_exit[\Z{P}]} is \T{false}
+and \TZ{Cause} is something other than \T{normal}
+then \TZ{P} should complete: \TZ{Reason} is \TZ{Cause}.
+\item Otherwise, \TZ{P} should not complete.
+\end{itemize}
+\index{exit!signal!trapping|)}
+
+What happens next depends on \TZ{ProcessCompleted}:
+\begin{itemize}
+\item If \TZ{ProcessCompleted} is \T{true}: \TZ{P} must have been linked
+with $\TZ{P}'$\ifNew\ or is monitoring $\TZ{P}'$\fi.
+% SHOULD THIS HAPPEN OR WILL A SEPARATE UNLINK SIGNAL BE SENT?
+If $\TZ{P}'$ is in \T{linked[\Z{P}]}, then
+remove it.
+
+\ifNew
+\index{process!monitoring|(}
+If there is a pair $\langle\TZ{P}',k\rangle$ in
+\T{monitoring_processes[\Z{P}]}, then remove it and put $k$ terms \T{\{taskdown,$\Z{P}'$\}}
+at the end of
+\T{message_queue[\Z{P}]} (\S\ref{section:message-arrival}). (This is not necessary if
+the exit signal causes \TZ{P} to complete.)
+\index{process!monitoring|)}
+\fi
+
+\item If \TZ{ProcessCompleted} is \T{false}: $\TZ{P}'$ must have called the BIF
+\T{exit/2}\index{exit/2 BIF@\T{exit/2} BIF}
+with \TZ{P} and \TZ{Cause} as arguments.
+\end{itemize}
+
+What finally happens depends on whether \TZ{P} should complete abruptly or not.
+\begin{itemize}
+\item If \TZ{P} should complete, the final processing is as described in
+\S\ref{section:process-completion}.
+\item If \TZ{P} should not complete, then
+unless \TZ{Cause} is \T{normal},
+a message \T{\{'EXIT',$\Z{P}'$,\Z{Cause}\}} is placed at the end of
+\T{message_queue[\Z{P}]} (\S\ref{section:message-arrival}).
+\end{itemize}
+\index{exit!signal|)}
+
+\item \index{process!linking|(}
+\I{Link request} with sender $\TZ{P}'$.
+If $\TZ{P}'$ is not in
+\T{linked[\Z{P}]}, then $\TZ{P}'$ is added to \T{linked[\Z{P}]}.
+
+\item \I{Unlink request} with sender $\TZ{P}'$.
+If $\TZ{P}'$ is in
+\T{linked[\Z{P}]}, then $\TZ{P}'$ is removed from \T{linked[\Z{P}]}.
+\index{process!linking|)}
+
+\item \index{process!group|(}
+\I{Group leader request} with new group leader $\TZ{P}'$.
+\T{group_leader[\Z{P}]} is set to $\TZ{P}'$.
+\index{process!group|)}
+
+\item \I{Info request} with sender $\TZ{P}'$ and key \TZ{K}.  Reply to the sender
+with a message containing the requested information.
+\ifNew (The format of the message is implementation-defined.) \fi
+
+%\item MONITOR NODE REQUEST???
+\end{itemize}
+\end{itemize}
+\index{signal!arrival|)}
+
+\section{Scheduling of processes}
+
+\label{section:scheduling}
+\index{process!scheduling|(}
+
+If a process \TZ{P} is suspended in part 3 of the evaluation of a
+\T{receive} expression\index{receive expression@\T{receive} expression}
+(\S\ref{section:receive-expr}), then \T{status[\Z{P}]} is
+\T{waiting}\index{waiting process status@\T{waiting} process status},
+otherwise it is either \T{runnable}\index{runnable process status@\T{runnable} process status}
+or \T{running}\index{running process status@\T{running} process status}.
+Depending on \T{status[\Z{P}]}, we say that
+\TZ{P} is waiting, runnable or running.
+At any time, at most one of the processes residing on a node
+is running, if the node is on a uniprocessor system.  On a node on a
+multiprocessor system there may be multiple processes running simultaneously.
+A newly spawned process is initially runnable.
+
+In \S\ref{section:process-state-dynamic} it is described how \T{status[\Z{P}]} may change
+to \T{waiting} or to \T{runnable}.  In addition, the scheduler of an \Erlang\ node
+has as its task to repeatedly choose which runnable process gets to run.
+\index{cycle!scheduling|(}
+When the
+scheduler changes the \T{status[\Z{P}]} to \T{running}, process \TZ{P} will run for
+one \emph{cycle}, unless during that cycle \T{status[\Z{P}]} changes to \T{waiting},
+in which case another runnable process will be scheduled to run.  At the end of the
+cycle, if \TZ{B} is still running, the scheduler changes \T{status[\Z{P}]} back to \T{runnable}.
+
+\ifOld \OldErlang\ attempts \fi
+\ifNew An implementation should attempt \fi
+to make cycles be of equal and short duration, the latter to favour interactive
+processes that do a small amount of work between waiting states.
+\index{cycle!scheduling|)}
+
+When we write that
+\ifOld \OldErlang\ schedules a set of processes \emph{fairly}, \fi
+\ifNew an implementation should schedule a set of processes \emph{fairly}, \fi
+we mean that each runnable process in the set should eventually be scheduled and preferably
+in the same order that they became runnable.  (This is a very weak requirement.)
+
+\index{process!priority|(}
+\index{high process priority@\T{high} process priority|(}
+\index{normal@\T{normal}!process priority|(}
+\index{low process priority@\T{low} process priority|(}
+Each process \TZ{Q} has an associated priority \T{priority[\Z{Q}]}, which
+is an \Erlang\ term. Three priorities
+\ifOld are \fi
+\ifNew must be \fi
+recognized: \T{high}, \T{normal} and \T{low}.
+
+\begin{itemize}
+\item While there are runnable processes with priority \T{high},
+\ifOld \OldErlang\ schedules \fi
+\ifNew the implementation should schedule \fi
+the processes with priority \T{high} fairly,
+ignoring processes with priority \T{low} or \T{normal}.
+
+\item While there are no runnable processes with priority \T{high} or \T{low},
+\ifOld \OldErlang\ schedules \fi
+\ifNew the implementation should schedule \fi
+the processes with priority \T{normal} fairly.
+
+\item While there are no runnable processes with priority \T{high} or \T{normal},
+\ifOld \OldErlang\ schedules \fi
+\ifNew the implementation should schedule \fi
+the processes with priority \T{low} fairly.
+
+\item While there are no runnable processes with priority \T{high} but
+there are runnable processes with \T{normal} or \T{low},
+\ifOld \OldErlang\ schedules \fi
+\ifNew the implementation should schedule \fi
+the processes with priority \T{normal}
+and \T{low} fairly.  It
+\ifOld also attempts \fi
+\ifNew should also attempt \fi
+to schedule processes with
+priority \T{normal}
+\I{normal\_advantage}
+times between each scheduling of a process with
+priority \T{low}.
+\end{itemize}
+\ifOld
+For \OldErlang, \I{normal\_advantage} is $8$.
+\fi
+\ifNew
+An implementation should document what the value \I{normal\_advantage} is and what
+additional scheduling policies are used.
+\fi
+\index{high process priority@\T{high} process priority|)}
+\index{normal@\T{normal}!process priority|)}
+\index{low process priority@\T{low} process priority|)}
+\index{process!priority|)}
+\index{process!scheduling|)}
+
+\section{Process group leaders}
+
+\label{section:group-leader}
+\index{process!group|(}
+
+Each process \TZ{P} has a \emph{group leader}, which is a process, possibly itself,
+referred to in this specification as \T{group_leader[\Z{P}]}.
+The set of processes that have the same group leader may be thought of as a
+\emph{process group}, hence the term group leader.
+
+The group leader of a process is the default process for handling
+in- and output of the process.
+
+A process can retrieve its own group leader (using the BIF
+\T{group_leader/0}\index{group_leader/0 BIF@\T{group_leader/0} BIF},
+\S\ref{section:groupleader0})
+and any process can set the group leader
+of any process (using the BIF \T{group_leader/2}\index{group_leader/2 BIF@\T{group_leader/2} BIF},
+\S\ref{section:groupleader2}).
+When a new process is created, its group leader will be the same 
+as that of the process that spawned it.
+
+In- and output (except for direct communication with a port,
+cf.~\S\ref{chapter:more-about-ports}) is otherwise not covered by this specification.
+\index{process!group|)}
+
+\section{Static and dynamic properties of a process}
+
+\label{section:process-state}
+\index{process!state|(}
+
+When a process is created, some properties of the process are determined and will be
+in effect until the process terminates.  During that time also a dynamic state
+is maintained, consisting of properties of the process that change as time passes.
+This state is affected by and affects the computation of the process.
+
+We refer to these as the \emph{static} and \emph{dynamic properties} of a process.  We
+refer collectively to the values of the latter at a certain time as the \emph{state}
+of the process at that time.
+
+\subsection{Static properties}
+
+\label{section:process-state-static}
+
+\begin{Lentry}
+\item[\T{creation[\Z{P}]}]
+\index{creation@\T{creation}!process property|(}
+The value of \T{creation[\Z{P}]} is the value of \T{creation[\Z{N}]} for the
+node \TZ{N} on which \TZ{P} was created.
+\index{creation@\T{creation}!process property|)}
+
+\item[\T{ID[\Z{P}]}]
+\index{ID@\T{ID}!process property|(}
+The value of \T{ID[\Z{P}]} is a nonnegative integer that is a serial number for \TZ{P}
+on the node on which it was
+created.  The value cannot be obtained directly but is used in the transformation
+to the external term format (\S\ref{chapter:external-format}).
+\index{ID@\T{ID}!process property|)}
+
+\item[\T{initial_call[\Z{P}]}]
+\index{initial_call process property@\T{initial_call} process property|(}
+When a process \TZ{P} is spawned it is evaluating a remote application
+\T{\Z{Mod}:\Z{Fun}($\Z{Arg}_1$,\tdots,$\Z{Arg}_{\TZm{k}}$)} (the initial call).
+The value of \T{initial_call[\Z{P}]} is then
+the 3-tuple \T{\{\Z{Mod},\Z{Fun},\Z{k}]\}}.
+\index{initial_call process property@\T{initial_call} process property|)}
+
+\item[\T{node[\Z{P}]}]
+\index{node@\T{node}!process property|(}
+When a process is spawned it is created on some node \T{node[\Z{P}]}.
+This node never changes. The process \TZ{P} itself can access
+\T{node[\Z{P}]} by evaluating an expression \T{node()} (\S\ref{section:node0}).
+Any process can access \T{node[\Z{Q}]} for a process \TZ{Q} by evaluating an expression
+\T{node(\Z{Q})} (\S\ref{section:node1}).
+\index{node@\T{node}!process property|)}
+\end{Lentry}
+
+\subsection{Dynamic properties}
+
+\label{section:process-state-dynamic}
+
+\begin{Lentry}
+\item[\T{current_function[\Z{P}]}]
+\index{current_function process property@\T{current_function} process property|(}
+The value is either the atom \T{undefined}, or a
+3-tuple \T{\{\Z{Mod},\Z{Fun},\Z{k}\}} if the
+most recently begin function call was to the function \T{\Z{Mod}:\Z{Fun}/\Z{k}}
+(\S\ref{section:extent-function-calls}).
+It should be updated each time a named function is entered (\S\ref{section:appl-named-function}).
+It can be accessed as \T{process_info(\Z{P},current_function)}
+(\S\ref{section:processinfo2}).
+\ifNew
+(An optimized implementation may wish to not keep this part of the state up to date.)
+\fi
+\index{current_function process property@\T{current_function} process property|)}
+
+\item[\T{dictionary[\Z{P}]}]
+\index{dictionary process property@\T{dictionary} process property|(}
+\index{process!dictionary|(}
+The value is a table (\S\ref{section:tables}).
+A process can access and modify \T{dictionary[\Z{P}]} using the six BIFs
+\T{get/0}, \T{get/1}, \T{get_keys/1}, \T{put/2}, \T{erase/0} and \T{erase/1}
+(\ifOld\S\ref{section:dictionary-bifs}\fi
+\ifNew\S\ref{section:process-module}\fi).
+The table is initially empty.
+\index{process!dictionary|)}
+\index{dictionary process property@\T{dictionary} process property|)}
+
+\item[\T{error_handler[\Z{P}]}]
+\index{error_handler@\T{error_handler}!process property|(}
+The value is a module name (an atom) and it affects the evaluation of applications of
+undefined function names (\S\ref{section:application-exprs})\iffalse and send expressions with
+undefined process names (\S\ref{section:send-expr})\fi.
+A process \TZ{P} can set \T{error_handler[\Z{P}]} to a module name
+\TZ{M} by evaluating an expression
+\T{process_flag(error_handler,\Z{M})}\index{process_flag/2 BIF@\T{process_flag/2} BIF}
+(\S\ref{section:processflag2}).
+The value is initially \T{error_handler}.
+\index{error_handler@\T{error_handler}!process property|)}
+
+\item[\T{group_leader[\Z{P}]}]
+\index{group_leader process property@\T{group_leader} process property|(}
+\index{process!group|(}
+The value is a PID which identifies the group leader of process \TZ{P}
+(\S\ref{section:group-leader}).
+A process \TZ{P} can access \T{group_leader[\Z{P}]} by calling the BIF
+\T{group_leader/0}\index{group_leader/0 BIF@\T{group_leader/0} BIF} (\S\ref{section:groupleader0})
+and any process can set the group leader of any
+process by calling the BIF \T{group_leader/2}\index{group_leader/2 BIF@\T{group_leader/2}
+BIF} \S\ref{section:groupleader2}.
+(Any process can also access \T{group_leader[\Z{P}]} as \T{process_info(\Z{P},group_leader)}.)
+When a process \TZ{P} spawns a new process \TZ{Q}, the initial value
+of \T{group_leader[\Z{Q}]} is \T{group_leader[\Z{P}]}.
+\index{process!group|)}
+\index{group_leader process property@\T{group_leader} process property|)}
+
+\item[\T{heap_size[\Z{P}]}]
+\index{heap_size process property@\T{heap_size} process property|(}
+The value should reflect the amount of memory presently used for storing the terms
+allocated by process \Z{P}.
+\T{heap_size[\Z{P}]}
+can be accessed through the BIF \T{process_info/2} (\S\ref{section:processinfo2}).
+\index{heap_size process property@\T{heap_size} process property|)}
+
+\item[\T{linked[\Z{P}]}]
+\index{linked@\T{linked}!process property|(}
+\index{process!linking|(}
+The value is a representation of the set of PIDs and ports that identify
+the processes and ports to which \TZ{P} is linked
+(\S\ref{section:links}).
+It cannot be modified directly but a PID or port \TZ{Q}
+will be added to \T{linked[\Z{P}]}
+if it is not already in it and either
+\begin{itemize}
+\item \TZ{P} evaluates an application \T{link(\Z{Q})}\index{link/1 BIF@\T{link/1} BIF}
+(\S\ref{section:link1}), or
+\item \TZ{P} receives a link request signal from \TZ{Q}.
+\end{itemize}
+A PID \TZ{Q} will be removed from \T{linked[\Z{P}]} if it is in the set and
+\begin{itemize}
+\item \TZ{P} evaluates an application \T{unlink(\Z{Q})}\index{unlink/1 BIF@\T{unlink/1} BIF}
+(\S\ref{section:unlink1}),
+\item \TZ{P} receives an unlink request signal from \TZ{Q}, or
+\item \TZ{P} receives an exit signal\index{exit!signal}
+\T{\{'EXIT',\Z{Q},\Z{Reason}\}} for some term
+\TZ{Reason}, and the exit signal was sent due to process completion
+(\S\ref{section:exit-signals}).
+\end{itemize}
+\index{process!linking|)}
+\index{linked@\T{linked}!process property|)}
+
+\item[\T{memory_in_use[\Z{P}]}]
+\index{memory_in_use process property@\T{memory_in_use} process property|(}
+The value should reflect the total amount of memory presently used by process \Z{P}.
+\T{memory_in_use[\Z{P}]}
+can be accessed through the BIF \T{process_info/2} with \T{memory} as
+second argument (\S\ref{section:processinfo2}).
+\index{memory_in_use process property@\T{memory_in_use} process property|)}
+
+\item[\T{message_queue[\Z{P}]}]
+\index{message_queue process property@\T{message_queue} process property|(}
+\index{message!queue|(}
+The value is a representation of a queue of terms, which are the
+messages that have arrived at the process
+(\S\ref{section:message-arrival}) but that have not yet been received
+(\S\ref{section:receiving-messages}).  When a \T{receive} expression
+is evaluated by a process \TZ{P}, it will first try to match the
+messages in \T{message_queue[\Z{P}]} against the clauses, in the order
+that they appear in the queue (\S\ref{section:receive-expr}).  New
+messages will be added at the end of the queue.  There is no direct way
+of accessing or modifying \T{message_queue[\Z{P}]} for a process
+\TZ{P}.
+\index{message!queue|)}
+\index{message_queue process property@\T{message_queue} process property|)}
+
+\ifNew
+\item[\T{monitored_processes[\Z{P}]}]
+\index{process!monitoring|(}
+\index{monitored_processes process property@\T{monitored_processes} process property|(}
+The value is a representation of a set of pairs of a PID and a nonnegative integer,
+identifying the processes that \TZ{P} is monitoring and how many times \TZ{P} has requested
+to monitor them (\S\ref{section:monitor2}).
+\index{process!monitoring|)}
+\index{monitored_processes process property@\T{monitored_processes} process property|)}
+
+\item[\T{monitoring_processes[\Z{P}]}]
+\index{process!monitoring|(}
+\index{monitoring_processes process property@\T{monitoring_processes} process property|(}
+The value is a representation of a set of pairs of a PID and a nonnegative integer,
+identifying the processes that are monitoring \TZ{P} and how many times they have requested
+to monitor \TZ{P} (\S\ref{section:monitor2}).
+\index{process!monitoring|)}
+\index{monitoring_processes process property@\T{monitoring_processes} process property|)}
+\fi
+
+\item[\T{priority[\Z{P}]}]
+\index{priority process property@\T{priority} process property|(}
+\index{process!priority|(}
+\index{low process priority@\T{low} process priority|(}
+\index{normal@\T{normal}!process priority|(}
+\index{high process priority@\T{high} process priority|(}
+The value is one of the atoms \T{low},
+\T{normal} and
+\T{high} and it affects the
+scheduling priority of process \TZ{P} (\S\ref{section:scheduling}).
+A process \TZ{P} can set \T{priority[\Z{P}]} to priority atom
+\TZ{R} by evaluating an expression
+\T{process_flag(priority,\Z{R})} (\S\ref{section:processflag2}).
+The value is initially \T{normal}.
+\index{low process priority@\T{low} process priority|)}
+\index{normal@\T{normal}!process priority|)}
+\index{high process priority@\T{high} process priority|)}
+\index{process!priority|)}
+\index{priority process property@\T{priority} process property|)}
+
+\item[\T{reductions[\Z{P}]}]
+\index{reductions@\T{reductions}!process property|(}
+The value is an integer that should reflect the number of function calls that the process has begun
+(\S\ref{section:extent-function-calls}) since it was spawned.
+\ifNew
+An implementation could define a scheduling cycle (\S\ref{section:scheduling})
+as a certain number of reductions, in which case
+it would be necessary to make sure that reductions are counted accurately.
+\fi
+\ifOld
+\OldErlang\ defines a scheduling cycle (\S\ref{section:scheduling})
+as a certain (implementation-defined) number of reductions.
+\fi
+\T{reductions[\Z{P}]}
+can be accessed through the BIF \T{process_info/2} (\S\ref{section:processinfo2}).
+\index{reductions@\T{reductions}!process property|)}
+
+\item[\T{registered_name[\Z{P}]}]
+\index{registered_name process property@\T{registered_name} process property|(}
+\index{process!registry|(}
+The value is an atom \TZ{A} if \TZ{P} is registered with the name TZ{A} 
+or \T{[]} if \TZ{P} is not registered under any name.  \T{registered_name[\Z{P}]}
+must be coherent with the contents of \T{registry[node[\Z{P}]]}.
+The value is initially \TZ{[]}.  It can be set to an atom by the BIF
+\T{register/2}\index{register/2 BIF@\T{register/2} BIF} (\S\ref{section:register2})
+and to \T{[]} by the BIF
+\T{unregister/1}\index{unregister/1 BIF@\T{unregister/1} BIF} (\S\ref{section:unregister1}).  Given the atom
+\T{registered_name[\Z{P}]}, the PID
+\TZ{P} can be obtained through the BIF
+\T{whereis/1}\index{whereis/1 BIF@\T{whereis/1} BIF} (\S\ref{section:whereis1},
+cf.\ \S\ref{section:process-registry})
+whereas given \TZ{P}, \T{registered_name[\Z{P}]} can be obtained through the BIF
+\T{process_info/2}\index{process_info/2 BIF@\T{process_info/2} BIF}
+(\S\ref{section:processinfo2}).
+\index{process!registry|)}
+\index{registered_name process property@\T{registered_name} process property|)}
+
+\item[\T{stack_trace[\Z{P}]}]
+\index{stack_trace process property@\T{stack_trace} process property|(}
+\T{stack_trace[\Z{P}]} is a dynamic representation of the evaluation that \TZ{P}
+is carrying out.
+It should contain sufficient information that a BIF call
+\ifOld \T{erlang:check_process_code(\Z{P},\Z{Mod})} \fi
+\ifNew \T{codeload:check_process_code(\Z{P},\Z{Mod})} \fi
+should be able to return \T{true} if \TZ{P} is using
+\T{old_version[module_table[node[\Z{P}]](\Z{Mod})]} and \T{false} otherwise.
+It cannot be accessed or updated explicitly.
+\index{stack_trace process property@\T{stack_trace} process property|)}
+
+\item[\T{status[\Z{P}]}]
+\index{status process property@\T{status} process property|(}
+\index{process!status|(}
+\index{waiting process status@\T{waiting} process status|(}
+\index{runnable process status@\T{runnable} process status|(}
+\index{running process status@\T{running} process status|(}
+\T{status[\Z{P}]} reflects the scheduling status of \TZ{P}: waiting, runnable or running.
+\T{status[\Z{P}]} is initially \T{runnable}.
+\T{status[\Z{P}]} is changed from \T{runnable} to
+\T{running} or from \T{running} to \T{runnable} by the scheduler.
+If \T{status[\Z{P}]} is \T{waiting} when a message is added to the end of
+\T{message_queue[\Z{P}]},
+it is changed to \T{runnable}.  If \T{status[\Z{P}]} is \T{waiting} when
+\T{timer[\Z{P}]} changes from \T{1} to \T{0}, it is changed to \T{runnable}.
+Evaluation of a \T{receive} expression (\S\ref{section:receive-expr}) may set
+\T{status[\Z{P}]} to \T{waiting}.
+\T{status[\Z{P}]} can be accessed through the BIF \T{process_info/2} but
+cannot be changed except as described above.
+\index{waiting process status@\T{waiting} process status|)}
+\index{runnable process status@\T{runnable} process status|)}
+\index{running process status@\T{running} process status|)}
+\index{process!status|)}
+\index{status process property@\T{status} process property|)}
+
+\item[\T{timer[\Z{P}]}]
+\index{timer process property@\T{timer} process property|(}
+If the value of \T{timer[\Z{P}]} is positive, it reflects the number of milliseconds
+that remain until the status of process \TZ{P} should change from
+\T{waiting}\index{waiting process status@\T{waiting} process status}
+to \T{runnable}\index{runnable process status@\T{runnable} process status}.
+
+If \T{timer[\Z{P}]} is positive, it is decremented automatically once every millisecond.
+When it changes from \T{1} to \T{0}, if \T{status[\Z{P}]} is
+\T{waiting}, \T{status[\Z{P}]} is changed to \T{runnable}.
+
+\T{timer[\Z{P}]} cannot be accessed directly and is set only as part of the evaluation of
+a \T{receive} expression (\S\ref{section:receive-expr}).
+\index{timer process property@\T{timer} process property|)}
+
+\item[\T{trap_exit[\Z{P}]}]
+\index{exit!signal!trapping|(}
+\index{trap_exit process property@\T{trap_exit} process property|(}
+The value is a Boolean atom and it affects how exit signals arriving at process \TZ{P} are
+processed (\S\ref{section:exit-signals}).
+A process \TZ{P} can set \T{trap_exit[\Z{P}]} to a Boolean
+atom \TZ{B} by evaluating an expression
+\T{process_flag(trap_exit,\Z{B})} (\S\ref{section:processflag2}).
+The value is initially \T{false}.
+\T{trap_exit[\Z{P}]} can be accessed as \T{process_info(\Z{P},trap_exit)}
+(\S\ref{section:processinfo2}).
+\index{exit!signal!trapping|)}
+\index{trap_exit process property@\T{trap_exit} process property|)}
+\end{Lentry}
+\index{process!state|)}
+\index{process|)}

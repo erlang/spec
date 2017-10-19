@@ -1,0 +1,99 @@
+%
+% %CopyrightBegin%
+%
+% Copyright Ericsson AB 2017. All Rights Reserved.
+%
+% Licensed under the Apache License, Version 2.0 (the "License");
+% you may not use this file except in compliance with the License.
+% You may obtain a copy of the License at
+%
+%     http://www.apache.org/licenses/LICENSE-2.0
+%
+% Unless required by applicable law or agreed to in writing, software
+% distributed under the License is distributed on an "AS IS" BASIS,
+% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+% See the License for the specific language governing permissions and
+% limitations under the License.
+%
+% %CopyrightEnd%
+%
+
+\chapter{Implementation constants}
+
+This appendix summarizes the constants that characterize a \StdErlang\ implementation
+and requirements on the values for these constants.  An implementation should
+document the values, most of which are also available to programs.
+
+\section*{Atoms}
+
+The constant
+\I{maxatomlength} (\S\ref{section:atoms}) must be at least $2^8-1$ ($255$)
+and at most $2^{16}-1$ ($65\,535$).
+
+The constant $\mathit{atom\_table\_size}$ gives
+the size of the atom tables used when transforming terms to and from
+the external representation (\S\ref{section:atom-tables}).
+It must be at least $2^8$ ($256$).
+
+\section*{Integers}
+
+The integers in an implementation of \StdErlang\ are characterized by
+five constants $\mathit{bounded}$, $\mathit{maxint}$, $\mathit{minint}$,
+$\mathit{minfixnum}$ and $\mathit{maxfixnum}$
+(\S\ref{section:integer-type}):
+\begin{itemize}
+\item There is no requirement on the constant $\mathit{bounded}$.
+\item The constant $\mathit{maxint}$ is only relevant if $\it{bounded}=\B{true}$,
+in which case $\mathit{maxint}$ must be at least $2^{59}-1$ (576\,460\,752\,303\,423\,487).
+\item The only requirement on the constant $\mathit{maxfixnum}$ is the obvious
+condition that $0 < \I{maxfixnum} \leq \I{maxint}$.
+\item Either
+$\I{minint} = -(\I{maxint}+1)$ or $\I{minint} = -\I{maxint}$ must hold.
+\end{itemize}
+
+\section*{Floats}
+
+The floating-point numbers in an implementation of \StdErlang\ are characterized by
+five constants $r$, $p$, $\mathit{emin}$, $\mathit{emax}$ and $\mathit{denorm}$
+(\S\ref{section:float-type}):
+\begin{itemize}
+\item The radix $r$ should be even.
+\item The precision $p$ should be such that $r^{p-1}\geq 10^6$.
+\item For the constants $\mathit{emin}$ and $\mathit{emax}$ it should hold that
+$\mathit{emin}-1 \leq k*(p-1)$ and  $\mathit{emax} > k*(p-1)$,
+with $k\geq 2$ and $k$ as large an integer as practical, and that
+$-2 \leq (emin-1) + emax \leq 2$.
+\item There is no requirement on the constant $\mathit{denorm}$.
+\end{itemize}
+
+\section*{Refs}
+
+The refs in an implementation are characterized by two constants:
+\I{refs\_bounded} and \I{maxrefs} (\S\ref{section:refs}).
+If \I{refs\_bounded} is \B{true},
+then the value of \I{maxrefs} must be at least XXX.
+
+\section*{PIDs}
+
+The PIDs in an implementation are characterized by two constants:
+\I{pids\_bounded} and \I{maxpids} (\S\ref{section:pids}).
+If \I{pids\_bounded} is \B{true},
+then the value of \I{maxpids} must be at least XXX.
+
+\section*{Ports}
+
+The ports in an implementation are characterized by two constants:
+\I{ports\_bounded} and \I{maxports} (\S\ref{section:ports}).
+If \I{ports\_bounded} is \B{true},
+then the value of \I{maxports} must be at least XXX.
+
+\section*{Tuples}
+
+The constant \I{maxtuplesize} (\S\ref{section:tuples})
+must be at least $2^{16}-1$ ($65\,535$) and at most
+$2^{32}-1$ ($4\,294\,967\,296$).
+
+\section*{Scheduling}
+
+The constant \I{normal\_advantage} (\S\ref{section:scheduling})
+should be between $4$ and $32$.

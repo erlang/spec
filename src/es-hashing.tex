@@ -1,0 +1,116 @@
+%
+% %CopyrightBegin%
+%
+% Copyright Ericsson AB 2017. All Rights Reserved.
+%
+% Licensed under the Apache License, Version 2.0 (the "License");
+% you may not use this file except in compliance with the License.
+% You may obtain a copy of the License at
+%
+%     http://www.apache.org/licenses/LICENSE-2.0
+%
+% Unless required by applicable law or agreed to in writing, software
+% distributed under the License is distributed on an "AS IS" BASIS,
+% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+% See the License for the specific language governing permissions and
+% limitations under the License.
+%
+% %CopyrightEnd%
+%
+
+\chapter{Portable hashing}
+
+\label{chapter:hashing}
+\index{term!hashing|(}
+\index{erlang:hash/2 BIF@\T{erlang:hash/2} BIF|(}
+\index{hash/2 BIF@\T{hash/2} BIF|(}
+
+The function \I{Hash} defined in this appendix is used as part of the
+definition of the BIF \T{erlang:hash/2} (\S\ref{section:hash2}).
+Given an arbitrary \Erlang\ term and a positive integer $r$, it returns
+an integer in the range $[0,r-1]$.  The function has been designed with
+the aim to make it a good hash function, i.e., that it spreads function
+values evenly across the range.
+\index{erlang:hash/2 BIF@\T{erlang:hash/2} BIF|)}
+\index{hash/2 BIF@\T{hash/2} BIF|)}
+
+\section{Definitions}
+
+%\index{C1, ..., C9@$C_1$, \ldots, $C_9$|(}
+We make use of nine constants $C_1$, \ldots, $C_9$:
+\begin{align*}
+C_1 &= 268440163 \\
+C_2 &= 268439161 \\
+C_3 &= 268435459 \\
+C_4 &= 268436141 \\
+C_5 &= 268438633 \\
+C_6 &= 268437017 \\
+C_7 &= 268438039 \\
+C_8 &= 268437511 \\
+C_9 &= 268439627
+\end{align*}
+%\index{C1, ..., C9@$C_1$, \ldots, $C_9$|)}
+%\index{Foldl@\I{Foldl}|(}
+We will use a helper function \I{Foldl}, such that
+\[\I{Foldl}(F,E,\langle v_1,\ldots,v_k\rangle) =
+F(v_k,F(v_{k-1},\ldots F(v_2,F(v_1,E)) \ldots))\]
+(Note that $\I{Foldl}(F,E,\langle\rangle) = E$, regardless of $F$.)
+%\index{Foldl@\I{Foldl}|)}
+
+\noindent\index{  bitwise exclusive OR@$\otimes$}
+$w_1 \otimes w_2$ denotes the bitwise exclusive OR of $w_1$ and $w_2$.
+
+\noindent All arithmetic operations in this appendix are modulo $2^{32}$.
+
+\section{The hash function}
+
+%\index{Hash@\I{Hash}|(}
+The main function \I{Hash} is defined as follows:
+\[\I{Hash}(\TZ{t},r) = H(\TZ{t},0) \bmod r\]
+%\index{Hash@\I{Hash}|)}
+The auxiliary function $H$ is defined by cases.
+\begin{itemize}
+\item If \TZ{t} is an atom having a printname with character codes $i_1$, ..., $i_k$,
+where for all $j$, $1\leq j\leq k$, $i_j\in[0,255]$, then
+\[H(\TZ{t},h) = C_1*h+\I{Foldl}(F,0,\langle i_1,\ldots,i_k\rangle),\]
+where
+\begin{align*}
+F(i,h) &= G(16h + i) \\
+G(j) &= (j \bmod 2^{28}) \otimes 16(\lfloor j / 2^{28}\rfloor).
+\end{align*}
+(Note that for any application of $F$, $i\in[0,255]$ and $h\in[0,2^{28}-1]$,
+and for any application of $G$, $j\in[0,2^{28}-1]$.)
+\item If \TZ{t} is a fixnum, then
+\[H(\TZ{t},h) = C_2*h+(\Er[t] \bmod 2^{32}).\]
+I'M NOT SURE I GOT THIS RIGHT AND I'D RATHER NOT MENTION FIXNUMS AND BIGNUMS!!!
+\item If \TZ{t} is a bignum where the 32-bit words of its absolute value
+in little-endian order is $w_1$, ..., $w_k$, then
+\[H(\TZ{t},h) = C*\I{Foldl}(F,h,\langle w_1,\ldots,w_k\rangle)+k,\]
+where
+\begin{alignat*}{2}
+     C &= C_2 && \qquad\text{if $\Er[t]\geq0$;} \\
+       &= C_3 && \qquad\text{if $\Er[t]<0$.} \displaybreak[0]\\[\smallskipamount]
+F(w,h) &= C_2*h+w
+\end{alignat*}
+\item If \TZ{t} is \T{[]}, then
+\[H(\TZ{t},h) = C_3*h+1.\]
+\item If \TZ{t} is a binary consisting of the bytes $i_1$, \ldots, $i_k$, then
+\[H(\TZ{t},h) = C_4*\I{Foldl}(F,h,\langle i_1,\ldots,i_l\rangle)+k,\]
+where
+\begin{align*}
+l &= \min(k,15) \\
+F(i,h) = C_1*h+i.
+\end{align*}
+\item If \TZ{t} is a PID, then
+\[H(\TZ{t},h) = C_5*h+\I{MagicPid}(\TZ{t}).\]
+\item If \TZ{t} is a port or a ref, then
+\[H(\TZ{t},h) = C_9*h+\I{MagicPortRef}(\TZ{t}).\]
+\item If \TZ{t} is a float represented by the two unsigned 32-bit quantities
+$w_1$ and $w_2$, then (THIS IS NOT VERY PORTABLE!!!)
+\[H(\TZ{t},h) = C_6*h+(w_1 \otimes w_2).\]
+\item If \TZ{t} is a term \T{[$\Z{t}_1$,\tdots,$\Z{t}_k$|$\Z{t}_{k+1}$]}, then
+\[H(\TZ{t},h) = C_8*H(\TZ{t}_{k+1},\I{Foldl}(H,h,\langle t_1,\ldots,t_k\rangle)).\]
+\item If \TZ{t} is a tuple \T{\{$\Z{t}_1$,\tdots,$\Z{t}_k$\}}, then
+\[H(\TZ{t},h) = C_9*\I{Foldl}(H,h,\langle t_1,\ldots,t_k\rangle)+k.\]
+\end{itemize}
+\index{term!hashing|)}

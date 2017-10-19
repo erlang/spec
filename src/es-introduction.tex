@@ -1,0 +1,59 @@
+%
+% %CopyrightBegin%
+%
+% Copyright Ericsson AB 2017. All Rights Reserved.
+%
+% Licensed under the Apache License, Version 2.0 (the "License");
+% you may not use this file except in compliance with the License.
+% You may obtain a copy of the License at
+%
+%     http://www.apache.org/licenses/LICENSE-2.0
+%
+% Unless required by applicable law or agreed to in writing, software
+% distributed under the License is distributed on an "AS IS" BASIS,
+% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+% See the License for the specific language governing permissions and
+% limitations under the License.
+%
+% %CopyrightEnd%
+%
+
+\chapter{Introduction}
+
+\ifStd
+\index{Erlang@\Erlang!\Std|(}
+This document is a specification of the language \StdErlang, which will
+be available from Ericsson Software Technology AB as \NewErlang. There is a
+companion document \cite{olderlang}, which is a specification of the
+closely related \Erlang\ implementation
+called \OldErlang, developed at Ericsson Software Technology AB.
+\index{Erlang@\Erlang!\Std|)}
+\else
+\index{Erlang@\Erlang!\OldVsn|(}
+This document is a specification of the \Erlang\ implementation called
+\ErlVsn{4.7.3}, developed at Ericsson Telecom AB.
+\index{Erlang@\Erlang!\OldVsn|)}
+\fi
+
+\Erlang\ was originally designed by Joe Armstrong\index{Armstrong, Joe},
+Robert Virding\index{Virding, Robert}, Claes
+Wikstr\"{o}m\index{Wikstr\"{o}m, Claes} and Mike
+Wil\-liams\index{Williams, Mike} at the Computer Science Laboratory of
+Ericsson Telecommunications Systems Laboratories.
+
+This specification is primarily designed to be useful for \Erlang\
+programmers and implementors of \Erlang\ by providing clear although
+mostly informally expressed semantics for all language constructs.
+It should be of use also for those developing analysis tools for
+\Erlang\ although for these purposes the semantics may have to be
+reformulated as a formal system.
+
+The specification should thus be able to function well as a reference
+manual for the language.  As such it should be a good companion to the
+book \emph{Concurrent Programming in ERLANG, Second Edition}
+\cite{erlbook}, which is more of a tutorial, text book and evangel
+than a language reference.  That edition of the book, however, uses an
+earlier version of the language (the implementation \ErlVsn{4.3}).
+
+It is also intended that the specification should be useful as a basis for
+a future international standardization of the language.

@@ -1,0 +1,1185 @@
+%
+% %CopyrightBegin%
+%
+% Copyright Ericsson AB 2017. All Rights Reserved.
+%
+% Licensed under the Apache License, Version 2.0 (the "License");
+% you may not use this file except in compliance with the License.
+% You may obtain a copy of the License at
+%
+%     http://www.apache.org/licenses/LICENSE-2.0
+%
+% Unless required by applicable law or agreed to in writing, software
+% distributed under the License is distributed on an "AS IS" BASIS,
+% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+% See the License for the specific language governing permissions and
+% limitations under the License.
+%
+% %CopyrightEnd%
+%
+
+\chapter{Types and terms}
+
+\label{chapter:types-terms}
+
+\section{Types in \Erlang}
+
+\Erlang\ is a \emph{dynamically typed} language, which means that the
+type of a variable or expression generally cannot be determined at
+compile time.  The dynamic typing offers a high degree of flexibility
+in that a variable can take on, for example, an integer in one
+invocation but a list in another invocation.  This corresponds to
+having union types in a statically typed language.  Some of the
+advantages of polymorphic static typing can be achieved also for
+well-structured \Erlang\ programs by adding type declarations and type
+analysis \cite{erltc}.
+
+Every \Erlang\ term belongs to exactly one of the types below.
+
+The types in \Erlang\ can be divided into \emph{elementary types} and
+\emph{compound types}.  A term of an elementary type never properly
+contains an arbitrary \Erlang\ term and is said to be an
+\emph{elementary term}.  A term of a compound type is said to be a
+\emph{compound term} and has a number of
+\emph{immediate subterms}\index{subterm!immediate}.
+
+\index{type!elementary|(}
+\index{term!elementary|(}
+The elementary types in \Erlang\ are:
+%\S\ref{section:new-records}
+\begin{itemize}
+\item Atoms (\S\ref{section:atoms}).
+\ifStd
+\item Characters (\S\ref{section:chars}).
+\fi
+\item Numbers (integers and floats) (\S\ref{section:numbers}).
+\item Refs (\S\ref{section:refs}).
+\item Binaries (\S\ref{section:binaries}).
+\ifStd
+\item Functions (\S\ref{section:functions}).
+\fi
+\item Process identifiers (\S\ref{section:pids}).
+\item Ports (\S\ref{section:ports}).
+\end{itemize}
+\index{type!elementary|)}
+\index{term!elementary|)}
+
+\index{type!compound|(}
+\index{term!compound|(}
+The compound types in \Erlang\ are:
+\begin{itemize}
+\item Tuples (\S\ref{section:tuples}).
+\item Lists and conses (\S\ref{section:lists}).
+\ifstruct
+\item Structs (\S\ref{section:structs}).
+\fi
+\end{itemize}
+\index{type!compound|)}
+\index{term!compound|)}
+
+The BIFs for recognizing terms of a certain type are described in
+\S\S\ref{section:recognizer-bifs}.
+
+\section{Atoms}
+
+\label{section:atoms}
+\index{atom!Erlang type@\Erlang\ type|(}
+
+The only distinguishing property of an atom is its
+\emph{printname}\index{atom!printname}
+(cf.~\S\ref{section:atom-literals}).  Two atoms are
+equal\index{atom!equality} if and only if they have the same
+printname.
+\index{maxatomlength@\I{maxatomlength}|(}
+The printname of an atom must have at most \I{maxatomlength} characters.
+\ifOld
+In \OldErlang, \I{maxatomlength} is 255.
+\fi
+\ifStd
+For any implementation of \StdErlang,
+\I{maxatomlength} must be at least $2^8-1 = 255$ and at most $2^{16}-1 = 65\,535$.
+(The reason for the upper limit is a restriction in the external term format,
+cf.~\S\ref{chapter:external-format}.)
+This parameter is available through the BIF
+\T{atom:max_length/0} (\S\ref{section:atom:maxlength0}).
+\fi
+\index{maxatomlength@\I{maxatomlength}|)}
+
+The atoms \T{true}\index{true@\T{true}} and
+\T{false}\index{false@\T{false}} are called
+\emph{Boolean}\index{atom!Boolean}.  Thus, when we say that an
+expression is Boolean, we mean that its value is a Boolean atom.  The
+Boolean atoms are distinguished in that \Erlang\ provides four
+operators acting only on them:
+\begin{itemize}
+\item The logical complement operator \T{not} (\S\ref{section:booleannot}).
+\item The logical operators \T{and} (\S\ref{section:booleanand}), \T{or}
+(\S\ref{section:booleanor}) and \T{xor} (\S\ref{section:booleanxor}).
+\end{itemize}
+Boolean atoms are also distinguished
+\ifStd in \T{cond}, \T{all_true} and \T{some_true}
+expressions (\S\ref{section:alltrue-exprs},
+\S\ref{section:sometrue-exprs}, \S\ref{section:cond-expr}), and \fi
+in the filters of list comprehensions
+(\S\ref{section:list-comprehensions}).
+
+\ifStd
+Comparison for equality between two atoms should be $O(1)$, i.e, it
+cannot be implemented by comparing the printnames.  (This can be
+accomplished by ``interning''\index{atom!interning}, i.e., making sure
+that each occurrence of an atom is represented internally by the same
+value, for example through a hashtable that maps printnames to atoms
+and is used each time an atom is to be obtained from its printname.
+Because such a table grows each time a new atom is created, many
+consider it bad programming style to write programs that may add new
+atoms at runtime, e.g., through the BIFs \T{list:to_atom/1} and
+\T{binary:to_term/1}.  Strings\index{string!use instead of atom}
+[\S\ref{section:strings}] can often be used instead when the $O(1)$
+comparison for equality is not needed.)
+\else
+Comparison for equality between two atoms is $O(1)$.  This is
+accomplished by ``interning''\index{atom!interning}, i.e., making sure
+that each occurrence of an atom is represented internally by the same
+value through a hashtable that maps printnames to atoms and is used
+each time an atom is to be obtained from its printname.  Because such
+a table grows each time a new atom is created, many consider it bad
+programming style to write programs that may add new atoms at runtime,
+e.g., through the BIFs \T{list_to_atom/1} and \T{binary_to_term/1}.
+Strings\index{string!use instead of atom} [\S\ref{section:strings}]
+can often be used instead when the $O(1)$ comparison for equality is
+not needed.
+\fi
+
+Atoms are recognized by the BIF
+\ifStd \T{is_atom/1} \else \T{atom/1} \fi (\S\ref{section:recognizer-bifs}).
+
+There are no operators acting specifically on atoms (but note the
+Boolean operators above).
+
+Atom literals are described in \S\ref{section:atom-literals}.
+
+\Erlang\ BIFs relating to atoms are described in \S\ref{section:atom-bifs}.
+
+%The memory areas holding the already interned atoms are typically
+%garbage collected much less frequently than other areas.
+\index{atom!Erlang type@\Erlang\ type|)}
+
+\ifStd
+\section{Characters}
+
+\label{section:chars}
+\index{character!Erlang type@\Erlang\ type|(}
+
+The character type of \StdErlang\ corresponds to the Unicode character
+set \cite{unicode}.  That is, the invertible mapping between the
+characters and the character codes, which is the integer range
+$[0,2^{16}-1]$, i.e., $[0,65535]$, is the Unicode character encoding.
+
+Characters are recognized by the BIF \T{is_char/1}
+(\S\ref{section:recognizer-bifs}).
+
+There are no operators acting specifically on characters.
+
+Character literals are described in \S\ref{section:char-literals}.
+
+\Erlang\ BIFs relating to characters are described in \S\ref{section:char-module}.
+
+\index{character!may be integer|(}
+It is permitted (but discouraged) for an implementation to make
+characters indistinguishable from the integers with the corresponding
+character codes except that the recognizer BIF \T{is_char/1} must only
+be true of characters and \T{is_integer/1} must only be true of
+integers (\S\ref{section:recognizer-bifs}).\footnote{The purpose of
+this relaxation is to allow implementations that can run legacy
+\OldErlang\ applications.  There was no character type in \OldErlang\
+--- integers were used to represent characters --- but the BIFs
+\T{is_char/1} and
+\T{is_integer/1} did not exist either so characters and integers will
+be completely indistinguishable in such applications.} Some
+consequences of this would be:
+\begin{itemize}
+\item The BIF \T{integer} recognizes characters
+(\S\ref{section:recognizer-bifs}).
+\item Any value (e.g., an operand or a BIF argument) which should be a
+number may instead be a character and its arithmetic value will be the
+character code.  (The resulting integer value may be further coerced
+to a float.)
+\item Any value (e.g., an operand or a BIF argument) which should be a
+character may instead be an integer and its character will be the one
+having the integer as its code.  If an integer is used that is not the
+code of any character, the result is not defined.
+\item An integer \TZ{I} and a character with code \TZ{I} must be
+(exactly) equal (\S\ref{section:equality}).  The characters thus do
+not precede the numbers in the term order
+(\S\ref{section:term-order}), instead they are ordered together with
+the numbers according to their character codes.
+\end{itemize}
+\index{character!may be integer|)}
+\index{character!Erlang type@\Erlang\ type|)}
+\fi
+
+\section{Numbers}
+
+\label{section:numbers}
+\label{section:integers}
+\label{section:floats}
+\index{number!is integer or float|(}
+\index{integer!Erlang type@\Erlang\ type|(}
+\index{float!Erlang type@\Erlang\ type|(}
+
+\Erlang\ has two numeric types: \emph{integers} and \emph{floats}.
+The arithmetic operations permit arbitrary combinations of integer and
+float op\-er\-ands, when meaningful.  We therefore describe both types
+together.
+
+\Erlang\ integers and floats are described in detail in
+\S\ref{section:integer-type} and \S\ref{section:float-type},
+respectively.
+
+Integer literals are described in \S\ref{section:integer-literals}.
+Float literals are described in \S\ref{section:float-literals}.
+
+Numbers, integers and floats are recognized by the BIFs
+\ifStd \T{is_number/1}, \T{is_integer/1} and \T{is_float/1}
+\else \T{number/1}, \T{integer/1} and \T{float/1} \fi, respectively
+(\S\ref{section:recognizer-bifs}).
+
+\Erlang\ provides the following operators acting on numeric terms:
+\begin{itemize}
+\item The unary plus and minus operators \T{+}, \T{-}
+(\S\ref{section:unaryplus}, \S\ref{section:unaryminus}).
+\item The multiplicative operators
+\T{*} (\S\ref{section:multiplication}),
+\T{/} (\S\ref{section:floatdiv}),
+\ifStd \T{//} (\S\ref{section:intdiv-f}), \fi
+\T{div} (\S\ref{section:intdiv})\ifOld\ \fi
+\ifStd, \T{mod} (\S\ref{section:intmod}) \fi
+and \T{rem} (\S\ref{section:intrem})\ifOld.\fi
+
+\item The addition operators \T{+} and \T{-} (\S\ref{section:additionops})
+\item The signed shift operators \T{bsl} and \T{bsr} (\S\ref{section:shift}).
+\item The unary bitwise complement operator \T{bnot}
+(\S\ref{section:bitwisecomp}).
+\item The integer bitwise operators \T{band} (\S\ref{section:bitwiseand}),
+\T{bor} (\S\ref{section:bitwiseor}) and \T{bxor} (\S\ref{section:bitwiseor}).
+\end{itemize}
+
+\Erlang\ BIFs relating to numbers are described in
+\ifOld\S\ref{section:number-bifs}\fi
+\ifStd\S\ref{section:number-module}\fi.
+\index{number!is integer or float|)}
+\index{float!Erlang type@\Erlang\ type|)}
+
+% JoB 0.7 Took it out again.
+\iffalse
+\subsection{Bytes}
+
+\index{byte!subset of integer|(}
+A byte is an integer having a value in the range $[0,255]$.
+
+There are no operators acting specifically on bytes.
+
+There are no BIFs relating particularly to bytes, although various
+BIFs expect arguments to be bytes or list of bytes, or return such values.
+
+The byte literals are simply a subset of the integer literals
+\ifOld
+(but note that octal character escapes can be useful for denoting bytes).
+\fi
+\index{byte!subset of integer|)}
+\fi
+
+\ifOld
+\subsection{Characters}
+
+\label{section:chars}
+\index{character!subset of integer|(}
+A character is an integer having a value in the range $[0,255]$ and is
+thus a byte.
+
+There are no operators acting specifically on characters.
+
+The characters literals are a subset of the integer
+literals\footnote{It is possible, but \emph{not} recommended, to use
+an integer literal to denote a character.}, plus the character
+literals described in \S\ref{section:char-literals}.
+\index{character!subset of integer|)}
+\fi
+\index{integer!Erlang type@\Erlang\ type|)}
+
+\section{Refs}
+
+\label{section:refs}
+\index{ref!Erlang type@\Erlang\ type|(}
+
+Refs are terms for which the only meaningful operations are
+obtaining a new ref and comparing two refs for equality.
+
+When we describe operations (such as transformation to the external
+term format, cf.~\S\ref{chapter:external-format}) we shall assume that
+the internal representation of a ref \TZ{R} consists of three parts:
+\begin{itemize}
+\item \T{node[\Z{R}]}, which is the node on which \TZ{R} was created,
+represented by an atom;
+\item \T{creation[\Z{R}]}, a nonnegative integer that is the value of
+\T{creation[\Z{N}]} for the node \TZ{N} on which \TZ{R} was created;
+\item \T{ID[\Z{R}]}, a nonnegative integer which is a
+``serial number'' for \TZ{R} on the node on which it was created.
+\end{itemize}
+Two refs are equal if all these parts are equal.
+\ifOld
+In \OldErlang\ \T{ID[\Z{R}]} is limited to XXX.  Thus the BIF \T{make_ref/0}
+may eventually produce duplicate values.
+\fi
+\ifStd
+If in an implementation there is an upper limit to \T{ID[\Z{R}]}, then
+the number of possible refs created on a node is bounded and the BIF
+\T{make_ref/0} may eventually produce duplicate values.  If this is
+the case, then \I{refs\_bounded} is \B{true} for that implementation,
+otherwise \I{refs\_bounded} is \B{false}.  If \I{refs\_bounded} is
+\B{true}, then \I{numrefs} is the number of distinct values that
+\T{ID[\Z{R}]} can have.  The values of \I{refs\_bounded} and
+\I{maxrefs} (if applicable) are available through the BIFs
+\T{ref:bounded/0} and \T{ref:max/0}.
+\fi
+
+There are no ref literals.
+
+Refs are recognized by the BIF
+\ifOld \T{reference/1} \fi
+\ifStd \T{is_ref/1} \fi (\S\ref{section:recognizer-bifs}).
+
+There are no operators acting specifically on refs.
+
+\Erlang\ BIFs relating to refs are described in
+\ifOld \S\ref{section:misc-bifs}.\fi
+\ifStd \S\ref{section:ref-module}.\fi
+\index{ref!Erlang type@\Erlang\ type|)}
+
+\section{Binaries}
+
+\label{section:binaries}
+\index{binary!Erlang type@\Erlang\ type|(}
+
+A \emph{binary} is a sequence of bytes\index{byte}, i.e., a sequence of
+integers between 0 and 255.
+
+\iffalse
+It's \emph{raison d'\^{e}tre} is communication between processes,
+where low-level communication takes place through sequences of bytes
+and terms are to be communicated.  There are thus BIFs for translating
+from arbitrary terms to binaries and vice versa.  An arbitrary term
+$t$ can be sent from a process $p$ to a process $q$ as follows:
+\begin{enumerate}
+\item process $p$ obtains the binary $b$ representing $t$;
+\item the binary $b$ is sent via a port connecting $p$ and $q$;
+\item process $q$ retrieves the original term $t$ from $b$.
+\end{enumerate}
+The internal representation of terms may allow \emph{sharing} of
+structure between identical subterms.  If so, sharing in $p$'s
+representation of $t$ and sharing in $q$'s representation of $t$ are
+totally independent of each other and so are the memory requirements
+for representing $t$ in $p$ and in $q$.
+\fi
+
+There are no binary literals.
+
+Binaries are recognized by the BIF
+\ifStd\T{is_binary/1}\else\T{binary/1}\fi
+(\S\ref{section:recognizer-bifs}).
+
+There are no operators acting specifically on binaries.
+
+\Erlang\ BIFs relating to binaries are described in
+\S\ref{section:binary-bifs}.
+
+\ifOld
+\NOTE
+
+The \OldErlang\ implementation has disjoint address spaces for its
+processes and thus copy terms sent as messages
+(\S\ref{section:messages}).  However, in typical applications binaries
+may be very large and copying them would therefore be expensive.
+Therefore the \OldErlang\ implementation has a single memory area for
+all binaries residing on a node and uses indirect addressing.  That
+is, a binary would be represented in the memory of a process by a
+pointer into the common binary area together with information about
+length.  When sending a binary in a message, only the local
+information is copied, not the elements of the binary.  This also
+implies that a binary can be split (cf.~the BIF \T{split_binary/2},
+\S\ref{section:splitbinary2}) in constant time as no copying of the
+elements is necessary.  Of course this arrangement complicates memory
+management\index{memory management}, as the binary area must be
+maintained separately.
+\fi
+\index{binary!Erlang type@\Erlang\ type|)}
+
+\ifStd
+\section{Functions}
+
+\label{section:functions}
+\index{function!Erlang type@\Erlang\ type|(}
+
+A \emph{function} of arity $n$ is a term that can be \emph{applied}
+to a sequence of $n$ terms.  Evaluating the application may cause
+certain effects and may either never complete, complete abruptly
+with some associated reason or complete normally with a result.
+
+There are no function literals.  However, \T{fun} expressions, having
+functions as their values, are described in
+\S\ref{section:fun-exprs}.  Function declarations, described in
+\S\ref{section:program-forms}, associate a function name with a
+function in a certain module.
+
+\iffalse
+% Per talked me out of this.
+An \Erlang\ system may represent functions transparently through some
+other type, e.g., as tuples, in which case the recognizer BIF for that
+type will be true also for tuples.  It is therefore not portable to
+assume that functions are distinct from all other
+types\index{function!possibly not distinct type}.  If an
+implementation uses another type to represent functions, this should
+be documented.
+\fi
+
+Functions are recognized by the BIF \T{is_function/1}
+(\S\ref{section:recognizer-bifs}).
+
+There are no operators acting specifically on functions.
+
+\Erlang\ BIFs relating to functions are described in \S\ref{section:process-bifs}.
+\index{function!Erlang type@\Erlang\ type|)}
+\fi
+
+\section{Process identifiers}
+
+\label{section:pids}
+\index{PID!Erlang type@\Erlang\ type|(}
+\index{process|(}
+
+An \Erlang\ \emph{process} is an entity that carries out the
+evaluation of an application.  That particular evaluation is
+identified by a distinct \emph{process identifier}, usually called
+simply a \emph{PID}.  The PID must be used in order to send messages
+to the process and when manipulating it (e.g., linking with it or
+attempting to kill it).
+
+PIDs are elementary terms and a PID can be created only by spawning a
+process.  Spawning a process always yields a PID that is distinct from
+all accessible PIDs.  (PIDs and refs are obviously similar and an
+inefficient implementation of refs could indeed be obtained by letting
+\T{make_ref/0} spawn a new process and use its PID.)
+
+When a process completes, its PID is still a PID but it no longer
+refers to a process so BIFs cannot use it.  The result or effect when
+a BIF is given the PID of a completed process varies,
+cf.~Section\ref{section:process-bifs}.
+
+Processes are further described in Chapter~\ref{chapter:processes}.
+
+When we describe operations (such as transformation to the external
+term format, cf.~\S\ref{chapter:external-format}) we shall assume that
+the internal representation of a PID \TZ{P} consists of three parts:
+\begin{itemize}
+\item \T{node[\Z{P}]}, which is the node on which \TZ{P} was spawned,
+represented by an atom;
+\item \T{creation[\Z{P}]}, a nonnegative integer that is the value of
+\T{creation[\Z{N}]} for the node \TZ{N} on which \TZ{P} was spawned;
+\item \T{ID[\Z{P}]}, a nonnegative integer which is a
+``serial number'' for \TZ{P} on the node on which it was spawned.
+\end{itemize}
+Two PIDs are equal if all these parts are equal.
+\ifOld
+In \OldErlang\ \T{ID[\Z{P}]} is limited to XXX.  Thus the BIFs \T{spawn/3}, etc.,
+may eventually produce duplicate values.
+\fi
+\ifStd
+If in an implementation there is an upper limit to \T{ID[\Z{P}]}, then
+the number of possible PIDs created on a node is bounded and the BIFs
+\T{spawn/3}, etc., may eventually produce duplicate values.  If this
+is the case, then \I{pids\_bounded} is \B{true} for that
+implementation, otherwise \I{pids\_bounded} is \B{false}.  If
+\I{pids\_bounded} is \B{true}, then \I{numpids} is the number of
+distinct values that \T{ID[\Z{P}]} can have.  The values of
+\I{pids\_bounded} and \I{maxpids} (if applicable) are available
+through the BIFs \T{proc:bounded/0} and \T{proc:max/0}.
+\fi
+
+There are no PID literals.
+
+PIDs are recognized by the BIF \ifStd\T{is_pid/1}\else\T{pid/1}\fi
+(\S\ref{section:recognizer-bifs}).
+
+There are no operators acting specifically on processes or PIDs.
+
+\Erlang\ BIFs relating to processes are described in \S\ref{section:process-bifs}.
+\index{PID!Erlang type@\Erlang\ type|)}
+\index{process|)}
+
+\section{Ports}
+
+\label{section:ports}
+\index{port!Erlang type@\Erlang\ type|(}
+
+An \Erlang\ node\index{node!communication} communicates with resources
+in the outside world (including the rest of the computer on which it
+resides) through \emph{ports}.  Examples of such external resources
+are files and non-\Erlang\ programs running on the same host.  An
+external resource behaves much like an \Erlang\ process, although
+interaction with it causes or is caused by events in the outside
+world.
+
+Each external resource is identified by an \Erlang\ term that is
+referred to as a port.  When a port is created, it is connected
+externally to an entity, which is either
+\begin{itemize}
+\item a recently spawned external process or recently opened driver
+      (\S\ref{section:drivers});
+\item a file.
+\end{itemize}
+Internally the port is connected to a process, which is originally the
+process that opened the port.
+
+A process communicates with an external resource through messages sent
+to a port.  Any process can send messages to an external resource.
+The process connected with a port will receive messages from the
+resource.
+
+When the external resource is depleted (i.e., the end of the file has
+been reached, the external process has completed or the driver is
+closed), the port is closed, corresponding to the termination of a
+process.  A process can be linked to a port and it will then be
+notified when the port is closed.
+
+Ports are obviously similar to PIDs but do not allow all operations
+that PIDs allow.
+
+Ports are further described in \S\ref{chapter:more-about-ports}.
+
+When we describe operations (such as transformation to the external
+term format, cf.~\S\ref{chapter:external-format}) we shall assume that
+the internal representation of a port \TZ{Q} consists of three parts:
+\begin{itemize}
+\item \T{node[\Z{Q}]}, which is the node on which \TZ{Q} was opened, represented by
+an atom;
+\item \T{creation[\Z{Q}]}, a nonnegative integer that is the value of
+\T{creation[\Z{N}]} for the node \TZ{N} on which \TZ{Q} was opened;
+\item \T{ID[\Z{Q}]}, a nonnegative integer which is a
+``serial number'' for \TZ{Q} on the node on which it was opened.
+\end{itemize}
+Two ports are equal if all these parts are equal.
+\ifOld
+In \OldErlang\ \T{ID[\Z{Q}]} is limited to 256.  Thus the BIF \T{open_port/2}
+may eventually produce duplicate values.  However, \T{open_port/2} will never
+return a duplicate open port and the number of simultaneously open ports is
+limited to 256.
+\fi
+\ifStd
+If in an implementation there is an upper limit to \T{ID[\Z{Q}]}, then the number
+of possible PIDs created on a node is bounded and the BIF \T{port:open/2}, etc.,
+may eventually produce duplicate values.  If this is the case,
+then \I{ports\_bounded} is \B{true} for that implementation, otherwise
+\I{ports\_bounded} is \B{false}.  If \I{ports\_bounded} is \B{true}, then
+\I{numports} is the number of distinct values that \T{ID[\Z{Q}]} can have.
+The values of \I{ports\_bounded} and \I{maxports} (if applicable) are available
+through the BIFs \T{port:bounded/0} and \T{port:max/0}.
+\fi
+
+There are no port literals.
+
+Ports are recognized by the BIF \ifStd\T{is_port/1}\else\T{port/1}\fi
+(\S\ref{section:recognizer-bifs}).
+
+There are no operators acting specifically on ports.
+
+\Erlang\ BIFs relating to ports are described in \S\ref{section:port-bifs}.
+\index{port!Erlang type@\Erlang\ type|)}
+
+\section{Tuples}
+
+\label{section:tuples}
+\index{tuple!Erlang type@\Erlang\ type|(}
+
+A $k$-tuple, where $k\geq0$, is a mapping from the integers $1$,
+\ldots, $k$ to \Erlang\ terms, which are its
+immediate subterms\index{subterm!immediate}, or elements.
+(There is exactly one $0$-tuple,
+which is a void mapping.)  We say that the \emph{size} of such
+a tuple is $k$.  The types of the $k$ terms are
+independent.  A $k$-tuple can be used as a sequence of $k$ terms
+where each term can be accessed through its index.
+
+\index{maxtuplesize@\I{maxtuplesize}|(}
+A tuple must have at most \I{maxtuplesize} elements.
+\ifOld
+In \OldErlang, \I{maxtuplesize} is 65535.
+% 65535?
+% 2^27?
+% 2^28?
+\fi
+\ifStd
+For any implementation of \StdErlang,
+\I{maxtuplesize} must be at least $2^{16}-1 = 65\,535$ and at most
+$2^{32}-1 = 4\,294\,967\,296$.
+(The reason for the upper limit is a restriction in the packed term format,
+cf.~\S\ref{chapter:external-format}.)
+This parameters is available through the BIF
+\T{tuple:max_size/0} (\S\ref{section:tuple:maxsize0}).
+\fi
+\index{maxtuplesize@\I{maxtuplesize}|)}
+
+Tuple skeletons are described in \S\ref{section:tuple-skeletons}.
+\index{tuple!literal|(}
+A tuple literal is a tuple skeleton where all subexpressions are
+themselves literals.
+\index{tuple!literal|)}
+
+The time for accessing a tuple element given the tuple and an index
+(i.e., what is computed by the BIF \T{element/2}\index{element/2
+BIF@\T{element/2} BIF})
+\ifStd should be \else is \fi
+$O(1)$, i.e., a constant-time operation.  The element update operation
+--- obtaining a tuple that differs from a given one in exactly one
+element (i.e., what is computed by the BIF
+\T{setelement/3}\index{setelement/3 BIF@\T{setelement/3} BIF}) ---
+\ifStd should be \else is \fi
+$O(n)$, where $n$ is the number of elements of the tuple.
+\ifOld
+(A future version of \Erlang\ may have a different trade-off between
+element access and element update.
+\fi
+\ifStd
+(Implementations are not discouraged to explore internal
+representations of tuples that make element update more efficient.
+\fi
+For example, reducing the time for element update to
+$O(\log n)$ may justify increasing the time for element access to
+$O(\log n)$.)
+
+Tuples are recognized by the BIF \ifStd\T{is_tuple/1}\else\T{tuple/1}\fi
+(\S\ref{section:recognizer-bifs}).
+
+There are no operators acting specifically on tuples.
+
+\Erlang\ BIFs relating to tuples are described in \S\ref{section:tuple-bifs}.
+
+\subsection{Records}
+
+\label{section:records}
+\index{record!Erlang type@\Erlang\ type|(}
+
+A record type \TZ{R} has a number of \emph{field names}\index{record!field name}.  A term of record
+type \TZ{R} has a value for each of these fields.
+
+A term of record type \TZ{R} is a tuple\index{record!is a tuple} which has one more element than the
+number of fields of \TZ{R} and having the atom \TZ{R} as its first element.
+
+Terms of a record type \TZ{R} are recognized by record guard tests
+(\S\ref{section:record-guards}).
+
+There are no operators acting specifically on records.
+
+Record declarations are described in
+\S\ref{section:record-declarations} and record expressions are
+described in \S\ref{section:record-exprs}.
+\index{record!Erlang type@\Erlang\ type|)}
+
+\ifOld
+\subsection{Functions}
+
+\label{section:functions}
+\index{function!Erlang type@\Erlang\ type|(}
+
+A \emph{function} of arity $n$ is a term that can be \emph{applied}
+to a sequence of $n$ terms.  Evaluating the application may cause
+certain effects and may either never complete, complete abruptly
+with some associated reason or complete normally with a result.
+
+There are no function literals.  However, \T{fun} expressions, having
+functions as their values, are described in
+\S\ref{section:fun-exprs}.  Function declarations, described in
+\S\ref{section:program-forms}, associate a function name with a
+function in a certain module.
+
+\index{function!not a distinct type|(}
+In \OldErlang\ a function (i.e., the value of a \T{fun} expression)
+is represented by a tuple, hence
+the recognizer \T{tuple/1} returns \T{true} for a function.
+It is not recommended to exploit this representation. 
+\index{function!not a distinct type|)}
+
+\Erlang\ BIFs relating to functions are described in \S\ref{section:process-bifs}.
+\index{function!Erlang type@\Erlang\ type|)}
+\fi
+\index{tuple!Erlang type@\Erlang\ type|)}
+
+\section{Lists and conses}
+
+\label{section:lists}
+\index{list|(}
+\index{nil!Erlang type@\Erlang\ type|(}
+\index{cons!Erlang type@\Erlang\ type|(}
+
+\Erlang\ has a constant \T{[]}, which is called \emph{nil}.
+\Erlang\ also has a term-forming binary operator \T{[$\cdots$|$\cdots$]}
+called \emph{cons}.  The operands of cons are usually referred
+to as the \emph{head} and the \emph{tail} of the resulting term and
+are its immediate subterms\index{subterm!immediate}.
+
+The arguments of cons can be any terms but the intended use of cons is
+for forming \emph{lists}. (In any use of cons as a general pairing operator, a 2-tuple
+[\S\ref{section:tuples}] could be used instead.)
+
+Let us define which terms are \emph{lists}.
+\begin{itemize}
+\item Nil is an \emph{empty list} (thus having zero elements).
+\item Cons applied to an arbitrary term and a list (with $k$ elements) is a list
+(with $k+1$ elements).
+\item There are no other lists than those constructed by
+a finite number of applications of the two preceding rules.
+\end{itemize}
+A list thus represents a finite sequence.  As suggested by the use of
+the cons operator, the properties of a linked representation should be
+assumed.  Computing the cons operator takes $O(1)$ time and so does
+obtaining the head and/or the tail of a consed term.  However,
+obtaining an element at an arbitrary position of a list
+\ifStd (e.g., through the BIF \T{list:nth/2} [\S\ref{section:list:nth2}]) \fi
+takes $O(n)$ time, where $n$ is the index of the element to retrieve.
+%(This is because a linked representation is expected.)
+
+In addition to the nil constant and the cons operator, there are
+additional list skeletons, described in
+\S\ref{section:list-skeletons}, although for every list skeleton, there is an
+equal term that is a composition of cons operators and nil constants.
+\index{list!literal|(}
+A list literal is a list skeleton in which all subexpressions are
+themselves literals.
+\index{list!literal|)}
+
+\ifOld
+Nil and conses are both recognized by the BIF \T{list/1} (\S\ref{section:recognizer-bifs}),
+although the name is highly misleading.
+\fi
+\ifStd
+Nil, conses and lists are recognized by the BIFs \T{is_null/1},
+\T{is_cons/1} and \T{is_list/1}, respectively (\S\ref{section:recognizer-bifs}).
+\fi
+
+\Erlang\ provides the following operators acting on lists and conses:
+\begin{itemize}
+\item The list addition operator \T{++} (\S\ref{section:list-addition}).
+\item The list subtraction operator \T{--} (\S\ref{section:list-subtraction}).
+\end{itemize}
+\Erlang\ BIFs relating to lists and conses are described in \S\ref{section:list-bifs}.
+\index{nil!Erlang type@\Erlang\ type|)}
+\index{cons!Erlang type@\Erlang\ type|)}
+
+\subsection{Strings}
+
+\label{section:strings}
+\index{string|(}
+
+A \emph{string} is a list of characters\index{character}
+(\S\ref{section:chars}) and can be seen as representing a text.  Note
+that a list is a string only if all its elements are characters.  It
+follows that a cons is a string only if its head is a character and
+its tail is a string.
+
+String literals are described in \S\ref{section:string-literals}
+(but note that list literals with character literals also denote strings).
+
+\ifStd
+Strings are recognized by the BIF \T{is_string/1}
+(\S\ref{section:recognizer-bifs}).
+\fi
+
+There are no operators acting specifically on strings (but note the list
+operators above).
+
+\ifOld \Erlang\ BIFs converting from and to strings are described in
+various sections of \S\ref{chapter:bifs}. \fi
+\ifStd \Erlang\ BIFs relating to strings are described in
+\S\ref{section:str-module}. \fi 
+
+As strings are lists\index{string!is a list}, note that a string can
+be used anywhere a list is expected (for example, as operand of a list
+operator or as argument of a list BIF).
+\index{string|)}
+
+\subsection{Association lists}
+
+\label{section:assocationlists}
+\index{list!association|(}
+
+An \emph{association list} is a list of 2-tuples.  For each
+2-tuple we say that the first element is the
+key\index{key!in an association list} and the second element is the
+value\index{value!in an association list}.
+
+Let \TZ{lst} be an association list
+\begin{alltt}
+[\{\(\Z{k}\sb{1}\),\(\Z{v}\sb{1}\)\},\{\(\Z{k}\sb{2}\),\(\Z{T}\sb{v}\)\},\tdots,\{\(\Z{k}\sb{n}\),\(\Z{v}\sb{n}\)\}]
+\end{alltt}
+and let $K$ be the set of keys in \TZ{lst}.  \TZ{lst} represents a mapping
+which for each key $\TZ{k}\in K$ contains a pair $(\TZ{k},\TZ{v}_j)$ such that
+$\TZ{k}=\TZ{k}_j$ and for all $i$, $1\leq i<j$, $\TZ{k}\neq\TZ{k}_i$.
+
+When we write that a BIF returns an association list, the first element of
+each 2-tuple in the returned list is always distinct.
+\index{list!association|)}
+\index{list|)}
+
+\section{Relational and equality operators on terms}
+
+\Erlang\ provides the following relational and equality operators, acting on a pair of terms,
+each of any type.
+\begin{itemize}
+\item The comparison operators \T{<}, \T{=<}, \T{>} and
+\T{>=} (\S\ref{section:relationalops}).
+\item The (exact) equality operators \T{=:=} and \T{=/=}
+(\S\ref{section:exactequationalops}).
+\item The arithmetic equality operators \T{==} and \T{/=}
+(\S\ref{section:coercingequationalops}).
+\end{itemize}
+
+\subsection{Coercion}
+
+\label{section:coercion}
+\index{coercion!to float|(}
+\index{conversion!arithmetic|(}
+
+Coercion is applied when computing some arithmetic operators (including
+the arithmetic equality operators).
+
+\index{coerce@$\mathit{toFloat}$|(}
+The function $\I{toFloat}$ maps a number to a float as follows:
+\iftrue
+\begin{alignat*}{2}
+\mathit{toFloat}(a) &= a && \qquad\text{if $a$ is a float;} \\
+                    &= \mathit{cvt}_{\mathtt{integer}\rightarrow\mathtt{float}}(a) && \qquad\text{if $a$ is an integer.}
+\end{alignat*}
+\else
+\[\I{toFloat}(a)=\begin{cases} a & \text{if $a$ is a float;} \\
+\I{cvt}_{\mathtt{integer}\rightarrow\mathtt{float}}(a) & \text{if $a$ is an integer.}
+\end{cases}\]
+\fi
+(${cvt}_{\mathtt{integer}\rightarrow\mathtt{float}}$ is as defined in LIA-1
+\cite{lia-1}.)
+\index{coerce@$\mathit{toFloat}$|)}
+
+\index{coerce@$\mathit{coerce}$|(}
+The function $\I{coerce}$ maps a pair of terms to a pair of terms as follows:
+\iftrue
+\begin{alignat*}{2}
+\mathit{coerce}(a,b) &= (a,b) && \qquad\text{if $a$ or $b$ is not a number;} \\
+                     &= (\I{toFloat}(a),\I{toFloat}(b)) && \qquad\text{if $a$ or $b$ is a float;} \\
+                     &= (a,b) && \qquad\text{otherwise.}
+\end{alignat*}
+\else
+\[\I{coerce}(a,b)=\begin{cases}
+(a,b) & \text{if $a$ or $b$ is not a number;} \\
+(\I{toFloat}(a),\I{toFloat}(b)) & \text{if $a$ or $b$ is a float;} \\
+(a,b) & \text{otherwise.}
+\end{cases}\]
+\fi
+\index{coerce@$\mathit{coerce}$|)}
+\index{coercion!to float|)}
+\index{conversion!arithmetic|)}
+
+\section{Size of data structures}
+
+\index{term!size|(}
+\index{size@$\mathit{size}$|(}
+The function $\mathit{size}$
+gives a measure of the size of an \Erlang\ term \TZ{T} as
+an integer.
+\ifStd
+It is expected that the memory needed for representing \TZ{T} in
+an implementation
+\fi
+\ifOld
+The memory needed for representing \TZ{T} in \OldErlang\
+\fi
+is $O(\mathit{size}(\TZ{T}))$ (this excludes shared information
+such as the printname of an atom).
+The measure is also used in this document
+for expressing the rate of growth of operations such
+as comparisons.
+\begin{itemize}
+\item If \TZ{T} is an atom, a fixnum (\S\ref{section:integer-type}),
+a float, a ref, a PID or a port, then
+\[\I{size}(\TZ{T}) = O(1).\]
+\item If \TZ{T} is a bignum (\S\ref{section:integer-type}), then
+\[\I{size}(\TZ{T}) = O(\log \Er[\TZ{T}]).\]
+\item If \TZ{T} is a binary of $k$ bytes, then
+\[\I{size}(\TZ{T}) = O(k).\]
+\item If \TZ{T} is a cons with head $\TZ{T}_h$ and tail $\TZ{T}_t$, then
+\[\I{size}(\TZ{T}) = O(1)+\mathit{size}(\TZ{T}_h)+\mathit{size}(\TZ{T}_h).\]
+\item If \TZ{T} is a tuple with elements $\TZ{T}_1$, \ldots, $\TZ{T}_k$, or
+a function with values $\TZ{T}_1$, \ldots, $\TZ{T}_k$
+for the free variables, then
+\[\I{size}(\TZ{T}) = O(1)+O(k)+\sum_{i=1}^k\mathit{size}(\TZ{T}_i).\]
+\item If \TZ{T} is a function with values $\TZ{T}_1$, \ldots, $\TZ{T}_k$
+for free variables, then
+\[\I{size}(\TZ{T}) = O(1)+O(k)+\sum_{i=1}^k\mathit{size}(\TZ{T}_i).\]
+\end{itemize}
+We will allow ourselves to apply $\mathit{size}$ also to sets of terms
+and sets of pairs of terms.
+\begin{itemize}
+\item If $t$ is a set of items $t_1$, \ldots, $t_k$, then
+\[\I{size}(t) = O(1)+O(k)+\sum_{i=1}^k\mathit{size}(t_i).\]
+\item If $t$ is a pair of items $a$ and $b$, then
+\[\I{size}(t) = O(1)+\mathit{size}(a)+\mathit{size}(b).\]
+\end{itemize}
+\index{term!size|)}
+\index{size@$\mathit{size}$|)}
+
+\subsection{Equality between terms}
+
+\label{section:equality}
+
+\index{equality!exact|(}
+(Exact) equality between \Erlang\ terms $a$ and $b$ is defined as follows:
+\begin{itemize}
+\item If $a$ and $b$ were the result of the same evaluation of an expression, then
+they are equal.
+\item Otherwise, if $a$ and $b$ are of different type, then they are not equal.
+\item Otherwise, equality of $a$ and $b$ depends on the type of $a$ and $b$:
+\begin{itemize}
+\item \B{Atom}:  $a$ and $b$ are equal if and only
+if they have the same printname.
+\ifStd
+\item \B{Character}:  $a$ and $b$ are equal if and only if they are identical.
+\fi
+\item \B{Integer}: $a$ and $b$ are equal if and only if $\Er[a]=\Er[b]$.
+\item \B{Float}: $a$ and $b$ are equal if and only if $\Er[a]=\Er[b]$.
+(As in all programming languages, it is unwise to trust equality for
+floats, as imprecision due to rounding may lead to unexpected inequalities.)
+\item \B{Ref}: $a$ and $b$ are not equal.
+\item \B{Binary}: $a$ and $b$ are equal if and only
+if they consist of identical sequences of bytes.
+\ifStd
+\item \B{Function}: if $a$ and $b$ were the results of (different occurrences of)
+identical expressions, then equality is not defined; otherwise they are not equal.
+\fi
+\item \B{PID}: $a$ and $b$ are not equal.
+\item \B{Port}: $a$ and $b$ are not equal.
+\item \B{Cons}:
+\begin{itemize}
+\item If $a$ and $b$ are both empty, then they are equal.
+\item Otherwise, if $a$ and $b$ are both nonempty, then they are equal if and only if
+the heads of $a$ and $b$ are equal and the tails of $a$ and $b$ are equal.
+\item Otherwise, $a$ and $b$ are not equal.
+\end{itemize}
+\item \B{Tuple}:
+\begin{itemize}
+\item If $a$ and $b$ have different size, then they are not equal.
+\item Otherwise, if all corresponding elements of $a$ and $b$ are pairwise
+equal, then $a$ and $b$ are equal.
+\item Otherwise, $a$ and $b$ are not equal.
+\end{itemize}
+It follows that two records are equal
+if, and only if, they are of the same type and all corresponding elements are
+pairwise equal.
+
+\ifOld
+For tuples that represent functions the representation is such that
+if $a$ and $b$ were the results of (different occurrences of)
+identical expressions, then equality is not defined; otherwise they are not equal.
+\fi
+% \item \B{Struct}
+\end{itemize}
+\end{itemize}
+\index{equality!exact|)}
+\ifStd
+As there is no portable way to represent functions in the external term format
+(\S\ref{chapter:external-format}), equality is not at all defined for functions that
+have been transformed to the external format and back again or sent as messages.
+\fi
+Due to how the representation of floats in the external term format\ifStd\else\
+(\S\ref{chapter:external-format})\fi, equality is not at all defined for floats that
+have been transformed to the external format and back again, or have been
+sent as messages.
+
+The time required for determining exact equality of two terms $\TZ{T}_1$ and
+$\TZ{T}_2$ should be $\min(\mathit{size}(\TZ{T}_1),\mathit{size}(\TZ{T}_2))$.
+
+\index{equality!arithmetic|(}
+Arithmetic equality between \Erlang\ terms $a$ and $b$ is defined as follows:
+\begin{itemize}
+\item If $a$ and $b$ are numbers, then they are arithmetically equal
+if and only if $a'$ is (exactly) equal to $b'$, where $(a',b')=\I{coerce}(a,b)$
+(\S\ref{section:coercion}).
+\item Otherwise, if $a$ and $b$ are both of elementary types, then they
+are arithmetically equal if and only if they are (exactly) equal.
+\item Otherwise, if $a$ and $b$ are both lists, then:
+\begin{itemize}
+\item If $a$ and $b$ are both empty, then they are arithmetically equal.
+\item Otherwise, if $a$ and $b$ are both nonempty, then they are arithmetically
+equal if and only if the heads of $a$ and $b$ are arithmetically equal and the
+tails of $a$ and $b$ are arithmetically equal.
+\item Otherwise, $a$ and $b$ are not arithmetically equal.
+\end{itemize}
+\item Otherwise, if $a$ and $b$ are both tuples of the same size, then
+$a$ and $b$ are arithmetically equal if and only if all corresponding elements
+of $a$ and $b$ are pairwise arithmetically equal.
+\item Otherwise $a$ and $b$ are not arithmetically equal.
+\end{itemize}
+\index{equality!arithmetic|)}
+
+\subsection{The term order}
+
+\label{section:term-order}
+\index{term!comparison|(}
+
+The \emph{term order} of \Erlang\ terms, which we will write here as
+\T{<}, is a order relation that \ifStd must satisfy \fi \ifOld satisfies \fi
+the following criteria:
+
+\begin{itemize}
+\item It is transitive, i.e., if \T{$\Z{t}_1$ < $\Z{t}_2$} and
+\T{$\Z{t}_2$ < $\Z{t}_3$}, then it must be the case that
+\T{$\Z{t}_1$ < $\Z{t}_3$}.
+%\item It is irreflexive, i.e., there can be no term \TZ{t} such that
+%\T{\Z{t} < \Z{t}}.
+\item It is asymmetric, i.e., there can be no terms $\TZ{t}_1$ and $\TZ{t}_2$
+such that \mbox{\T{$\Z{t}_1$ < $\Z{t}_2$}} and \mbox{\T{\Z{t}$_2$ < \Z{t}$_1$}}.
+(This implies that it is irreflexive, i.e., that
+there can be no term \TZ{t} such that \T{\Z{t} < \Z{t}}.)
+\item \ifStd With the exception of functions, it \fi
+\ifOld It \fi
+is an arithmetic total order relation, i.e., if
+$\TZ{t}_1$ is not arithmetically equal to
+$\TZ{t}_2$, then exactly one of \T{$\Z{t}_1$ < $\Z{t}_2$} and
+\T{$\Z{t}_2$ < $\Z{t}_1$} holds, unless $\TZ{t}_1$ and $\TZ{t}_2$ are functions.
+
+\item The terms are primarily ordered according to their type, in the following order:
+numbers \T{<} \ifStd characters \T{<} \fi
+atoms \T{<} refs \T{<} \ifStd functions \T{<} \fi
+ports \T{<} PIDs \T{<} tuples \T{<}
+empty list \T{<} conses \T{<} binaries.
+
+\item Numbers are ordered arithmetically (so there is no distinction between integers
+and floats in this ordering).  For example, \T{4.5 < 5 < 5.3}.
+
+\ifStd
+\item Characters are ordered according to their character codes.
+For example, \T{\char`\$5 < \char`\$@ < \char`\$J < \char`\$b}.
+\fi
+
+\item Atoms are ordered lexicographically according to the codes of the characters in
+the printnames.  For example, \T{'' < a < aaa < ab < b}.
+
+\item If $\TZ{t}_1$ and $\TZ{t}_2$ are both refs, both PIDs or both ports, then
+$\TZ{t}_1$ precedes $\TZ{t}_2$ if and only if
+either
+\begin{itemize}
+\item \T{node($\Z{t}_1$)} precedes \T{node($\Z{t}_2$)}, or
+\item \T{node($\Z{t}_1$)} equals \T{node($\Z{t}_2$)} and $\TZ{t}_1$ was created before $\TZ{t}_2$.
+\end{itemize}
+
+\ifStd
+\item Functions are not ordered, except for equality as described above.
+\fi
+
+\item Tuples are ordered first by their size, then according to their elements lexicographically.
+For example, \T{\{\} < \{a\} < \{aaa\} < \{xxx\} < \{aaa,xxx\} < \{xxx,aaa\}}.
+(It follows that records are ordered first by their number of elements, then according to
+their type, then according to their elements with fields compared in the order given by
+$\mathit{record\_field}_{\TZm{R}}^{-1}$, where \TZ{R} is the record type.)
+\ifOld
+Functions are not ordered, except for equality as described above.
+\fi
+
+\item An empty list precedes a cons (and thus a nonempty list) and
+conses are ordered first by their heads, then by their tails.
+(Thus a longer list may precede a shorter list even though a shorter tuple
+always precedes a longer tuple.)  For example,
+\T{[] < [a|2] < [a|b] < [a] < [a,a] < [b]}.
+
+\item Binaries are ordered first by their size, then according to their elements lexicographically.
+(That is, the same as the order between tuples of integers.)
+\end{itemize}
+\index{term!comparison|)}
+
+\section{Lifetime of data structures}
+
+\label{section:life-time}
+\index{term!life time of|(}
+
+\index{term!identity|(}
+We say that a term \emph{has identity} if it is
+\begin{itemize}
+\item a ref,
+\ifStd\item a function,\fi
+\item a PID,
+\item a port, or 
+\item a compound term (i.e., a tuple or a list) in which
+some immediate subterm has identity.
+\end{itemize}
+An elementary term with identity is created by evaluating an
+expression on a certain form. (For example, a ref is created by
+evaluating an application of the BIF \T{make_ref/0}).  In this case,
+each evaluation of such an expression creates a new term that can be
+distinguished from all other such terms.  If an elementary term with
+identity is embedded in a compound term, that compound term also has
+identity.
+\ifStd An implementation is not permitted to \fi
+\ifOld \OldErlang\ will not \fi
+share or copy terms
+with identity except when such sharing or copying is implied by the
+language semantics.
+
+For a term with identity there is thus a definite moment of creation.
+There is, however, no corresponding moment of destruction: the
+lifetime of a term with identity is unbounded.
+\index{term!identity|)}
+
+\index{term!generic|(}
+A term that does not have identity is said to be \emph{generic}.
+
+For generic terms, the concept of lifetime is not meaningful at all
+as there is no way in which two equal specimen of a generic term could
+be distinguished.  If the value of an expression is a generic term, it
+would be impossible to tell from two such terms whether they were the
+result of the same evaluation or two separate evaluations.
+(Evaluation of the expression might have side effects that would be
+different for one or more evaluations but that is not the point here.)
+An implementation is permitted to share or copy generic terms.
+
+For example, when a literal \T{\{1,2,3\}} is evaluated more than once,
+an implementation may let all evaluations return references to the
+same (generic) tuple or let each evaluation return a new specimen of
+such a term.
+\index{term!generic|)}
+\index{term!life time of|)}
+
+\section{Memory management}
+
+\label{section:memory-management}
+\index{memory management|(}
+
+In the previous section we noted that for generic terms, there is no
+concept of lifetime and for terms with identity, the lifetime is
+unbounded.
+
+However,
+\ifStd an implementation must \fi
+\ifOld \OldErlang\ will \fi
+keep track of all references to terms
+(both generic terms and terms with identity) and when no references to
+a specimen of a term remain, the memory occupied by the specimen must
+eventually be reused.  There
+\ifStd must be \fi
+\ifOld are \fi
+no ``memory leaks,'' i.e., memory
+that is not part of the representation of terms that can be referenced
+but is never reclaimed.
+
+Reclamation of memory in a process (garbage collection) could occur
+incrementally or in batches but
+\ifStd must \fi
+\ifOld will \fi
+not cause violation of the scheduling policies described in
+\S\ref{section:scheduling}.
+\index{memory management|)}

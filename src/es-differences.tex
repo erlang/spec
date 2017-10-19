@@ -1,0 +1,255 @@
+%
+% %CopyrightBegin%
+%
+% Copyright Ericsson AB 2017. All Rights Reserved.
+%
+% Licensed under the Apache License, Version 2.0 (the "License");
+% you may not use this file except in compliance with the License.
+% You may obtain a copy of the License at
+%
+%     http://www.apache.org/licenses/LICENSE-2.0
+%
+% Unless required by applicable law or agreed to in writing, software
+% distributed under the License is distributed on an "AS IS" BASIS,
+% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+% See the License for the specific language governing permissions and
+% limitations under the License.
+%
+% %CopyrightEnd%
+%
+
+\chapter{Summary of differences between \OldErlang\ and \StdErlang}
+
+\begin{Lentry}
+\item[\ifStd\S\ref{section:unicode}\fi\ifOld\S\ref{chapter:lexical}\fi]
+\OldErlang\ uses the ASCII character set, in which character codes are 7 bits wide.
+In \StdErlang\ the character set is Unicode, in which character codes are 16 bits wide.
+\NewErlang\
+would be expected to support at least the 256 first Unicode characters, which coincide with
+Latin-1.
+
+This leads to minor differences between \OldErlang\ and \StdErlang\
+in many parts of the specification where characters are mentioned.
+
+Also there are Unicode escape sequences in \StdErlang\ but not in \OldErlang.
+
+\item[\S\ref{section:keywords}]
+\StdErlang\ has three keywords that \OldErlang\ does not: \T{all_true}, \T{some_true}
+and \T{try}.
+
+\item[\S\ref{section:operators}]
+\StdErlang\ has two operators that \OldErlang\ does not: \T{//} and \T{mod}.
+
+\item[\S\ref{section:escapes}]
+\StdErlang\ has an escape sequence that \OldErlang\ does not: \T{\char`\\s} for space.
+
+In \OldErlang, an octal escape may be from \T{\char`\\000} to \T{\char`\\777}
+while in \StdErlang, only bytes can be expressed, i.e.,
+\T{\char`\\000} to \T{\char`\\377}.
+
+\item[\S\ref{section:integer-literals}]
+In \StdErlang\ integer literals may contain underscore characters to separate groups of digits.
+
+\item[\S\ref{section:float-literals}]
+In \StdErlang\ float literals may contain underscore characters to separate groups of digits.
+
+\item[\S\ref{section:char-literals}]
+In \OldErlang\ a \T{\char`\$} character may be followed by any character and its value would be
+the code of that character.  In \StdErlang\ a \T{\char`\$} character must not be followed by
+whitespace.
+
+\item[\S\ref{section:string-literals}]
+In \OldErlang\ a control character may be included in a string literal.
+In \StdErlang\ it must not.
+
+\item[\S\ref{section:atoms}]
+In \StdErlang\ the maximum length of atoms' printnames is an implementation-dependent
+constant while in \OldErlang\ it is always 255.
+
+\item[\S\ref{section:chars}]
+In \StdErlang\ there is a separate character type while in \OldErlang, integers in the
+range $[0,127]$ serve this purpose.
+
+\item[\S\ref{section:functions}]
+In \OldErlang, functions are transparently represented by tuples, while in
+\StdErlang\ they must be a proper type.
+
+\item[\S\ref{chapter:arithmetics}]
+In \StdErlang, the arithmetics have been generalized, as compared with
+\OldErlang, in the sense that there are
+various requirements on the arithmetics but few exact prescriptions.
+For example, an implementation may
+or may not have bignums and the floating-point representation can vary
+between implementations (and on platforms). The international standard LIA-1 has been followed in
+the description.
+
+In \OldErlang, the exit cause for all arithmetic errors is \T{badarith} (except that
+a few BIFs will give \T{badarg} instead) while in
+\StdErlang\ there are four exit causes, depending on the problem.
+
+\item[\S\ref{section:scope}]
+The scope of variables is different in \OldErlang\ and \StdErlang. In \StdErlang\
+the binding occurrence can be determined at compile-time while in \OldErlang\ it
+cannot, in general.  This forces \OldErlang\ to verify that for \emph{any} order of
+evaluation that can be chosen, no applied variable occurrence will be unbound.
+
+\item[\S\ref{section:evorder}]
+In \OldErlang\ it is not defined in which order the subexpressions of an expression
+will be evaluated, except that a body is evaluated from left to right.  In \StdErlang\
+there is a left-to-right order also for arguments of function applications, list
+literals, etc.
+
+\item[\S\ref{section:patterns}]
+In \StdErlang\ there is an additional pattern \T{$\Z{P}_1$ = $\Z{P}_2$} that will
+match a term if, and only if, both $\TZ{P}_1$ and $\TZ{P}_2$ match it.
+
+\item[\S\ref{section:function-application}]
+The order in which shadowing will be resolved is different in \OldErlang\ and
+\StdErlang.
+
+\item[\S\ref{section:appl-unnamed-function}]
+If an application of an explicit \T{fun} expression completes
+abruptly because there is no clause with a matching pattern and a successful
+guard, it exits with reason
+\T{\{lambda_clause,\{\Z{Mod},\Z{T},[$\Z{v}_1$,\tdots,$\Z{v}_{\TZm{n}}$]\}\}}
+in \StdErlang\ but
+\T{\{lambda_clause,\{\Z{Mod},[$\Z{v}_1$,\tdots,$\Z{v}_{\TZm{n}}$]\}\}}
+in \OldErlang.  \TZ{T} is an implementation-defined term.
+
+\item[\S\ref{section:catch}]
+In \OldErlang\ \T{catch} expressions are the only expressions for restoring
+normal mode of evaluation.
+
+\item[\ifStd\S\ref{section:intdiv-f}\fi\ifOld\S\ref{section:multiplicative}\fi]
+In \StdErlang\ there is an operator \T{//} for integer division with rounding
+towards negative infinity.
+
+\item[\ifStd\S\ref{section:intmod}\fi\ifOld\S\ref{section:multiplicative}\fi]
+In \StdErlang\ there is an operator \T{mod} for integer remainder with rounding
+towards negative infinity.
+
+\item[\S\ref{section:unaryplus}]
+In \OldErlang\ the unary \T{+} operator can be applied to a term of any type.
+In \StdErlang\ it can only be applied to numbers.
+
+\item[\S\ref{section:tuple-skeletons}]
+In \StdErlang\ there is no restriction on the size of tuple skeletons while in
+\OldErlang\ they can have at most 255 elements.
+
+\item[\ifStd\S\ref{section:alltrue-exprs}\fi\ifOld\S\ref{section:primary-exprs}\fi]
+In \StdErlang\ there are expressions \T{all_true $\Z{E}_1$ ; \tdots ; $\Z{E}_k$ end}
+for expressing nonstrict conjunction.
+
+\item[\ifStd\S\ref{section:sometrue-exprs}\fi\ifOld\S\ref{section:primary-exprs}\fi]
+In \StdErlang\ there are expressions \T{some_true $\Z{E}_1$ ; \tdots ; $\Z{E}_k$ end}
+for expressing nonstrict disjunction.
+
+\item[\ifStd\S\ref{section:cond-expr}\fi\ifOld\S\ref{section:primary-exprs}\fi]
+In \StdErlang\ there are \T{cond} expressions
+for expressing \T{if}-like choices but where the conditions are arbitrary Boolean
+expressions rather than guards.
+
+\item[\ifStd\S\ref{section:try-expr}\fi\ifOld\S\ref{section:primary-exprs}\fi]
+In \StdErlang\ there are \T{try} expressions that are more powerful than
+\T{catch} expressions for capturing abrupt completion.
+
+\T{try} expressions have the following advantages over \T{catch} expressions:
+\begin{itemize}
+\item It is possible to distinguish safely between the three possible
+outcomes of evaluating an expression:
+\begin{itemize}
+\item Normal completion.
+\item Abrupt completion due to a \T{throw}.
+\item Abrupt completion due to an \T{exit} (possibly caused by an error).
+\end{itemize}
+As an example, here is how to define a function \T{foo_with_log/1} which
+is exactly like a function \T{foo/1} except that on abrupt completion,
+the reason is logged:
+\begin{verbatim}
+foo_with_log(X) ->
+    try
+        foo(X)
+    catch
+        {'THROW',T} ->
+            io:format(logger,
+                      "foo(~w) threw ~w.\n",
+                      [X,T]),
+            throw(T) ;
+        {'EXIT',E} ->
+            io:format(logger,
+                      "foo(~w) exited due to ~w.\n",
+                      [X,E]),
+            exit(E)
+    end.
+\end{verbatim}
+\item It is possible to catch only certain thrown terms or exits.  For example,
+in the following function, throws of a particular reference \T{BadSyntax} are
+caught but any other thrown terms or exits still cause abrupt completion of the
+function and can be caught outside it:
+\begin{verbatim}
+read_entry_safely(Device) ->
+    BadSyntax = make_ref(),
+    try
+        read_entry(Device,BadSyntax)
+    catch
+        {'THROW',BadSyntax} ->
+            recover(Device),
+            read_entry_safely(Device)
+    end.
+\end{verbatim}
+The function above shows a useful programming idiom.
+\item \T{try} expressions do not have the syntactic inconvenience of \T{catch}
+expressions (that many expressions have to be enclosed in parentheses when
+being the argument of \T{catch} and that one has to use \T{begin} \ldots\ \T{end}
+in order to give a body to \T{catch}).
+\end{itemize}
+
+\item[\S\ref{section:signals}]
+In the signal model of \OldErlang, there are three kinds of signals that are not included
+in \StdErlang: \I{Suspend/resume request}, \I{Garbage collection request} and
+\I{Trace/notrace request}.
+
+\item[\S\ref{section:process-state-dynamic}]
+In \StdErlang\ it is possible for a process to \emph{monitor} another. It is like
+monitoring of nodes but for processes.  It is like linking but one-way.
+
+\item[\S\ref{section:magic-cookie}]
+In \OldErlang\ the magic cookie mechanism is used only for messages, not for other communication.
+In \StdErlang\ all communication between nodes is subject to magic cookies.
+
+\item[\S\ref{section:opening-ports}]
+In \OldErlang\ the first argument to the BIF \T{open_port/2} can be an atom or
+a string.  This is not included in \StdErlang\ (but \NewErlang\ may well inlude it).
+
+\item[\S\ref{chapter:bifs}]
+There are (proposed) changes to the exit causes.  For example:
+
+In \StdErlang, only if abnormal completion of a BIF was because there was something
+wrong with the
+value of an argument, e.g., is was of the wrong type or it was an index
+outside the meaningful range, the exit cause will be \T{badarg}.  In \OldErlang,
+\T{badarg} is given for various conditions.
+
+In \StdErlang\ some BIFs will give a new exit \T{badindex} if they are given an
+index argument that is not in the permitted range.
+
+\item[\S\ref{section:recognizer-bifs}]
+In \StdErlang\ the recognizer BIFs all have names that begin with \T{is_} and there
+have been some additions and changes in the repertoire.
+
+\item[\ifStd\S\ref{section:sign1}\fi\ifOld\S\ref{section:number-bifs}\fi]
+In \StdErlang\ there is a new BIF \T{sign/1}.
+
+\item[\S\ref{section:termtobinary1}]
+The presence of functions in \StdErlang\ and the fact that they cannot be portably
+communicated means that \T{term_to_binary/1} may exit if given a term containing a
+function.
+
+\item[\ifOld\S\ref{section:listtopid1}\fi\ifStd\S\ref{section:process-bifs}\fi]
+The BIFs \T{list_to_pid/1} and \T{pid_to_list/1} are not part of \StdErlang\
+(but may well be included in \NewErlang).
+
+\item[\S\ref{section:atom-tables}]
+In \StdErlang\ the size of atom tables is an implementation-dependent constant
+whereas in \OldErlang\ it is always 256.
+\end{Lentry}

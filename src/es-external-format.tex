@@ -1,0 +1,234 @@
+%
+% %CopyrightBegin%
+%
+% Copyright Ericsson AB 2017. All Rights Reserved.
+%
+% Licensed under the Apache License, Version 2.0 (the "License");
+% you may not use this file except in compliance with the License.
+% You may obtain a copy of the License at
+%
+%     http://www.apache.org/licenses/LICENSE-2.0
+%
+% Unless required by applicable law or agreed to in writing, software
+% distributed under the License is distributed on an "AS IS" BASIS,
+% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+% See the License for the specific language governing permissions and
+% limitations under the License.
+%
+% %CopyrightEnd%
+%
+
+\chapter{The external term format}
+
+\label{chapter:external-format}
+\index{term!external format|(}
+
+The external term format is a representation of any \Erlang\ term
+\ifStd (although possibly subject to tighter implementation limits than elsewhere) \fi
+as a sequence of bytes.  It is used as part of the \Erlang\
+distribution protocol but can also be accessed explicitly through the
+BIFs
+\ifOld \T{binary_to_term/1}\index{binary_to_term/1 BIF@\T{binary_to_term/1} BIF}
+(\S\ref{section:binarytoterm1}) \fi
+\ifStd \T{binary:to_term/1}\index{binary:to_term/1 BIF@\T{binary:to_term/1} BIF}
+(\S\ref{section:binary:toterm1}) \fi
+and
+\ifOld \T{term_to_binary/1}\index{term_to_binary/1 BIF@\T{term_to_binary/1} BIF}
+(\S\ref{section:termtobinary1}),\fi
+\ifStd \T{term:to_binary/1}\index{term:to_binary/1 BIF@\T{term:to_binary/1} BIF}
+(\S\ref{section:term:tobinary1}),\fi
+in which a sequence of bytes is represented as
+a binary.
+
+The version of the external term format described here is 4.7.  It can
+be recognized by the sequence of bytes beginning with a byte \T{131}.
+Future versions of the external term format that are not compatible
+with version 4.7 must begin the sequence of bytes differently.
+
+We will describe the external term format as a function
+$\I{TermRep}_{4.7}$ that given an \Erlang\ term returns a sequence of
+bytes.  We use a mathematical notation rather than \Erlang\ function
+declarations, although it would not be difficult to transform our
+function definitions to an \Erlang\ program that returns a list of
+bytes.
+
+\section{Context}
+
+\label{section:atom-tables}
+
+The transformation from a term to a sequence of bytes is context-dependent.
+We assume that we can access the name of the node on which a term \T{t}
+resides.
+
+\index{node!atom table|(}
+\ifOld
+There is also an \emph{atom table} that has 256 rows with keys
+$0$ to $255$, each of which has an \Erlang\ atom as value.
+\fi
+\ifStd
+There is also an \emph{atom table} with keys $0$ to
+$\mathit{atom_table_size}-1$ (where $\mathit{atom_table_size}$ is an
+implementation-defined parameter), each of which has an \Erlang\ atom
+as value.
+\fi
+Its purpose is to reduce the communication when terms are being
+transmitted between two nodes (although it would be possible to use an
+atom table also, for example, when writing terms to a file).  The idea
+is that every node has one atom table for each of its
+friends\index{node!friendship} (\S\ref{chapter:nodes}).  Two nodes
+that are friends, say $\TZ{N}_1$ and $\TZ{N}_2$, agree to ensure that
+$\TZ{N}_1$'s atom table for $\TZ{N}_2$ (i.e.,
+\T{atom_tables[$\Z{N}_1$]($\Z{N}_2$)}\index{atom_tables node property@\T{atom_tables} node property},
+cf.\ \S\ref{section:node-state-dynamic})
+will have the same contents as
+$\TZ{N}_2$'s atom table for
+$\TZ{N}_1$ (i.e., \T{atom_tables[$\Z{N}_2$]($\Z{N}_1$)}).
+
+When an atom \TZ{A} is to be transmitted from node $\TZ{N}_1$ to
+node $\TZ{N}_2$, the following
+happens at node $\TZ{N}_1$.  First a hash value \TZ{I} between 0 and
+\ifOld 255 \fi
+\ifStd $\mathit{atom_table_size}-1$ \fi
+is computed for \TZ{A} (cf.\ \S\ref{chapter:hashing}).  Then row
+\TZ{I} of $\TZ{N}_1$'s atom table for $\TZ{N}_2$ is inspected.  If
+that row has \TZ{A} as value, then only \TZ{I} is transmitted to
+$\TZ{N}_2$ because it is assumed that also $\TZ{N}_2$'s atom table for
+$\TZ{N}_1$ has \TZ{A} as value for \TZ{I}.  Otherwise row \TZ{I} of
+$\TZ{N}_1$'s atom table for $\TZ{N}_2$ is updated to contain \TZ{A}
+and the whole printname of \TZ{A} is transmitted together with \TZ{I}
+to $\TZ{N}_2$.  Note that sequences of bytes must be transformed back
+into terms at node $\TZ{N}_2$ in the same order as they were produced
+at node $\TZ{N}_1$, for the atom tables to have the correct contents
+at all times.
+\index{node!atom table|)}
+
+\section{Definitions}
+
+We will use the following auxiliary functions.  When we write that
+something is an error, it means that the transformation should fail.
+
+\begin{itemize}
+\item $\I{BE}(k,i)$ (for Big Endian) is the sequence of bytes
+$\TZ{b}_1$, \ldots, $\TZ{b}_k$ such that
+$\I{BigEndianValue}(\langle\TZ{b}_1, \ldots, \TZ{b}_k\rangle)$ is $i$.
+It is an error if $i\notin[0,256^k-1]$.
+\item $\I{BES}(k,i)$ (for Big Endian Signed) is the sequence of bytes
+$\TZ{b}_1$, \ldots, $\TZ{b}_k$ such that $\I{BigEndianSignedValue}(\langle\TZ{b}_1, \ldots, \TZ{b}_k\rangle)$ is $i$.
+It is an error if $i\notin[0,256^k-1]$.
+\item $\I{ID}(\TZ{t})$, where \TZ{t} is a ref or a port, is the value of
+\T{ID[\Z{t}]}, which uniquely identifies the ref or port on the node on
+which it resides.
+\ifOld
+If \TZ{t} is a PID, $\I{ID}(\TZ{t})$ is the XXX least significant bits
+of \T{ID[\Z{t}]}, cf.\ $\I{PS}(\TZ{t})$.
+\fi
+\ifStd
+If \TZ{t} is a PID, $\I{ID}(\TZ{t})$ is the $32$ least significant
+bits of \T{ID[\Z{t}]}, cf.\ $\I{PS}(\TZ{t})$.
+\fi
+\item $\I{FloatString}(f)$ is a sequence of 31 bytes where the first 26 (if $f$ is
+nonnegative) or 27 (if $f$ is negative) are the character codes of the
+string produced by the ISO C \T{printf} facility given the format
+string \T{"\char`\%.20e"} and the remaining 4 or 5 bytes are \T{0}.
+\item $\I{CR}(\TZ{t})$, where \TZ{t} is a ref, PID or port, is the value of
+\T{creation[\Z{t}]} (a nonnegative integer), which distinguishes
+between different invocations of nodes with the same name.
+$\I{CR}(\TZ{t})$ must be in the range $[0,255]$.
+\item $\I{LE}(k,i)$ (for Little Endian) is the unique sequence of bytes
+$\TZ{b}_1$, \ldots, $\TZ{b}_k$ such that $\I{LittleEndianValue}(\langle\TZ{b}_1, \ldots, \TZ{b}_k\rangle)$
+is $i$.  It is an error if $i\notin[0,256^k-1]$.
+\item $\I{Log}(k,i)$ is the base $k$ logarithm of $i$ rounded towards zero.
+It is an error if $i\leq 0$.
+\item $\I{Node}(t)$ is an atom that names the node on which the term $t$ resides.
+\ifOld
+\item $\I{PS}(\TZ{t})$, where \TZ{t} is a PID is \T{ID[\Z{t}]} with the XXX least
+significant bits removed, cf.\ $\I{ID}(\TZ{t})$.
+\fi
+\ifStd
+\item $\I{PS}(\TZ{t})$, where \TZ{t} is a PID is \T{ID[\Z{t}]} with the $32$ least
+significant bits removed, cf.\ $\I{ID}(\TZ{t})$.
+\fi
+%\item $\I{PrintLength}(a)$ is the length of the printname of the atom $a$.
+%\item $\I{PrintName}(a)$ is a sequence of bytes that constitute the character codes
+%of the printname of the atom $a$.  It is an error if the printname of $a$ contains
+%characters with codes greater than 255.
+\item $SignBit(i)$ is \T{0} if $i\geq 0$ and \T{1} if $i<0$.
+%\item $Size(t)$ where $t$ is a tuple or binary is the number of elements it has.
+\end{itemize}
+
+We write a sequence of bytes $b_1$, \ldots, $b_k$ as $\langle
+b_1,\ldots,b_k\rangle$.  Juxtaposition denotes concatenation, so
+\[\langle b_1,\ldots,b_k\rangle
+\langle b'_1,\ldots,b'_l\rangle = \langle b_1,\ldots,b_k,b'_1,\ldots,b'_l\rangle.\]
+
+\section{The transformation}
+
+\[\I{TermRep}_{4.7}(\TZ{T}) = \langle\T{131}\rangle\,\I{TR}_{4.7}(\TZ{T})\]
+
+The value of $\I{TR}_{4.7}(\TZ{T})$ is defined by cases.  When cases
+overlap, either case could be used but the more specific case is
+preferred.
+\begin{itemize}
+\item If \TZ{T} is an integer in the range $[0,255]$, then
+\[\I{TR}_{4.7}(\TZ{T}) = \langle\T{97}\rangle\,\langle\TZ{T}\rangle.\]
+\item If \TZ{T} is an integer in the range $[-2^{31},2^{31}-1]$
+(but typically not in the range $[0,255]$), then
+\[\I{TR}_{4.7}(\TZ{T}) = \langle\T{98}\rangle\,\I{BES}(4,\TZ{T}).\]
+\item If \TZ{T} is an integer in the range $[-(256^{255}-1),256^{255}-1]$
+(but typically not in the range $[-2^{31},2^{31}-1]$), then
+\[\I{TR}_{4.7}(\TZ{T}) =
+\langle\T{110},l,\I{SignBit}(t)\rangle\,\I{LittleEndian}(l,\TZ{T}),\]
+where $l=\I{Log}(256,|\TZ{T}|)+1$.
+\item If \TZ{T} is an integer in the range $[-(256^{2^{32}-1}-1),256^{2^{32}-1}-1]$
+(but typically not in the range $[-(256^{255}-1),256^{255}-1]$), then
+\[\I{TR}_{4.7}(\TZ{T}) =
+\langle\T{111}\rangle\,\I{BE}(4,l)\,
+\langle\I{SignBit}(\TZ{T})\rangle\,
+\I{LittleEndian}(l,|\TZ{T}|),\]
+where $l=\I{Log}(256,|\TZ{T}|)+1$.
+\item If \TZ{T} is a float, then
+\[\I{TR}_{4.7}(\TZ{T}) = \langle\T{99}\rangle,\I{FloatString}(\TZ{T}).\]
+\item If \TZ{T} is an atom where the printname consists of $k$ characters with codes
+$i_1$, \ldots, $i_k$, such that $k\leq255$ and for all $j$, $1\leq j\leq k$,
+$i_1\in[0,255]$, then
+\[\I{TR}_{4.7}(\TZ{T}) = \langle\T{100},\T{0},k,i_1,\ldots,i_k\rangle,\]
+or if the atom is also to be stored in row $p$ of the atom table (where $p\in[0,255]$),
+then
+\[\I{TR}_{4.7}(\TZ{T}) = \langle\T{78},p,\T{0},k,i_1,\ldots,i_k\rangle,\]
+or if the atom is already stored in row $p$ of the atom table (where $p\in[0,255]$),
+then
+\[\I{TR}_{4.7}(\TZ{T}) = \langle\T{67},p\rangle.\]
+\item If \TZ{T} is a ref, then
+\[\I{TR}_{4.7}(\TZ{T}) = \langle\T{101}\rangle\,\I{TR}_{4.7}(\I{Node}(\TZ{T}))\,
+\I{BE}(4,\I{ID}(\TZ{T}))\,\langle\I{CR}(\TZ{T})\rangle.\]
+\item If \TZ{T} is a port, then
+\[\I{TR}_{4.7}(\TZ{T}) = \langle\T{102}\rangle\,\I{TR}_{4.7}(\I{Node}(\TZ{T}))\,
+\I{BE}(4,\I{ID}(\TZ{T})),\langle\I{CR}(\TZ{T})\rangle.\]
+\item If \TZ{T} is a PID, then
+\[\I{TR}_{4.7}(\TZ{T}) = \langle\T{103}\rangle\,\I{TR}_{4.7}(\I{Node}(\TZ{T}))\,
+\I{BE}(4,\I{ID}(\TZ{T}))\,\I{BE}(4,\I{PS}(\TZ{T}))
+\langle\I{CR}(\TZ{T})\rangle.\]
+\item If \TZ{T}is a tuple with elements $\TZ{T}_1$, \ldots, $\TZ{T}_k$, where $k\leq255$, then
+\[\I{TR}_{4.7}(\TZ{T}) = \langle\T{104},k\rangle\,
+\I{TR}_{4.7}(\TZ{T}_1)\,\cdots\,\I{TR}_{4.7}(\TZ{T}_k).\]
+\item If \TZ{T} is a tuple with elements $\TZ{T}_1$, \ldots, $\TZ{T}_k$, where $k\leq2^{32}-1$, then
+\[\I{TR}_{4.7}(\TZ{T}) = \langle\T{104}\rangle\,\I{BE}(4,k)\,
+\I{TR}_{4.7}(\TZ{T}_1)\,\cdots\,\I{TR}_{4.7}(\TZ{T}_k).\]
+\item If \TZ{T} is \T{[]}, then
+\[\I{TR}_{4.7}(\TZ{T}) = \langle\T{106}\rangle.\]
+\item If \TZ{T} is a (typically nonempty) string of Latin-1 characters having codes
+$i_1$, \ldots, $i_k$, where $k\leq2^{16}-1$, then
+\[\I{TR}_{4.7}(\TZ{T}) = \langle\T{107}\rangle\,\I{BE}(2,k)\,
+\langle i_1,\ldots,i_k\rangle.\]
+\item If \TZ{T} is a term \T{[$\TZ{T}_1$,\ldots,$\TZ{T}_k$|$\TZ{T}_{k+1}$]}, where
+$k\leq2^{32}-1$, (but typically not a string covered by the previous case) then
+\[\I{TR}_{4.7}(\TZ{T}) = \langle\T{108}\rangle\,\I{BE}(4,k)\,
+\I{TR}_{4.7}(\TZ{T}_1)\,\cdots\,\I{TR}_{4.7}(\TZ{T}_{k+1}).\]
+\item If \TZ{T} is a binary with elements $i_1$, \ldots, $i_k$, where $k\leq2^{32}-1$, then
+\[\I{TR}_{4.7}(\TZ{T}) = \langle\T{109}\rangle\,\I{BE}(4,k)\,
+\langle i_1,\ldots,i_k\rangle.\]
+\item Otherwise, it is an error.
+\end{itemize}
+
+The inverse transformation is obvious.
+\index{term!external format|)}
