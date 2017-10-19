@@ -19,15 +19,13 @@
 #
 
 LATEX=latex
-#LATEX=/opt/texmf/bin/latex
 DVIPS=dvips -r0
-#DVIPS=/opt/texmf/bin/dvips -r0
 BIBTEX=bibtex
-#BIBTEX=/opt/texmf/bin/bibtex
 MAKEINDEX=makeindex
-TWOPAGE=${HOME}/Bin/2up
-#EXTRACT=${HOME}/Bin/extract_grrules
-EXTRACT=extract_grrules
+TWOPAGE=2up
+EXTRACT=../bin/extract_grrules
+FIXPOINT=../bin/fixpoint
+RM_F=/bin/rm -f
 
 SOURC1=es-lexical-structure.tex
 
@@ -59,6 +57,13 @@ SOURC0=es-release-notes.tex \
 
 SOURCE=es.tex $(SOURC0) $(SOURC1) $(SOURC2) $(SOURC3)
 
+SOURCE_TEX=$(filter %.tex,$(SOURCE))
+GEN_GRAM_TEX=es-lex-gram.tex \
+		es-main-gram.tex \
+		es-preproc-gram.tex
+
+AUX_FILES=$(patsubst %.tex,%.aux,$(SOURCE_TEX)) es.idx
+
 all:	full TAGS
 
 full:	es.ps
@@ -67,6 +72,10 @@ full:	es.ps
 TAGS:	$(SOURCE)
 	etags $(SOURCE)
 
+aux-files: $(GEN_GRAM_TEX)
+	$(LATEX) es 1>/dev/null 2>/dev/null
+	touch aux-files
+
 es.2up.ps:	es.ps
 	$(TWOPAGE) es.ps > es.2up.ps
 
@@ -74,8 +83,11 @@ es.ps:	es.dvi
 	$(DVIPS) -o es.ps es
 	chmod a+r es.ps
 
-es.dvi:	$(SOURCE) es-lex-gram.tex es-main-gram.tex es-preproc-gram.tex es.bbl es.ind
-	$(LATEX) es
+es.dvi:	$(SOURCE) aux-files $(GEN_GRAM_TEX) es.bbl es.ind
+	$(FIXPOINT) $(AUX_FILES) -- $(LATEX) es
+
+es.pdf:	$(SOURCE) aux-files $(GEN_GRAM_TEX) es.bbl es.ind
+	$(FIXPOINT) $(AUX_FILES) -- pdflatex es
 
 old.2up.ps:	old.ps
 	$(TWOPAGE) old.ps > old.2up.ps
@@ -84,7 +96,7 @@ old.ps:	old.dvi
 	$(DVIPS) -o old.ps old
 	chmod a+r old.ps
 
-old.dvi:	$(SOURCE) es-lex-gram.tex es-main-gram.tex es-preproc-gram.tex old.bbl old.ind
+old.dvi:	$(SOURCE) $(GEN_GRAM_TEX) old.bbl old.ind
 	$(LATEX) old
 
 std.2up.ps:	std.ps
@@ -94,7 +106,7 @@ std.ps:	std.dvi
 	$(DVIPS) -o std.ps std
 	chmod a+r std.ps
 
-std.dvi:	$(SOURCE) es-lex-gram.tex es-main-gram.tex es-preproc-gram.tex std.bbl std.ind
+std.dvi:	$(SOURCE) $(GEN_GRAM_TEX) std.bbl std.ind
 	$(LATEX) std
 
 es-lex-gram.tex: $(EXTRACT) $(SOURC1)
@@ -106,13 +118,13 @@ es-main-gram.tex: $(EXTRACT) $(SOURC2)
 es-preproc-gram.tex: $(EXTRACT) $(SOURC3)
 	$(EXTRACT) $(SOURC3) > es-preproc-gram.tex
 
-es.bbl:	es.bib $(SOURCE)
+es.bbl:	aux-files es.bib $(SOURCE)
 	$(BIBTEX) es
 
-es.ind:	es.idx
+es.ind:	aux-files
 	$(MAKEINDEX) es
 
-es.idx: $(SOURCE) es-lex-gram.tex es-main-gram.tex es-preproc-gram.tex
+es.idx: $(SOURCE) $(GEN_GRAM_TEX)
 
 old.bbl:	es.bib $(SOURCE)
 	$(BIBTEX) old
@@ -120,7 +132,7 @@ old.bbl:	es.bib $(SOURCE)
 old.ind:	old.idx
 	$(MAKEINDEX) old
 
-old.idx: $(SOURCE) es-lex-gram.tex es-main-gram.tex es-preproc-gram.tex
+old.idx: $(SOURCE) $(GEN_GRAM_TEX)
 
 std.bbl:	es.bib $(SOURCE)
 	$(BIBTEX) std
@@ -128,7 +140,7 @@ std.bbl:	es.bib $(SOURCE)
 std.ind:	std.idx
 	$(MAKEINDEX) std
 
-std.idx: $(SOURCE) es-lex-gram.tex es-main-gram.tex es-preproc-gram.tex
+std.idx: $(SOURCE) $(GEN_GRAM_TEX)
 
 es-separate-grammar.ps:	es-separate-grammar.dvi
 	$(DVIPS) -o es-separate-grammar.ps es-separate-grammar
@@ -136,3 +148,20 @@ es-separate-grammar.ps:	es-separate-grammar.dvi
 
 es-separate-grammar.dvi:	es-separate-grammar.tex
 	$(LATEX) es-separate-grammar.tex
+
+clean:
+	$(RM_F) aux-files
+	$(RM_F) TAGS
+	$(RM_F) *-gram.tex
+	$(RM_F) *.aux
+	$(RM_F) *.prev
+	$(RM_F) *.bbl
+	$(RM_F) *.dvi
+	$(RM_F) *.idx
+	$(RM_F) *.ind
+	$(RM_F) *.log
+	$(RM_F) *.toc
+	$(RM_F) *.ilg
+	$(RM_F) *.ps
+	$(RM_F) *.pdf
+	$(RM_F) *.blg

@@ -1,0 +1,16 @@
+aux-files
+TAGS
+*-gram.tex
+*.aux
+*.bbl
+*.dvi
+*.idx
+*.ind
+*.log
+*.toc
+*.ilg
+*.ps
+*.pdf
+*.blg
+*.prev
+

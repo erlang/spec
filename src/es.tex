@@ -20,7 +20,7 @@
 
 % Choose one of the following
 %\newcommand{\STYLE}{0} % For \OldErlang
-%\newcommand{\STYLE}{1} % For \StdErlang
+\newcommand{\STYLE}{1} % For \StdErlang
 
 %Choose draft until we're almost there.
 \newif\ifdraft
@@ -60,10 +60,10 @@
 % Not yet available!
 %\usepackage{pict2e} % Better pictures.
 \usepackage{grammar} % Grammar rules.
-\ifdraft
-\usepackage{draftstamp} % Print ``Draft'' shaded on pages.
-\usepackage{drafthead} % Print ``Draft'' etc as page header.
-\fi
+%\ifdraft
+%\usepackage{draftstamp} % Print ``Draft'' shaded on pages.
+%\usepackage{drafthead} % Print ``Draft'' etc as page header.
+%\fi
 %\usepackage{calc}
 \usepackage{ifthen}
 \usepackage{makeidx}
@@ -72,7 +72,7 @@
 \ifdraft
 \newcommand{\draftvsn}{0.7}
 \newcommand{\Draft}[1]{\textsc{Draft}~#1}
-\renewcommand{\draftheadnote}{\Draft{\draftvsn}}
+%\renewcommand{\draftheadnote}{\Draft{\draftvsn}}
 \fi
 
 \newif\ifOld \if1\STYLE\Oldfalse\else\Oldtrue\fi
