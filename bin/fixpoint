@@ -55,12 +55,18 @@ while [ $changed = true ]; do
     eval $cmd 1>/dev/null 2>/dev/null
     changed=false
     for f in $files; do
-	[ -e "$f" ] || { echo "Missing $f" 1>&2; exit 1; }
-	if [ -e "$f.prev" ]; then
-	    diff "$f" "$f.prev" 1>/dev/null 2>/dev/null || changed=true
+	if [ -e "$f" ]; then
+	    if [ -e "$f.prev" ]; then
+		diff "$f" "$f.prev" 1>/dev/null 2>/dev/null || changed=true
+	    else
+		changed=true
+	    fi
+	    cp "$f" "$f.prev"
 	else
-	    changed=true
+	    if [ -e "$f.prev" ]; then
+		changed=true
+		rm "$f.prev"
+	    fi
 	fi
-	cp "$f" "$f.prev"
     done
 done
