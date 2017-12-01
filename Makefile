@@ -21,23 +21,17 @@
 RM_F=/bin/rm -f
 CP=/bin/cp
 
-.SECONDARY:
+all: srcdir erlang-spec.pdf
 
-.PHONY: src_ps src_pdf
-
-ps: src_ps erlang-spec.ps
-
-pdf: src_pdf erlang-spec.pdf
-
-src_ps:
-	(cd src && $(MAKE) es.ps)
-
-src_pdf:
-	(cd src && $(MAKE) es.pdf)
+.SUFFIXES: .pdf .ps
 
 erlang-spec.%: src/es.%
 	$(CP) $< $@
 
+.PHONY: srcdir
+srcdir src/es.ps src/es.pdf:
+	cd src && $(MAKE) es.ps es.pdf
+
 clean:
-	(cd src && $(MAKE) clean)
-	$(RM_F) erlang-spec.ps erlang-spec.pdf
+	cd src && $(MAKE) $@
+	$(RM_F) erlang-spec.pdf erlang-spec.ps
