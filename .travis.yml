@@ -1,0 +1,10 @@
+os: linux
+## We use r as language in order to get pdflatex
+language: r
+
+## install is needed for r
+install:
+  - echo "dummy"
+
+script:
+  - make
